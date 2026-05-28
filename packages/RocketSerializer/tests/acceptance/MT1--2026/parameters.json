@@ -1,0 +1,127 @@
+{
+    "id": {
+        "rocket_name": "Rocket",
+        "comment": null,
+        "designer": null,
+        "filepath": "examples/MT1--2026/v1.5.0/rocket.ork"
+    },
+    "environment": {
+        "latitude": 38.37122612,
+        "longitude": -0.58481587,
+        "elevation": 120.40156562,
+        "wind_average": 2.0,
+        "wind_turbulence": 0.1,
+        "geodetic_method": "spherical",
+        "base_temperature": null,
+        "base_pressure": null,
+        "date": null
+    },
+    "rocket": {
+        "radius": 0.03,
+        "mass": 1.293,
+        "inertia": [
+            0.0009109,
+            0.0009109,
+            0.171
+        ],
+        "center_of_mass_without_propellant": 0.657,
+        "coordinate_system_orientation": "nose_to_tail",
+        "drag_curve": "tests/acceptance/MT1--2026/drag_curve.csv"
+    },
+    "nosecones": {
+        "name": "Ojiva",
+        "kind": "ellipsoid",
+        "length": 0.17400000000000002,
+        "base_radius": 0.03,
+        "position": 0.0
+    },
+    "trapezoidal_fins": {},
+    "elliptical_fins": {},
+    "freeform_fins": {
+        "0": {
+            "name": "Aletas de forma libre",
+            "number": 4,
+            "cant_angle": 0.0,
+            "position": 1.39,
+            "section": "airfoil",
+            "shape_points": [
+                [
+                    0.0,
+                    0.0
+                ],
+                [
+                    0.15,
+                    0.07
+                ],
+                [
+                    0.2,
+                    0.07
+                ],
+                [
+                    0.2,
+                    0.0
+                ]
+            ]
+        }
+    },
+    "tails": {},
+    "parachutes": {
+        "0": {
+            "name": "Paracaídas",
+            "cd": 1.6,
+            "cds": 0.3529893505573492,
+            "area": 0.22061834409834324,
+            "deploy_event": "apogee",
+            "deploy_delay": 0.0,
+            "deploy_altitude": null
+        }
+    },
+    "rail_buttons": {
+        "name": "Rail Button medio",
+        "upper_position": 1.2389999999999999,
+        "lower_position": 1.359,
+        "distance": 0.1200000000000001,
+        "angular_position": 0.0
+    },
+    "motors": {
+        "grain_density": 802.735443071147,
+        "grain_initial_inner_radius": 0.0095,
+        "grain_outer_radius": 0.019,
+        "grain_initial_height": 0.186,
+        "nozzle_radius": 0.014249999999999999,
+        "throat_radius": 0.0095,
+        "dry_mass": 0,
+        "dry_inertia": [
+            0,
+            0,
+            0
+        ],
+        "center_of_dry_mass_position": 0,
+        "grains_center_of_mass_position": 0,
+        "grain_number": 1,
+        "grain_separation": 0,
+        "nozzle_position": -0.093,
+        "coordinate_system_orientation": "nozzle_to_combustion_chamber",
+        "position": 1.0962142857142847,
+        "thrust_source": "tests/acceptance/MT1--2026/thrust_source.csv"
+    },
+    "flight": {
+        "rail_length": 2.0,
+        "inclination": 87.0,
+        "heading": 90.0
+    },
+    "stored_results": {
+        "max_altitude": 586.302,
+        "max_velocity": 114.696,
+        "max_acceleration": 75.693,
+        "max_mach": 0.339,
+        "time_to_apogee": 11.255,
+        "flight_time": 78.756,
+        "ground_hit_velocity": 8.881,
+        "launch_rod_velocity": 15.074,
+        "max_stability_margin": 3.722,
+        "min_stability_margin": 0.0,
+        "burnout_stability_margin": 3.705,
+        "max_thrust": 152.496
+    }
+}

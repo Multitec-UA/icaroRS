@@ -1,0 +1,114 @@
+{
+    "id": {
+        "rocket_name": "Valetudo",
+        "comment": "Foguete voou no fim da tarde do dia 10 de agosto de 2019, mais precisamente às 17:56 no horário de Brasília. O apogeu registrado pelo altímetro comercial RRC3 foi de 872 metros, enquanto que nossas estimativas feitas com o uso do Rocketpy foram de 840-850 metros",
+        "designer": "Projeto Jupiter - Gerência 2019-2020",
+        "filepath": "examples/ProjetoJupiter--Valetudo--2019/rocket.ork"
+    },
+    "environment": {
+        "latitude": -23.36417778,
+        "longitude": -48.0,
+        "elevation": 668.0,
+        "wind_average": 3.26,
+        "wind_turbulence": 0.1,
+        "geodetic_method": "wgs84",
+        "base_temperature": 300.76,
+        "base_pressure": 94311.0,
+        "date": null
+    },
+    "rocket": {
+        "radius": 0.04045000000000001,
+        "mass": 8.2564,
+        "inertia": [
+            0.01467,
+            0.01467,
+            5.5915
+        ],
+        "center_of_mass_without_propellant": 1.4023,
+        "coordinate_system_orientation": "nose_to_tail",
+        "drag_curve": "tests/acceptance/ProjetoJupiter--Valetudo--2019/drag_curve.csv"
+    },
+    "nosecones": {
+        "name": "Ogiva",
+        "kind": "Von Karman",
+        "length": 0.274169,
+        "base_radius": 0.04045000000000001,
+        "position": 0.0
+    },
+    "trapezoidal_fins": {
+        "0": {
+            "name": "Conjunto de aletas trapezoidais",
+            "number": 3,
+            "root_chord": 0.058,
+            "tip_chord": 0.018000000000000002,
+            "span": 0.077,
+            "position": 2.321969,
+            "sweep_length": 0.03933010329337934,
+            "sweep_angle": null,
+            "cant_angle": 0.0,
+            "section": "square"
+        }
+    },
+    "elliptical_fins": {},
+    "freeform_fins": {},
+    "tails": {},
+    "parachutes": {
+        "0": {
+            "name": "Drogue_chute",
+            "cd": 0.975,
+            "cds": 0.4540210068013884,
+            "area": 0.4656625710783471,
+            "deploy_event": "apogee",
+            "deploy_delay": 1.73,
+            "deploy_altitude": null
+        }
+    },
+    "rail_buttons": {
+        "name": "Guia de lançamento",
+        "upper_position": 1.147669,
+        "lower_position": 2.399169,
+        "distance": 1.2515,
+        "angular_position": 29.999999999999996
+    },
+    "motors": {
+        "grain_density": 1728.4572172886988,
+        "grain_initial_inner_radius": 0.0107,
+        "grain_outer_radius": 0.0214,
+        "grain_initial_height": 0.756,
+        "nozzle_radius": 0.01605,
+        "throat_radius": 0.0107,
+        "dry_mass": 0,
+        "dry_inertia": [
+            0,
+            0,
+            0
+        ],
+        "center_of_dry_mass_position": 0,
+        "grains_center_of_mass_position": 0,
+        "grain_number": 1,
+        "grain_separation": 0,
+        "nozzle_position": -0.378,
+        "coordinate_system_orientation": "nozzle_to_combustion_chamber",
+        "position": 2.052896709219859,
+        "thrust_source": "tests/acceptance/ProjetoJupiter--Valetudo--2019/thrust_source.csv"
+    },
+    "flight": {
+        "rail_length": 5.7,
+        "inclination": 84.7,
+        "heading": 90.0
+    },
+    "stored_results": {
+        "max_altitude": 882.42,
+        "max_velocity": 125.47,
+        "max_acceleration": 108.52,
+        "max_mach": 0.36177,
+        "time_to_apogee": 14.65,
+        "flight_time": 64.161,
+        "ground_hit_velocity": 18.146,
+        "launch_rod_velocity": 26.397,
+        "max_stability_margin": 3.2714,
+        "min_stability_margin": 0.0,
+        "burnout_stability_margin": 2.4363,
+        "max_thrust": 1067.7
+    }
+}

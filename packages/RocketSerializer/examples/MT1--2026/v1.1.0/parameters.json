@@ -1,0 +1,100 @@
+{
+    "elliptical_fins": {},
+    "environment": {
+        "base_pressure": null,
+        "base_temperature": null,
+        "date": null,
+        "elevation": 120.40156562,
+        "geodetic_method": "spherical",
+        "latitude": 38.37122612,
+        "longitude": -0.58481587,
+        "wind_average": 2.0,
+        "wind_turbulence": 0.1
+    },
+    "flight": {
+        "heading": 90.0,
+        "inclination": 87.0,
+        "rail_length": 2.0
+    },
+    "id": {
+        "comment": null,
+        "designer": null,
+        "filepath": "examples/MT1--2026/rocket.ork",
+        "rocket_name": "MT-1"
+    },
+    "motors": {
+        "center_of_dry_mass_position": 0,
+        "coordinate_system_orientation": "nozzle_to_combustion_chamber",
+        "dry_inertia": [
+            0,
+            0,
+            0
+        ],
+        "dry_mass": 0,
+        "grain_density": 889.4794409081969,
+        "grain_initial_height": 0.152,
+        "grain_initial_inner_radius": 0.0095,
+        "grain_number": 1,
+        "grain_outer_radius": 0.019,
+        "grain_separation": 0,
+        "grains_center_of_mass_position": 0,
+        "nozzle_position": -0.076,
+        "nozzle_radius": 0.014249999999999999,
+        "position": 0.8990350877192981,
+        "throat_radius": 0.0095,
+        "thrust_source": "docker_test_output/thrust_source.csv"
+    },
+    "nosecones": {
+        "base_radius": 0.029,
+        "kind": "ellipsoid",
+        "length": 0.17400000000000002,
+        "name": "Ojiva",
+        "position": 0.0
+    },
+    "parachutes": {
+        "0": {
+            "area": 0.22061834409834324,
+            "cd": 1.6,
+            "cds": 0.3529893505573492,
+            "deploy_altitude": null,
+            "deploy_delay": 0.0,
+            "deploy_event": "apogee",
+            "name": "Paracaídas"
+        }
+    },
+    "rail_buttons": {
+        "angular_position": 0.0,
+        "distance": 0.40000000000000013,
+        "lower_position": 1.5910000000000002,
+        "name": "Rail Button alto",
+        "upper_position": 1.191
+    },
+    "rocket": {
+        "center_of_mass_without_propellant": 0.582,
+        "coordinate_system_orientation": "nose_to_tail",
+        "drag_curve": "docker_test_output/drag_curve.csv",
+        "inertia": [
+            0.001,
+            0.001,
+            0.108
+        ],
+        "mass": 0.949,
+        "radius": 0.029
+    },
+    "stored_results": {
+        "burnout_stability_margin": 3.503,
+        "flight_time": 167.737,
+        "ground_hit_velocity": 6.894,
+        "launch_rod_velocity": 30.507,
+        "max_acceleration": 226.344,
+        "max_altitude": 1042.441,
+        "max_mach": 0.637,
+        "max_stability_margin": 3.547,
+        "max_thrust": 247.21,
+        "max_velocity": 216.038,
+        "min_stability_margin": 0.0,
+        "time_to_apogee": 13.037
+    },
+    "tails": {},
+    "trapezoidal_fins": {}
+}

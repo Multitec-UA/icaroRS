@@ -1,0 +1,7 @@
+black[jupyter]
+pylint
+isort
+flake8
+mypy
+pytest==7.4.0
+pytest-coverage
