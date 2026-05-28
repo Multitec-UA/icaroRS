@@ -5,10 +5,17 @@ settings dict returned by ork_extractor always contains the 'freeform_fins' key
 regardless of whether any freeform fins are present in the .ork file.
 """
 
+import sys
 from unittest.mock import MagicMock, patch
 
-import pytest
 from bs4 import BeautifulSoup
+
+# Force-import the submodule, then retrieve it from sys.modules — `import as`
+# and `getattr(package, name)` would both return the FUNCTION because the
+# package `__init__.py` does `from .ork_extractor import ork_extractor`,
+# rebinding the package-level attribute from the module to the function.
+import rocketserializer.ork_extractor  # noqa: F401
+_ork_module = sys.modules["rocketserializer.ork_extractor"]
 
 # ---------------------------------------------------------------------------
 # Minimal XML stubs — realistic enough for __init_vectors and the element
@@ -47,23 +54,22 @@ def _make_bs():
     return BeautifulSoup(_MINIMAL_XML, "xml")
 
 
-# ---------------------------------------------------------------------------
-# Helper: patch every I/O call inside ork_extractor so we never touch disk
-# or the JVM.  Each search_* function returns a minimal valid dict or list.
-# ---------------------------------------------------------------------------
-
-_PATCH_BASE = "rocketserializer.ork_extractor"
+# Patching is done via `patch.object` against the actual module reference
+# (`_ork_module`) rather than the dotted string `rocketserializer.ork_extractor.X`.
+# Reason: the package `__init__.py` does `from .ork_extractor import ork_extractor`,
+# which rebinds `rocketserializer.ork_extractor` (the package attribute) from the
+# module to the FUNCTION. `mock.patch("rocketserializer.ork_extractor.X")` would
+# then resolve `ork_extractor` to the function and fail with AttributeError on `X`.
 
 
 def _build_patches(freeform_return_value):
-    """Return the list of patch targets and their return values."""
+    """Return the list of (attribute_name, return_value) pairs to patch on the module."""
     return [
-        (f"{_PATCH_BASE}.search_motor", {"dry_mass": 0.1, "position": 0}),
-        (f"{_PATCH_BASE}.__get_motor_mass", (0.1, 0.1, 0.0)),
-        (f"{_PATCH_BASE}.search_id_info", {}),
-        (f"{_PATCH_BASE}.search_environment", {}),
+        ("search_motor", {"dry_mass": 0.1, "position": 0}),
+        ("search_id_info", {}),
+        ("search_environment", {}),
         (
-            f"{_PATCH_BASE}.search_rocket",
+            "search_rocket",
             (
                 {
                     "radius": 0.05,
@@ -74,17 +80,17 @@ def _build_patches(freeform_return_value):
                 0.0,
             ),
         ),
-        (f"{_PATCH_BASE}.search_launch_conditions", {}),
-        (f"{_PATCH_BASE}.process_elements_position", {}),
-        (f"{_PATCH_BASE}.search_nosecone", {}),
-        (f"{_PATCH_BASE}.search_trapezoidal_fins", {}),
-        (f"{_PATCH_BASE}.search_elliptical_fins", {}),
-        (f"{_PATCH_BASE}.search_free_form_fins", freeform_return_value),
-        (f"{_PATCH_BASE}.search_transitions", {}),
-        (f"{_PATCH_BASE}.search_rail_buttons", {}),
-        (f"{_PATCH_BASE}.search_parachutes", {}),
+        ("search_launch_conditions", {}),
+        ("process_elements_position", {}),
+        ("search_nosecone", {}),
+        ("search_trapezoidal_fins", {}),
+        ("search_elliptical_fins", {}),
+        ("search_free_form_fins", freeform_return_value),
+        ("search_transitions", {}),
+        ("search_rail_buttons", {}),
+        ("search_parachutes", {}),
         (
-            f"{_PATCH_BASE}.search_stored_results",
+            "search_stored_results",
             {
                 "time_to_apogee": 10.0,
                 "flight_time": 30.0,
@@ -100,8 +106,8 @@ def _build_patches(freeform_return_value):
                 "min_stability_margin": 1.0,
             },
         ),
-        (f"{_PATCH_BASE}.save_drag_curve", "drag.csv"),
-        (f"{_PATCH_BASE}.generate_thrust_curve", "thrust.csv"),
+        ("save_drag_curve", "drag.csv"),
+        ("generate_thrust_curve", "thrust.csv"),
     ]
 
 
@@ -113,25 +119,31 @@ def _run_extractor(freeform_return_value):
     ork = MagicMock()
 
     patches = _build_patches(freeform_return_value)
-    with patch(
-        f"{_PATCH_BASE}._NotebookBuilder__get_motor_mass",
-        return_value=(0.1, 0.1, 0.0),
-        create=True,
-    ):
-        # Apply all patches via nested context managers built dynamically
-        active = [patch(target, return_value=rv) for target, rv in patches]
+    active = [
+        patch.object(_ork_module, name, return_value=rv) for name, rv in patches
+    ]
+    # __get_motor_mass uses leading dunder (module-level, no name mangling at import
+    # time but `patch.object` still resolves it via getattr — passes through fine).
+    active.append(
+        patch.object(
+            _ork_module,
+            "__get_motor_mass",
+            return_value=(0.1, 0.1, 0.0),
+            create=True,
+        )
+    )
+    for p in active:
+        p.start()
+    try:
+        result = ork_extractor(
+            bs=bs,
+            filepath="fake.ork",
+            output_folder="/tmp/fake_output",
+            ork=ork,
+        )
+    finally:
         for p in active:
-            p.start()
-        try:
-            result = ork_extractor(
-                bs=bs,
-                filepath="fake.ork",
-                output_folder="/tmp/fake_output",
-                ork=ork,
-            )
-        finally:
-            for p in active:
-                p.stop()
+            p.stop()
     return result
 
 
