@@ -1,6 +1,14 @@
-# AI Agents Context for RocketPy
+# AI Agents Context for icaroRS
 
-Welcome, AI Agent! This file provides essential context, architectural understanding, and guidelines for interacting with the RocketPy repository. Please read this carefully to ensure your contributions align with the project's goals.
+> **Monorepo context**: This repo is `icaroRS` — Multitec's unified rocket simulation project. It contains TWO Python libraries: `rocketpy/` (RocketPy core, at the root) and `packages/RocketSerializer/rocketserializer/` (RocketSerializer subpackage). The library names (`rocketpy` and `rocketserializer`) are intentionally preserved — they match the upstream API. Only the **monorepo / repo** identity changed to icaroRS.
+>
+> For RocketSerializer-specific conventions and gotchas, see `.atl/skill-registry.md`.
+
+The rest of this document describes the **RocketPy core library** conventions specifically.
+
+---
+
+Welcome, AI Agent! This file provides essential context, architectural understanding, and guidelines for interacting with the RocketPy code (at the repo root, under `rocketpy/`). Please read this carefully to ensure your contributions align with the project's goals.
 
 ## Project Overview
 

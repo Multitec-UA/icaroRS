@@ -1,3 +1,11 @@
+# icaroRS
+
+> Multitec's unified rocket simulation monorepo. Contains [**RocketPy**](https://github.com/RocketPy-Team/RocketPy) (6-DOF trajectory simulation library, at the repo root) and [**RocketSerializer**](https://github.com/RocketPy-Team/RocketSerializer) (OpenRocket `.ork` → RocketPy params converter, under `packages/RocketSerializer/`), both maintained as Multitec internal forks. CI runs the two test suites independently on every PR.
+
+The rest of this README documents the underlying **RocketPy library** as authored upstream — its API, capabilities and usage are unchanged.
+
+---
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/RocketPy-Team/RocketPy/master/docs/static/RocketPy_Logo_white.png">
   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/RocketPy-Team/RocketPy/master/docs/static/RocketPy_Logo_black.png">
