@@ -56,7 +56,7 @@ jobs:
       - name: Confirm Java + OpenRocket jar are reachable
         run: |
           java -version
-          ls -lh tests/OpenRocket-23.09.jar
+          ls -lh OpenRocket-23.09.jar
 
       - name: Run Unit Tests
         run: pytest tests/unit -v
