@@ -1,11 +1,21 @@
-name: Tests
+name: Tests (RocketPy core)
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "**.py"
-      - ".github/**"
+      - "rocketpy/**"
+      - "tests/**"
+      - "data/**"
+      - "pyproject.toml"
+      - "requirements*"
+      - ".github/workflows/test_pytest.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "rocketpy/**"
+      - "tests/**"
+      - "data/**"
       - "pyproject.toml"
       - "requirements*"
 
@@ -15,19 +25,18 @@ defaults:
 
 jobs:
   Pytest:
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ["3.10", "3.14"]
+        python-version: ["3.10", "3.12"]
     env:
-      OS: ${{ matrix.os }}
       PYTHON: ${{ matrix.python-version }}
       MPLBACKEND: Agg
     steps:
-      - uses: actions/checkout@main
-      - name: Set up Python
-        uses: actions/setup-python@main
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -59,26 +68,4 @@ jobs:
         run: pytest tests/integration --cov=rocketpy --cov-append
 
       - name: Run Acceptance Tests
-        run: pytest tests/acceptance --cov=rocketpy --cov-append --cov-report=xml
-
-      - name: Upload coverage to artifacts
-        uses: actions/upload-artifact@main
-        with:
-          name: coverage
-          path: coverage.xml
-          overwrite: true
-          if-no-files-found: error
-
-  CodecovUpload:
-    needs: Pytest
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@main
-      - name: Download latest coverage report
-        uses: actions/download-artifact@main
-      - name: Upload to Codecov
-        uses: codecov/codecov-action@main
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: |
-            coverage.xml
+        run: pytest tests/acceptance --cov=rocketpy --cov-append

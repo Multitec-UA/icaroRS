@@ -1,0 +1,65 @@
+name: Tests (RocketSerializer)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/RocketSerializer/**"
+      - ".github/workflows/test-pytest-serializer.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/RocketSerializer/**"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: packages/RocketSerializer
+
+jobs:
+  Pytest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    env:
+      PYTHON: ${{ matrix.python-version }}
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21 (required for OpenRocket .jar extraction)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            packages/RocketSerializer/requirements.in
+            packages/RocketSerializer/requirements-dev.txt
+
+      - name: Install rocketserializer
+        run: pip install .
+
+      - name: Test importing rocketserializer
+        run: python -c "import sys, rocketserializer; print(f'{rocketserializer.__name__} running on Python {sys.version}')"
+
+      - name: Install dev dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Confirm Java + OpenRocket jar are reachable
+        run: |
+          java -version
+          ls -lh tests/OpenRocket-23.09.jar
+
+      - name: Run Unit Tests
+        run: pytest tests/unit -v
+
+      - name: Run Acceptance Tests (JVM-bound)
+        run: pytest tests/acceptance -v
