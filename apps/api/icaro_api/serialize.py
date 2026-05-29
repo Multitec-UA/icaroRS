@@ -207,10 +207,15 @@ def _render_plots(flight: Any, output_dir: Path, run_id: str) -> list[str]:
         filename = output_dir / f"{stem}.png"
         try:
             method(filename=str(filename))
-            urls.append(f"/api/results/{run_id}/plots/{stem}.png")
         except Exception:  # noqa: BLE001
             # A plot method failing must not crash the whole serialization.
             continue
+        # Some rocketpy plot methods print a skip notice and return WITHOUT
+        # writing a file or raising — e.g. rail_buttons_bending_moments when
+        # the rail button height is undefined. Only advertise the URL if the
+        # PNG was actually written, so the UI never shows a broken image.
+        if filename.exists() and filename.stat().st_size > 0:
+            urls.append(f"/api/results/{run_id}/plots/{stem}.png")
 
     return urls
 

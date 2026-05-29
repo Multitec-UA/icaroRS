@@ -92,6 +92,22 @@ class TestSerializeFlightHappyPath:
         for url in urls:
             assert isinstance(url, str) and url.startswith("/api/results/")
 
+    def test_skipped_plot_not_advertised(self, tmp_path):
+        """A plot method that returns WITHOUT writing a file (e.g. rocketpy's
+        rail_buttons_bending_moments when button_height is undefined) must NOT
+        produce a plot_url — otherwise the UI shows a broken image."""
+        flight = FakeFlight()
+        # Make one method a no-op that writes nothing (mirrors the real skip).
+        flight.plots.rail_buttons_bending_moments = lambda *, filename=None: None
+
+        result = serialize_flight(flight, tmp_path, "run-skip", [])
+        urls = result["plot_urls"]
+
+        assert not any("rail_bending_moments.png" in u for u in urls)
+        # Other plots still rendered and advertised.
+        assert any("rail_forces.png" in u for u in urls)
+        assert not (tmp_path / "run-skip" / "rail_bending_moments.png").exists()
+
     def test_warnings_empty_when_none_captured(self, tmp_path):
         """warnings list must be empty when no warnings were captured."""
         result = serialize_flight(FakeFlight(), tmp_path, "run-007", [])
