@@ -1,0 +1,16 @@
+{# _field_error.html — inline field-level validation error partial.
+   Usage: {% from "_field_error.html" import field_error %}
+          {{ field_error(errors, "site.longitude") }}
+   Renders a small error message under the field when the API returns 422.
+   Never shows raw pydantic traces (RG-9.4, AC-RG-3.9).
+#}
+
+{% macro field_error(errors, field_path) %}
+{% if errors %}
+  {% for err in errors %}
+    {% if err.field == field_path %}
+<small class="icaro-field-error" aria-live="polite">{{ err.message }}</small>
+    {% endif %}
+  {% endfor %}
+{% endif %}
+{% endmacro %}

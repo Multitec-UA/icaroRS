@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% from "_tooltip.html" import tooltip %}
+{% from "_field_error.html" import field_error %}
+
+{% block title %}Step 3 — Advanced Options | icaroRS{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h1>Step 3: Advanced Options</h1>
+  <p>Fine-tune atmosphere model, uncertainty, and launch rail parameters. Defaults work well for most flights.</p>
+</hgroup>
+
+{% if errors %}
+<div class="icaro-error-banner" role="alert">
+  <p><strong>Please fix the following before continuing:</strong></p>
+  <ul>
+    {% for err in errors %}
+    <li>{{ err.message }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form id="step3-form" method="post" action="/step3">
+  <!-- Carry state forward -->
+  <input type="hidden" name="export_id" value="{{ export_id or '' }}" />
+  <input type="hidden" name="latitude"  value="{{ scenario.site.latitude if scenario and scenario.site and scenario.site.latitude is not none else '' }}" />
+  <input type="hidden" name="longitude" value="{{ scenario.site.longitude if scenario and scenario.site and scenario.site.longitude is not none else '' }}" />
+  <input type="hidden" name="elevation" value="{{ scenario.site.elevation if scenario and scenario.site and scenario.site.elevation is not none else '' }}" />
+  <input type="hidden" name="launch_datetime" value="{{ launch_datetime or '' }}" />
+  <input type="hidden" id="atmosphere-model-hidden" name="atmosphere_model" value="{{ scenario.atmosphere.model if scenario and scenario.atmosphere else 'standard_atmosphere' }}" />
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Advanced options disclosure (AC-RG-3.6 — collapsed by default)     -->
+  <!-- ------------------------------------------------------------------ -->
+  <details>
+    <summary>Advanced options</summary>
+
+    <article>
+      <!-- ---- Atmosphere override ---- -->
+      <section>
+        <h3>
+          {{ tooltip("Atmosphere model", "The mathematical description of the atmosphere used in the simulation. Auto-selected from your launch date by default.") }}
+        </h3>
+        <p class="icaro-hint">
+          Override the atmosphere model selected automatically from your launch date.
+          Leave on "Auto" unless you have a specific reason to change it.
+        </p>
+
+        <label for="atm-override-select">Atmosphere model</label>
+        <select id="atm-override-select" name="atmosphere_override">
+          <option value="" {% if not atm_override %}selected{% endif %}>Auto (from launch date)</option>
+          <option value="standard_atmosphere" {% if atm_override == 'standard_atmosphere' %}selected{% endif %}>Standard atmosphere</option>
+          <option value="forecast"            {% if atm_override == 'forecast' %}selected{% endif %}>GFS Forecast</option>
+          <option value="wyoming_sounding"    {% if atm_override == 'wyoming_sounding' %}selected{% endif %}>Wyoming sounding</option>
+          <option value="reanalysis"          {% if atm_override == 'reanalysis' %}selected{% endif %}>Reanalysis (ERA5)</option>
+        </select>
+
+        <!-- Conditional fields — shown by JS based on atm-override-select value -->
+        <div id="wyoming-fields" class="icaro-conditional hidden">
+          <label for="wyoming-station">Wyoming sounding station ID</label>
+          <input id="wyoming-station" name="wyoming_station" type="text" placeholder="e.g. 83779" />
+          <label for="wyoming-date">Sounding date</label>
+          <input id="wyoming-date" name="wyoming_date" type="date" />
+        </div>
+
+        <div id="reanalysis-fields" class="icaro-conditional hidden">
+          <label for="reanalysis-file">ERA5 reanalysis file path (server-side)</label>
+          <input id="reanalysis-file" name="reanalysis_file" type="text" placeholder="e.g. /data/era5_2024.nc" />
+        </div>
+      </section>
+
+      <!-- ---- Uncertainty presets (RG-3.4, AC-RG-3.7, AC-RG-3.8) ---- -->
+      <section>
+        <h3>
+          {{ tooltip("Uncertainty", "How much variation to apply to simulation parameters. Wider uncertainty means a larger spread of possible outcomes.") }}
+        </h3>
+
+        <fieldset>
+          <legend>Uncertainty preset</legend>
+
+          {% set current_preset = selected_preset or 'Typical' %}
+
+          <label>
+            <input
+              type="radio"
+              name="uncertainty_preset"
+              value="Typical"
+              id="preset-typical"
+              {% if current_preset == 'Typical' %}checked{% endif %}
+              onchange="window.icaroApplyPreset(this.value)"
+            />
+            Typical
+            <small>Good starting point for most rockets.</small>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="uncertainty_preset"
+              value="Conservative"
+              id="preset-conservative"
+              {% if current_preset == 'Conservative' %}checked{% endif %}
+              onchange="window.icaroApplyPreset(this.value)"
+            />
+            Conservative
+            <small>Wider spread — useful for less characterised designs.</small>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="uncertainty_preset"
+              value="Precise"
+              id="preset-precise"
+              {% if current_preset == 'Precise' %}checked{% endif %}
+              onchange="window.icaroApplyPreset(this.value)"
+            />
+            Precise
+            <small>Tight spread — for well-characterised, stable rockets.</small>
+          </label>
+
+          <label>
+            <input
+              type="radio"
+              name="uncertainty_preset"
+              value="Customize"
+              id="preset-customize"
+              {% if current_preset == 'Customize' %}checked{% endif %}
+              onchange="window.icaroApplyPreset(this.value)"
+            />
+            Customize
+            <small>Edit individual parameters.</small>
+          </label>
+        </fieldset>
+
+        <!-- Uncertainty table — shown only when Customize is selected (AC-RG-3.8) -->
+        <div id="uncertainty-table" class="icaro-uncertainty-table {% if current_preset != 'Customize' %}hidden{% endif %}">
+          <p class="icaro-hint">
+            Preset values are fetched from the server when you switch presets.
+            Edit the values below to customise.
+          </p>
+
+          {% set params = [
+            ('mass',        'Mass',             'Rocket mass uncertainty'),
+            ('inclination', 'Rail inclination', 'Launch rail angle uncertainty (degrees)'),
+            ('heading',     'Rail heading',     'Launch rail compass heading uncertainty (degrees)'),
+            ('wind_factor', 'Wind factor',      'Wind speed scaling uncertainty'),
+            ('thrust',      'Thrust',           'Motor thrust curve uncertainty'),
+            ('rail_length', 'Rail length',      'Launch rail length uncertainty'),
+          ] %}
+
+          <table role="grid">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>
+                  {{ tooltip("Std", "Standard deviation of the uncertainty for this parameter.") }}
+                </th>
+                <th>
+                  {{ tooltip("Kind", "Whether the std is relative (fraction of nominal) or absolute (in the parameter's unit).") }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for key, label, description in params %}
+              {% set unc = scenario.uncertainty[key] if scenario and scenario.uncertainty and key in scenario.uncertainty else None %}
+              <tr>
+                <td>
+                  {{ tooltip(label, description) }}
+                </td>
+                <td>
+                  <input
+                    type="number"
+                    name="unc_{{ key }}_std"
+                    id="unc-{{ key }}-std"
+                    step="0.001"
+                    min="0"
+                    value="{{ unc.std if unc else '' }}"
+                    aria-label="{{ label }} standard deviation"
+                  />
+                </td>
+                <td>
+                  <select name="unc_{{ key }}_kind" id="unc-{{ key }}-kind" aria-label="{{ label }} kind">
+                    <option value="relative" {% if not unc or unc.kind == 'relative' %}selected{% endif %}>relative</option>
+                    <option value="absolute" {% if unc and unc.kind == 'absolute' %}selected{% endif %}>absolute</option>
+                  </select>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ---- Rail overrides ---- -->
+      <section>
+        <h3>Launch rail</h3>
+        {% set rail = scenario.rail if scenario and scenario.rail else None %}
+
+        <div class="grid">
+          <div>
+            <label for="rail-length">
+              {{ tooltip("Rail length", "Length of the launch rail in metres.") }}
+            </label>
+            <input
+              id="rail-length"
+              name="rail_length"
+              type="number"
+              step="0.1"
+              min="0.1"
+              value="{{ rail.length if rail else '' }}"
+              placeholder="e.g. 3.0"
+            />
+            {{ field_error(errors, "rail.length") }}
+          </div>
+
+          <div>
+            <label for="rail-inclination">
+              {{ tooltip("Rail inclination", "Angle of the launch rail from vertical, in degrees. 0° = straight up.") }}
+            </label>
+            <input
+              id="rail-inclination"
+              name="rail_inclination"
+              type="number"
+              step="0.1"
+              min="0"
+              max="90"
+              value="{{ rail.inclination if rail else '' }}"
+              placeholder="e.g. 5.0"
+            />
+            {{ field_error(errors, "rail.inclination") }}
+          </div>
+
+          <div>
+            <label for="rail-heading">
+              {{ tooltip("Rail heading", "Compass direction the launch rail points, in degrees. 0° = North, 90° = East.") }}
+            </label>
+            <input
+              id="rail-heading"
+              name="rail_heading"
+              type="number"
+              step="0.1"
+              min="0"
+              max="360"
+              value="{{ rail.heading if rail else '' }}"
+              placeholder="e.g. 90.0"
+            />
+            {{ field_error(errors, "rail.heading") }}
+          </div>
+        </div>
+      </section>
+
+    </article>
+  </details>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Form actions                                                         -->
+  <!-- ------------------------------------------------------------------ -->
+  <div class="icaro-actions icaro-actions--spread">
+    <a href="/step2?export_id={{ export_id or '' }}" role="button" class="secondary">← Back to Step 2</a>
+    <button type="submit" id="simulate-btn">Simulate →</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  (function() {
+    // ---- Atmosphere override conditional fields ----
+    var atmSelect = document.getElementById('atm-override-select');
+    var wyomingFields   = document.getElementById('wyoming-fields');
+    var reanalysisFields = document.getElementById('reanalysis-fields');
+    var atmHidden = document.getElementById('atmosphere-model-hidden');
+
+    function updateAtmFields() {
+      var val = atmSelect.value;
+      wyomingFields.classList.toggle('hidden', val !== 'wyoming_sounding');
+      reanalysisFields.classList.toggle('hidden', val !== 'reanalysis');
+      if (val) { atmHidden.value = val; }
+    }
+    atmSelect.addEventListener('change', updateAtmFields);
+    updateAtmFields();
+
+    // ---- Preset application ----
+    // Presets are fetched from the server (RG-1.5 — values come from API, not hardcoded in JS).
+    var _presetsCache = null;
+
+    function fetchPresetsAndApply(presetName) {
+      if (presetName === 'Customize') {
+        document.getElementById('uncertainty-table').classList.remove('hidden');
+        return;
+      }
+      document.getElementById('uncertainty-table').classList.add('hidden');
+
+      if (_presetsCache) {
+        applyPreset(_presetsCache, presetName);
+        return;
+      }
+
+      fetch('/api/scenario/template', {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        _presetsCache = data.uncertainty_presets;
+        applyPreset(_presetsCache, presetName);
+      })
+      .catch(function() { /* silently ignore — fields keep current values */ });
+    }
+
+    function applyPreset(presets, name) {
+      if (!presets || !presets[name]) return;
+      var preset = presets[name];
+      Object.keys(preset).forEach(function(key) {
+        var stdInput  = document.getElementById('unc-' + key + '-std');
+        var kindSelect = document.getElementById('unc-' + key + '-kind');
+        if (stdInput)   { stdInput.value  = preset[key].std; }
+        if (kindSelect) { kindSelect.value = preset[key].kind; }
+      });
+    }
+
+    // Expose for inline onchange handlers
+    window.icaroApplyPreset = fetchPresetsAndApply;
+
+    // ---- Inline 422 validation (AC-RG-3.9) ----
+    // The form POSTs to the server which re-renders with errors in the template.
+    // Client-side pre-validate on blur for a nicer UX (optional, additive).
+    // No top-level alert — errors go into field_error partials on re-render.
+
+  })();
+</script>
+{% endblock %}

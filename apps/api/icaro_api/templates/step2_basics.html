@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% from "_tooltip.html" import tooltip %}
+{% from "_field_error.html" import field_error %}
+
+{% block title %}Step 2 — Site &amp; Date | icaroRS{% endblock %}
+
+{% block extra_head %}
+<!-- Leaflet CSS — map library via CDN (RG-3.2, design §7) -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin=""
+/>
+{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h1>Step 2: Launch Site &amp; Date</h1>
+  <p>Tell us where and when you plan to launch.</p>
+</hgroup>
+
+{% if errors %}
+<div class="icaro-error-banner" role="alert">
+  <p><strong>Please fix the following before continuing:</strong></p>
+  <ul>
+    {% for err in errors %}
+    <li>{{ err.message }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<form id="step2-form" method="post" action="/step2">
+  <!-- Carry state forward -->
+  <input type="hidden" name="export_id" value="{{ export_id or '' }}" />
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Map section                                                          -->
+  <!-- ------------------------------------------------------------------ -->
+  <section>
+    <h2>Launch site</h2>
+
+    <!-- Place-name search (Nominatim geocoder) -->
+    <label for="place-search">Search a place&hellip;</label>
+    <div class="icaro-search-row">
+      <input
+        id="place-search"
+        type="text"
+        placeholder="e.g. Buenos Aires, Argentina"
+        autocomplete="off"
+        aria-label="Search for a place name"
+      />
+      <button type="button" id="place-search-btn">Search</button>
+    </div>
+    <div id="place-search-results" class="icaro-search-results" hidden></div>
+
+    <!-- Interactive Leaflet map (RG-3.2) -->
+    <div
+      id="map"
+      class="icaro-map"
+      aria-label="Interactive map — click to select launch site"
+      role="application"
+      style="height: 360px;"
+    ></div>
+
+    <!-- Lat / Lon manual inputs (AC-RG-3.11) -->
+    <div class="icaro-latlon-row">
+      <div>
+        <label for="latitude">
+          {{ tooltip("Latitude", "North–South position in degrees. Positive = North, negative = South. Range: -90 to 90.") }}
+        </label>
+        <input
+          id="latitude"
+          name="latitude"
+          type="number"
+          step="0.000001"
+          min="-90"
+          max="90"
+          placeholder="e.g. -34.6037"
+          value="{{ scenario.site.latitude if scenario and scenario.site and scenario.site.latitude is not none else '' }}"
+          aria-label="Latitude in decimal degrees"
+        />
+        {{ field_error(errors, "site.latitude") }}
+      </div>
+
+      <div>
+        <label for="longitude">
+          {{ tooltip("Longitude", "East–West position in degrees. Positive = East, negative = West. Range: -180 to 180.") }}
+        </label>
+        <input
+          id="longitude"
+          name="longitude"
+          type="number"
+          step="0.000001"
+          min="-180"
+          max="180"
+          placeholder="e.g. -58.3816"
+          value="{{ scenario.site.longitude if scenario and scenario.site and scenario.site.longitude is not none else '' }}"
+          aria-label="Longitude in decimal degrees"
+        />
+        {{ field_error(errors, "site.longitude") }}
+      </div>
+
+      <div>
+        <label for="elevation">
+          {{ tooltip("Elevation", "Height of the launch site above sea level, in metres.") }}
+          <span id="elevation-note" class="icaro-elevation-note" aria-live="polite"></span>
+        </label>
+        <input
+          id="elevation"
+          name="elevation"
+          type="number"
+          step="1"
+          placeholder="e.g. 30"
+          value="{{ scenario.site.elevation if scenario and scenario.site and scenario.site.elevation is not none else '' }}"
+          aria-label="Elevation in metres above sea level"
+        />
+        {{ field_error(errors, "site.elevation") }}
+      </div>
+    </div>
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Date/time section (RG-3.3)                                          -->
+  <!-- ------------------------------------------------------------------ -->
+  <section>
+    <h2>Launch date &amp; time</h2>
+    <p class="icaro-hint">
+      We need the date to fetch the actual weather for your launch site.
+    </p>
+
+    <label for="launch-datetime">
+      Launch date and time (local)
+    </label>
+    <input
+      id="launch-datetime"
+      name="launch_datetime"
+      type="datetime-local"
+      value="{{ launch_datetime or '' }}"
+      aria-label="Launch date and time"
+    />
+
+    <!-- Atmosphere suggestion badge — JS fills this on date change (RG-3.3) -->
+    <div
+      id="atm-badge"
+      class="icaro-atm-badge"
+      role="status"
+      aria-live="polite"
+      hidden
+    >
+      <!-- Filled by wizard.js after /api/atmosphere/suggest response -->
+      <span id="atm-badge-text"></span>
+    </div>
+
+    <!-- Hidden field: carries auto-selected atmosphere model -->
+    <input
+      type="hidden"
+      id="atmosphere-model"
+      name="atmosphere_model"
+      value="{{ scenario.atmosphere.model if scenario and scenario.atmosphere else 'standard_atmosphere' }}"
+    />
+  </section>
+
+  <!-- ------------------------------------------------------------------ -->
+  <!-- Form actions                                                         -->
+  <!-- ------------------------------------------------------------------ -->
+  <div class="icaro-actions icaro-actions--spread">
+    <a href="/" role="button" class="secondary">← Back to Step 1</a>
+    <button type="submit">Continue to Step 3 →</button>
+  </div>
+</form>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- Leaflet JS — map library via CDN -->
+<script
+  src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""
+></script>
+
+<script>
+  // Initialise Leaflet map and wire elevation + atmosphere-suggest calls.
+  // All domain decisions come from the API (RG-1.5 — JS never re-encodes rules).
+  (function() {
+    var latInput  = document.getElementById('latitude');
+    var lonInput  = document.getElementById('longitude');
+    var elevInput = document.getElementById('elevation');
+    var elevNote  = document.getElementById('elevation-note');
+    var atmModel  = document.getElementById('atmosphere-model');
+    var atmBadge  = document.getElementById('atm-badge');
+    var atmText   = document.getElementById('atm-badge-text');
+
+    // ---- Map setup ----
+    var initialLat = parseFloat(latInput.value) || -34.6037;
+    var initialLon = parseFloat(lonInput.value) || -58.3816;
+    var map = L.map('map').setView([initialLat, initialLon], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19
+    }).addTo(map);
+
+    var marker = null;
+
+    function placeMarker(lat, lon) {
+      if (marker) { map.removeLayer(marker); }
+      marker = L.marker([lat, lon]).addTo(map);
+      latInput.value = lat.toFixed(6);
+      lonInput.value = lon.toFixed(6);
+      fetchElevation(lat, lon);
+    }
+
+    // Restore marker if lat/lon already set
+    var existingLat = parseFloat(latInput.value);
+    var existingLon = parseFloat(lonInput.value);
+    if (!isNaN(existingLat) && !isNaN(existingLon)) {
+      placeMarker(existingLat, existingLon);
+    }
+
+    map.on('click', function(e) {
+      placeMarker(e.latlng.lat, e.latlng.lng);
+    });
+
+    // Allow typing lat/lon directly (AC-RG-3.11)
+    function onManualLatLon() {
+      var lat = parseFloat(latInput.value);
+      var lon = parseFloat(lonInput.value);
+      if (!isNaN(lat) && !isNaN(lon)) {
+        if (marker) { map.removeLayer(marker); }
+        marker = L.marker([lat, lon]).addTo(map);
+        map.setView([lat, lon], map.getZoom());
+      }
+    }
+    latInput.addEventListener('change', onManualLatLon);
+    lonInput.addEventListener('change', onManualLatLon);
+
+    // ---- Elevation auto-fill (RG-3.2, AC-RG-3.2, AC-RG-3.3) ----
+    function fetchElevation(lat, lon) {
+      elevNote.textContent = 'Detecting elevation…';
+      fetch('/api/elevation?lat=' + lat + '&lon=' + lon, {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      })
+      .then(function(r) {
+        if (r.status === 503) {
+          elevNote.textContent = 'Elevation couldn\'t be auto-detected — please enter it manually.';
+          return null;
+        }
+        return r.json();
+      })
+      .then(function(data) {
+        if (!data) return;
+        var elev = data.elevation != null ? data.elevation : (data.elevation_m != null ? data.elevation_m : null);
+        if (elev != null) {
+          elevInput.value = Math.round(elev);
+          elevNote.textContent = '≈ ' + Math.round(elev) + ' m (auto-detected — you can adjust)';
+        } else {
+          elevNote.textContent = 'Elevation couldn\'t be auto-detected — please enter it manually.';
+        }
+      })
+      .catch(function() {
+        elevNote.textContent = 'Elevation couldn\'t be auto-detected — please enter it manually.';
+      });
+    }
+
+    // ---- Atmosphere suggest on date change (RG-3.3, AC-RG-3.4, AC-RG-3.5) ----
+    var dateInput = document.getElementById('launch-datetime');
+    dateInput.addEventListener('change', function() {
+      var val = dateInput.value;
+      if (!val) { atmBadge.hidden = true; return; }
+      // Convert datetime-local value to ISO string
+      var iso = new Date(val).toISOString();
+      fetch('/api/atmosphere/suggest?date=' + encodeURIComponent(iso), {
+        headers: { 'Accept': 'application/json' },
+        credentials: 'include'
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data && data.reason) {
+          atmText.textContent = data.reason;
+          atmBadge.hidden = false;
+          atmBadge.className = 'icaro-atm-badge icaro-atm-badge--' +
+            (data.model === 'forecast' ? 'forecast' : 'standard');
+          if (data.model) {
+            atmModel.value = data.model;
+          }
+        }
+      })
+      .catch(function() {
+        atmBadge.hidden = true;
+      });
+    });
+
+    // ---- Place-name search (Nominatim) ----
+    var searchBtn  = document.getElementById('place-search-btn');
+    var searchInput = document.getElementById('place-search');
+    var resultsDiv = document.getElementById('place-search-results');
+
+    searchBtn.addEventListener('click', function() {
+      var q = searchInput.value.trim();
+      if (!q) return;
+      fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(q) + '&limit=5', {
+        headers: { 'Accept': 'application/json', 'Accept-Language': 'en' }
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(results) {
+        resultsDiv.innerHTML = '';
+        if (!results.length) {
+          resultsDiv.textContent = 'No results found.';
+          resultsDiv.hidden = false;
+          return;
+        }
+        resultsDiv.hidden = false;
+        results.forEach(function(item) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'icaro-search-result';
+          btn.textContent = item.display_name;
+          btn.addEventListener('click', function() {
+            placeMarker(parseFloat(item.lat), parseFloat(item.lon));
+            map.setView([parseFloat(item.lat), parseFloat(item.lon)], 10);
+            resultsDiv.hidden = true;
+            searchInput.value = item.display_name;
+          });
+          resultsDiv.appendChild(btn);
+        });
+      })
+      .catch(function() {
+        resultsDiv.textContent = 'Place search unavailable.';
+        resultsDiv.hidden = false;
+      });
+    });
+
+    // Search on Enter
+    searchInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); searchBtn.click(); }
+    });
+  })();
+</script>
+{% endblock %}
