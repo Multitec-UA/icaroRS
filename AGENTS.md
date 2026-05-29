@@ -1,49 +1,57 @@
-# AI Agents Context for icaroRS
+# AI Agents Context — icaroRS
 
-> **Monorepo context**: This repo is `icaroRS` — Multitec's unified rocket simulation project. It contains TWO Python libraries: `rocketpy/` (RocketPy core, at the root) and `packages/RocketSerializer/rocketserializer/` (RocketSerializer subpackage). The library names (`rocketpy` and `rocketserializer`) are intentionally preserved — they match the upstream API. Only the **monorepo / repo** identity changed to icaroRS.
->
-> For RocketSerializer-specific conventions and gotchas, see `.atl/skill-registry.md`.
+This is the **monorepo-level** context. It orients an agent across the whole
+repo. For deep, area-specific guidance, follow the pointers below.
 
-The rest of this document describes the **RocketPy core library** conventions specifically.
+## What this repo is
 
----
+icaroRS is Multitec's rocket simulation monorepo — a **definitive fork** that
+evolves independently (no upstream RocketPy syncing). It contains two core
+libraries (`rocketpy`, `rocketserializer`), a domain layer (`icaro`), and a
+growing set of delivery surfaces (CLI now; API and web planned).
 
-Welcome, AI Agent! This file provides essential context, architectural understanding, and guidelines for interacting with the RocketPy code (at the repo root, under `rocketpy/`). Please read this carefully to ensure your contributions align with the project's goals.
+## Layout
 
-## Project Overview
+```
+packages/   libraries (pure, importable): rocketpy, rocketserializer, icaro
+apps/       delivery mechanisms (thin shells): cli, api, web
+```
 
-**RocketPy** is the next-generation trajectory simulation solution for High-Power Rocketry. It is a highly accurate Python library enabling a complete 6 degrees of freedom (6-DOF) simulation of a rocket's flight trajectory.
+## The rule you must not break
 
-**Core Capabilities:**
-- Nonlinear 6-DOF simulations with rigorous treatment of mass variation.
-- Accurate weather and atmospheric modeling (International Standard Atmosphere, custom weather forecasts).
-- Aerodynamic models (Barrowman equations, custom CFD import).
-- Complex structures: Parachutes with triggers, Solid/Hybrid/Liquid motors, Multi-stage rockets.
-- Monte Carlo simulations for dispersion and sensitivity analysis.
+**Dependency arrows point one way: `apps → packages`, never the reverse.**
 
-## Technical Stack & Architecture
+```
+apps/{cli,api,web}  →  packages/icaro  →  packages/{rocketpy, rocketserializer}
+```
 
-- **Language:** Python
-- **Core Abstractions:** The library is organized logically into four main pillars:
-  1. `Environment`: Manages atmospheric conditions, elevation, and location coordinates.
-  2. `Motor` (`SolidMotor`, `HybridMotor`, `LiquidMotor`): Contains propulsion parameters, thrust curves, and mass variation properties.
-  3. `Rocket`: Reassembles the vehicle's geometry, aerodynamic properties, parachutes (`add_parachute`), fins, and nose cones.
-  4. `Flight`: Combines an `Environment` and a `Rocket` configuration, handling the ODE solving (using LSODA) and generating trajectory results and plots.
+Business logic lives in `packages/icaro` as reusable use-cases and is exposed
+(never duplicated) by the surfaces. Packages return objects; they do not print
+or format — that is the surface's job (use `warnings.warn` for advisories).
 
-## Code Style & Development Rules
+The full contract is in [`ARCHITECTURE.md`](ARCHITECTURE.md). **Read it before
+restructuring or adding code.**
 
-1. **Code Formatting:** The project adheres to **Black** (code style). Ensure any Python code you write or modify is formatted accordingly.
-2. **Scientific Precision:** RocketPy is a validated engineering tool (validated against real flights like EPFL and NDRT). Do not introduce approximations or hardcoded physical constants unless rigorously justified. Maintain precision.
-3. **Performance:** Core calculations must be efficient, as they are often run thousands of times during Monte Carlo simulations.
-4. **Documentation:** Maintain clear, descriptive docstrings for new properties and methods. Refer to the mathematical models or physics equations being used where applicable.
-5. **Modularity:** Ensure the codebase remains flexible. Users expect to easily extend the library or use custom discrete/continuous control laws without modifying the core engine.
+## Where to make a change
 
-## Agent Guidelines for Contributions
+| You want to… | Work in |
+| --- | --- |
+| Change the simulation physics | `packages/rocketpy/` — see its `AGENTS.md` |
+| Change `.ork` → params conversion | `packages/rocketserializer/` |
+| Add/modify a use-case (glue logic) | `packages/icaro/` |
+| Add/modify a user-facing command or surface | `apps/` |
 
-- **Preserve the API:** The flow of setting up a simulation (`Environment` -> `Motor` -> `Rocket` -> `Flight`) is the signature of RocketPy. Keep this API intuitive and user-friendly.
-- **Do your research:** Before adding new physical components, see how existing ones (like fins or tail) are added to the `Rocket` class.
-- **Remind about Validation:** If you modify formulas related to drag, thrust, or wind interpolation, advise the user to run the test suite and check for trajectory regressions.
+## Conventions
 
-## Helpful Resources
-- **Documentation:** [docs.rocketpy.org](https://docs.rocketpy.org/)
-- **Code:** Hosted on GitHub at [RocketPy-Team/RocketPy](https://github.com/RocketPy-Team/RocketPy)
+- **Commits:** Conventional Commits (`feat:`, `fix:`, `refactor:`, `docs:`, …).
+- **Tests:** run each core's suite from its own directory; see
+  [`CONTRIBUTING.md`](CONTRIBUTING.md).
+- **Tooling:** uv workspace; `uv sync` to install, `uv run …` to execute.
+- **Project-specific conventions & gotchas** (e.g. RocketSerializer test
+  patching): `.atl/skill-registry.md`.
+
+## Pointers
+
+- Core engine guidance: [`packages/rocketpy/AGENTS.md`](packages/rocketpy/AGENTS.md)
+- Architecture contract: [`ARCHITECTURE.md`](ARCHITECTURE.md)
+- Setup & testing: [`CONTRIBUTING.md`](CONTRIBUTING.md)
