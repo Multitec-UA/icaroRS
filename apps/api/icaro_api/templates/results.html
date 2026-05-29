@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% from "_tooltip.html" import tooltip %}
+
+{% block title %}Simulation Results | icaroRS{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h1>Simulation Results</h1>
+  <p>Run ID: <code>{{ run_id }}</code></p>
+</hgroup>
+
+{# ------------------------------------------------------------------ #}
+{# Warnings banner — shown only when warnings list is non-empty        #}
+{# RG-6.3, AC-RG-6.2                                                   #}
+{# ------------------------------------------------------------------ #}
+{% if warnings %}
+<div class="icaro-warnings-banner" role="alert" aria-label="Simulation notices">
+  <strong>Notice</strong>
+  <ul>
+    {% for w in warnings %}
+    <li>{{ w }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{# ------------------------------------------------------------------ #}
+{# Scalars table — plain labels + units (AC-RG-6.1: never raw keys)   #}
+{# ------------------------------------------------------------------ #}
+<section>
+  <h2>Flight summary</h2>
+  {% if scalars %}
+  <table role="grid">
+    <thead>
+      <tr>
+        <th scope="col">Parameter</th>
+        <th scope="col">Value</th>
+        <th scope="col">Unit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {# Iterate in display order using label_map (preserves _SCALAR_ATTR_MAP order). #}
+      {# label_map is a list of (key, {label, unit}) passed from the handler.         #}
+      {% for key, meta in label_map %}
+        {% if key in scalars %}
+        <tr>
+          <th scope="row">
+            {# Glossary tooltips on aerospace terms (AC-RG-3.10) #}
+            {% if key == 'apogee_m' %}
+              {{ tooltip("Highest point (apogee)", "The highest point your rocket reaches during flight, measured in metres above sea level.") }}
+            {% elif key == 'rail_departure_stability_margin' %}
+              {{ tooltip(meta.label, "A measure of stability at rail departure, in calibres (rocket diameters). 1–2 cal is generally stable.") }}
+            {% elif key == 'max_mach' %}
+              {{ tooltip(meta.label, "Maximum speed expressed as a multiple of the speed of sound (~340 m/s at sea level).") }}
+            {% else %}
+              {{ meta.label }}
+            {% endif %}
+          </th>
+          <td>{{ "%.2f"|format(scalars[key]) }}</td>
+          <td>{{ meta.unit }}</td>
+        </tr>
+        {% endif %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p>No scalar results available.</p>
+  {% endif %}
+</section>
+
+{# ------------------------------------------------------------------ #}
+{# Plots gallery — inline images (RG-6.2)                             #}
+{# ------------------------------------------------------------------ #}
+{% if plot_urls %}
+<section>
+  <h2>Trajectory plots</h2>
+  <div class="icaro-plots-grid">
+    {% for url in plot_urls %}
+    {# Derive a human-readable caption from the URL filename stem #}
+    {% set stem = url.split('/')[-1].replace('.png', '').replace('_', ' ').title() %}
+    <figure class="icaro-plot-figure">
+      <img
+        src="{{ url }}"
+        alt="{{ stem }} plot"
+        loading="lazy"
+        class="icaro-plot-img"
+      />
+      <figcaption>{{ stem }}</figcaption>
+    </figure>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# ------------------------------------------------------------------ #}
+{# Simulate again — RG-6.4                                             #}
+{# ------------------------------------------------------------------ #}
+<section class="icaro-actions">
+  <a href="/step2?export_id={{ export_id }}" role="button" class="secondary">
+    ← Adjust scenario and simulate again
+  </a>
+  <a href="/" role="button" class="outline">
+    Start over with a different rocket
+  </a>
+</section>
+
+{% endblock %}

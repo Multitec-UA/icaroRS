@@ -88,8 +88,13 @@ def get_scenario_template() -> dict[str, Any]:
 # POST /api/scenario/validate
 # ---------------------------------------------------------------------------
 
+# NOTE: "value_error" is deliberately NOT mapped here. It is the code pydantic
+# emits for our own domain field_validators (e.g. the WGS-84 lat/lon range
+# checks), whose messages are already human-authored and specific (e.g.
+# "Longitude must be between -180 and 180"). Mapping it to a generic string
+# would HIDE the better message — the fallthrough below strips the
+# "Value error, " prefix and surfaces the domain message verbatim (RG-3.6).
 _HUMANIZED_CODES: dict[str, str] = {
-    "value_error": "Invalid value",
     "missing": "This field is required",
     "string_type": "Must be a string",
     "float_parsing": "Must be a number",

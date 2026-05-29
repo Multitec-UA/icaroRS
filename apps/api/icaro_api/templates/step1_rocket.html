@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% from "_tooltip.html" import tooltip %}
+{% from "_field_error.html" import field_error %}
+
+{% block title %}Step 1 — Upload Rocket | icaroRS{% endblock %}
+
+{% block content %}
+<hgroup>
+  <h1>Step 1: Your Rocket</h1>
+  <p>Upload the OpenRocket design file for your rocket.</p>
+</hgroup>
+
+{% if errors %}
+<div class="icaro-error-banner" role="alert">
+  <p><strong>Please fix the following before continuing:</strong></p>
+  <ul>
+    {% for err in errors %}
+    <li>{{ err.message }}</li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+<article>
+  <form
+    id="upload-form"
+    method="post"
+    action="/"
+    enctype="multipart/form-data"
+  >
+    <!-- Upload zone: idle / loading / done / error states managed by wizard.js -->
+    <div
+      id="upload-zone"
+      class="icaro-upload-zone"
+      aria-label="OpenRocket file upload area"
+      role="region"
+      data-state="idle"
+    >
+      <!-- IDLE state -->
+      <div id="upload-idle" class="upload-state">
+        <p>
+          <strong>Upload your OpenRocket design (.ork)</strong>
+        </p>
+        <p>Drag and drop your <code>.ork</code> file here, or click to browse.</p>
+        <label for="ork-file" class="icaro-upload-label" role="button">
+          Choose .ork file
+        </label>
+        <input
+          id="ork-file"
+          name="file"
+          type="file"
+          accept=".ork"
+          class="icaro-file-input"
+          aria-label="Choose OpenRocket .ork file"
+          required
+        />
+      </div>
+
+      <!-- LOADING state (hidden until file is selected — shown within 200ms, AC-RG-4.1) -->
+      <div id="upload-loading" class="upload-state hidden" aria-live="polite">
+        <p>
+          <strong>Converting your design…</strong>
+        </p>
+        <p>
+          This may take up to 30 seconds while the simulation engine starts for
+          the first time. Please wait.
+        </p>
+        <progress aria-label="Converting rocket file"></progress>
+      </div>
+
+      <!-- DONE state (hidden until convert succeeds) -->
+      <div id="upload-done" class="upload-state hidden" aria-live="polite">
+        <p>
+          ✓ <strong id="rocket-name">Rocket loaded</strong>
+        </p>
+        <p>
+          <a href="#" id="change-file-link">Change file</a>
+        </p>
+      </div>
+
+      <!-- ERROR state (hidden until convert fails) -->
+      <div id="upload-error" class="upload-state hidden" role="alert" aria-live="assertive">
+        <p><strong>Could not convert the file.</strong></p>
+        <p id="upload-error-message">An error occurred.</p>
+        <p>Please check the file and try again.</p>
+      </div>
+    </div>
+
+    <!-- Hidden field: carries export_id to subsequent steps -->
+    <input type="hidden" id="export-id" name="export_id" value="{{ export_id or '' }}" />
+
+    <div class="icaro-actions">
+      <button
+        type="button"
+        id="continue-btn"
+        disabled
+        onclick="window.location.href='/step2?export_id=' + document.getElementById('export-id').value"
+      >
+        Continue to Step 2
+      </button>
+    </div>
+  </form>
+</article>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // If export_id is already set (e.g. coming back from step2), show done state
+  (function() {
+    var exportId = document.getElementById('export-id').value;
+    var rocketName = {{ (manifest.name | tojson) if manifest and manifest.name else 'null' }};
+    if (exportId && rocketName) {
+      window.icaroInitDoneState(rocketName);
+    }
+  })();
+</script>
+{% endblock %}
