@@ -4,25 +4,26 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "rocketpy/**"
-      - "tests/**"
-      - "data/**"
-      - "pyproject.toml"
-      - "requirements*"
+      - "packages/rocketpy/rocketpy/**"
+      - "packages/rocketpy/tests/**"
+      - "packages/rocketpy/data/**"
+      - "packages/rocketpy/pyproject.toml"
+      - "packages/rocketpy/requirements*"
       - ".github/workflows/test_pytest.yaml"
   push:
     branches: [main]
     paths:
-      - "rocketpy/**"
-      - "tests/**"
-      - "data/**"
-      - "pyproject.toml"
-      - "requirements*"
+      - "packages/rocketpy/rocketpy/**"
+      - "packages/rocketpy/tests/**"
+      - "packages/rocketpy/data/**"
+      - "packages/rocketpy/pyproject.toml"
+      - "packages/rocketpy/requirements*"
       - ".github/workflows/test_pytest.yaml"
 
 defaults:
   run:
     shell: bash
+    working-directory: packages/rocketpy
 
 jobs:
   Pytest:
@@ -42,9 +43,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
           cache-dependency-path: |
-            requirements.txt
-            requirements-tests.txt
-            requirements-optional.txt
+            packages/rocketpy/requirements.txt
+            packages/rocketpy/requirements-tests.txt
+            packages/rocketpy/requirements-optional.txt
 
       - name: Install rocketpy
         run: pip install .

@@ -4,18 +4,18 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
     paths:
-      - "packages/RocketSerializer/**"
+      - "packages/rocketserializer/**"
       - ".github/workflows/test-pytest-serializer.yaml"
   push:
     branches: [main]
     paths:
-      - "packages/RocketSerializer/**"
+      - "packages/rocketserializer/**"
       - ".github/workflows/test-pytest-serializer.yaml"
 
 defaults:
   run:
     shell: bash
-    working-directory: packages/RocketSerializer
+    working-directory: packages/rocketserializer
 
 jobs:
   Pytest:
@@ -42,8 +42,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
           cache-dependency-path: |
-            packages/RocketSerializer/requirements.in
-            packages/RocketSerializer/requirements-dev.txt
+            packages/rocketserializer/requirements.in
+            packages/rocketserializer/requirements-dev.txt
 
       - name: Install rocketserializer
         run: pip install .
