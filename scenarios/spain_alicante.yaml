@@ -1,0 +1,55 @@
+# Sample scenario — Spain (Alicante coastal site)
+# ================================================
+# A ready-to-use scenario for a launch site near Alicante, Spain.
+# Atmosphere: GFS forecast (internet required at sim time, NFN-2).
+# Fallback: standard_atmosphere if forecast fetch fails (NFN-3).
+#
+# To use:
+#   icaro simulate --scenario scenarios/spain_alicante.yaml --export ./export_dir
+#   icaro mc --scenario scenarios/spain_alicante.yaml --export ./export_dir -n 50
+
+name: spain_alicante
+
+site:
+  latitude: 38.37
+  longitude: -0.58
+  elevation: 120.0   # metres above sea level
+
+date:
+  year: 2025
+  month: 6
+  day: 15
+  hour: 10           # UTC — mid-morning local time
+
+atmosphere:
+  model: forecast
+  file: GFS
+  fallback: standard_atmosphere
+
+# Rail values from the example rocket export — adjust as needed.
+rail:
+  length: 5.0
+  inclination: 84.0
+  heading: 90.0      # East
+
+# Default uncertainty budget — matches DEFAULT_UNCERTAINTY template.
+# Remove this block entirely to use the same values from the template.
+uncertainty:
+  mass:
+    std: 0.05
+    kind: relative
+  inclination:
+    std: 2.0
+    kind: absolute
+  heading:
+    std: 2.0
+    kind: absolute
+  wind_factor:
+    std: 0.10
+    kind: relative
+  thrust:
+    std: 0.03
+    kind: relative
+  rail_length:
+    std: 0.05
+    kind: relative

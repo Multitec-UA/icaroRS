@@ -5,6 +5,8 @@ description = "icaroRS domain layer: use-cases that turn RocketSerializer export
 requires-python = ">=3.10"
 dependencies = [
     "rocketpy",
+    "pydantic>=2",
+    "pyyaml>=6",
 ]
 
 [build-system]
@@ -14,8 +16,16 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["icaro"]
 
+[tool.setuptools.package-data]
+icaro = ["*.yaml", "templates/*.yaml"]
+
 # In this monorepo, rocketpy resolves to the local package under packages/,
 # NOT the PyPI release. uv honours this; with plain pip install the local
 # editable rocketpy must already be on the path.
 [tool.uv.sources]
 rocketpy = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
