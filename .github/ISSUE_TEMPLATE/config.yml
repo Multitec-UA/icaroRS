@@ -1,0 +1,9 @@
+# Force every issue through a template (no blank issues).
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions & ideas
+    url: https://github.com/Multitec-UA/icaroRS/discussions
+    about: Open-ended questions and discussion go here, not in issues. (Enable Discussions in repo settings.)
+  - name: 📐 Architecture & contribution guide
+    url: https://github.com/Multitec-UA/icaroRS/blob/main/CONTRIBUTING.md
+    about: Setup, testing, and the packages-vs-apps architecture contract.

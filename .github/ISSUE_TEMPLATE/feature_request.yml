@@ -1,0 +1,64 @@
+name: 🚀 Feature Request
+description: Propose a new capability or improvement for icaroRS
+title: "feat(<scope>): <short description>"
+labels: ["enhancement", "status:needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the proposal. Describe the problem first, then the solution.
+        Large changes may be turned into an SDD change (explore → propose → spec → design → tasks) before implementation.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I understand this issue needs the `status:approved` label before a PR can be opened
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: The pain point or limitation this solves. What can't be done today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How it should work from the user's perspective. Include example commands or scenario YAML where useful.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - rocketpy core (packages/rocketpy)
+        - rocketserializer (packages/rocketserializer)
+        - icaro domain (packages/icaro)
+        - CLI (apps/cli)
+        - API (apps/api)
+        - Web (apps/web)
+        - Documentation
+        - Build / CI / packaging
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Mockups, references, related issues, physics notes.

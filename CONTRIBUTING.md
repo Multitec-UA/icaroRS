@@ -78,6 +78,19 @@ Use **[Conventional Commits](https://www.conventionalcommits.org/)**
 (`feat:`, `fix:`, `refactor:`, `docs:`, `ci:`, …). Scope by area when it helps:
 `feat(icaro): …`, `refactor(monorepo): …`.
 
+## Issues & approval workflow
+
+Work starts from an issue, not a stray PR.
+
+1. **Open an issue** with a template — 🐞 Bug Report or 🚀 Feature Request
+   (blank issues are disabled). It is auto-labeled `status:needs-review`.
+2. **A maintainer reviews it** and adds `status:approved` (optionally a
+   `priority:*` label) once it is accepted and in scope.
+3. **Only then open a PR**, and link it to the approved issue
+   (`Closes #N`). PRs without an approved issue may be asked to wait.
+
+Open-ended questions go to **Discussions**, not issues.
+
 ## Where does my change go?
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md). Short version: business logic →

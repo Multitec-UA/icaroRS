@@ -1,0 +1,102 @@
+name: 🐞 Bug Report
+description: Report a defect in icaroRS (rocketpy core, rocketserializer, icaro domain, or a CLI/app surface)
+title: "fix(<scope>): <short description>"
+labels: ["bug", "status:needs-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for filing a bug. Please fill in every required field — incomplete reports are harder to act on.
+        Questions and open-ended help belong in **Discussions**, not issues.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I have searched existing issues and this is not a duplicate
+          required: true
+        - label: I understand this issue needs the `status:approved` label before a PR can be opened
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: A clear and concise description of the defect.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps. Include the exact command(s) and any scenario/.ork files used.
+      placeholder: |
+        1. uv run icaro convert MT1-v1.5.0.ork --output-dir /tmp/out
+        2. uv run icaro simulate /tmp/out --scenario scenarios/spain_alicante.yaml
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead. Include the physical numbers if results look wrong (apogee, density, etc.).
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      options:
+        - rocketpy core (packages/rocketpy)
+        - rocketserializer (packages/rocketserializer)
+        - icaro domain (packages/icaro)
+        - CLI (apps/cli)
+        - API (apps/api)
+        - Web (apps/web)
+        - Build / CI / packaging (uv, workflows)
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "e.g. 3.12 (uv run python --version)"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - macOS
+        - Linux
+        - Windows / WSL
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs / traceback
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Scenario YAML, .ork file, screenshots, workarounds, anything else.
