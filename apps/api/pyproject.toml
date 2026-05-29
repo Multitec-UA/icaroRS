@@ -37,9 +37,12 @@ icaro = { workspace = true }
 dev = [
     "pytest>=9.0.3",
     "httpx",
+    "pytest-asyncio>=0.23",
+    "anyio[trio]",
 ]
 
 [tool.pytest.ini_options]
+asyncio_mode = "auto"
 markers = [
     "integration: marks tests as integration tests (require JVM/network/real files — skip in CI)",
 ]

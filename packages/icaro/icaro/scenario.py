@@ -52,9 +52,9 @@ class Site(BaseModel):
     Parameters
     ----------
     latitude : float
-        WGS-84 latitude in decimal degrees. Required.
+        WGS-84 latitude in decimal degrees. Required. Range: -90 to 90.
     longitude : float
-        WGS-84 longitude in decimal degrees. Required.
+        WGS-84 longitude in decimal degrees. Required. Range: -180 to 180.
     elevation : float or None
         Altitude above sea-level in metres. When absent the elevation from the
         export's ``environment`` block is used (REQ-SCN-10).
@@ -63,6 +63,24 @@ class Site(BaseModel):
     latitude: float
     longitude: float
     elevation: float | None = None
+
+    @field_validator("latitude")
+    @classmethod
+    def _validate_latitude(cls, v: float) -> float:
+        if not (-90.0 <= v <= 90.0):
+            raise ValueError(
+                f"Latitude must be between -90 and 90 degrees (got {v})."
+            )
+        return v
+
+    @field_validator("longitude")
+    @classmethod
+    def _validate_longitude(cls, v: float) -> float:
+        if not (-180.0 <= v <= 180.0):
+            raise ValueError(
+                f"Longitude must be between -180 and 180 degrees (got {v})."
+            )
+        return v
 
 
 class LaunchDate(BaseModel):

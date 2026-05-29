@@ -12,6 +12,8 @@ matplotlib.use("Agg")  # noqa: E402 — MUST precede any pyplot/rocketpy import
 
 from fastapi import FastAPI  # noqa: E402
 
+from icaro_api.routers import convert, discovery, results, scenario, simulate  # noqa: E402
+
 
 def create_app() -> FastAPI:
     """Create and configure the FastAPI application.
@@ -30,13 +32,14 @@ def create_app() -> FastAPI:
         version="0.1.0",
     )
 
-    # Routers are registered here once implemented (Phase 1-E).
-    # from icaro_api.routers import convert, scenario, simulate, results, discovery
-    # app.include_router(convert.router, prefix="/api")
-    # app.include_router(scenario.router, prefix="/api")
-    # app.include_router(simulate.router, prefix="/api")
-    # app.include_router(results.router, prefix="/api")
-    # app.include_router(discovery.router, prefix="/api")
+    # All routers mounted under /api.  Auth is applied at router-level via
+    # ``dependencies=[Depends(require_auth)]`` in each router declaration
+    # (satisfies RG-8.1, task 1.12 deferred to here).
+    app.include_router(convert.router, prefix="/api")
+    app.include_router(scenario.router, prefix="/api")
+    app.include_router(simulate.router, prefix="/api")
+    app.include_router(results.router, prefix="/api")
+    app.include_router(discovery.router, prefix="/api")
 
     return app
 
