@@ -1,0 +1,32 @@
+[project]
+name = "icaro-cli"
+version = "0.1.0"
+description = "icaroRS command-line interface — a thin delivery layer over the icaro domain."
+requires-python = ">=3.10"
+dependencies = [
+    "icaro",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+# [convert] extra — installs the JVM-dependent rocketserializer dependency.
+# Default install (icaro-cli) is JVM-free.
+# To enable `icaro convert`:
+#   pip install 'icaro-cli[convert]'
+# Also requires: Java 21+ installed on the system (NFN-4).
+convert = [
+    "icaro[convert]",
+]
+
+[project.scripts]
+icaro = "icaro_cli.main:app"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["icaro_cli"]
+
+[tool.uv.sources]
+icaro = { workspace = true }

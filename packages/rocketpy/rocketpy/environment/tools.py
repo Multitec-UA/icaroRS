@@ -188,15 +188,35 @@ def get_pressure_levels_from_file(data, dictionary):
     ------
     ValueError
         If the pressure levels cannot be read from the file.
+
+    Notes
+    -----
+    The level coordinate's unit varies by source: UCAR THREDDS GFS delivers it
+    already in Pa, while NOMADS/ERA5 files use hPa (mbar). We honour the
+    variable's ``units`` attribute and only scale hPa→Pa; when the attribute is
+    missing we infer the unit from magnitude. Blindly multiplying by 100 made
+    Pa-sourced data 100x too high (density ~100x → drag ~100x → broken flights).
     """
     try:
-        # Convert mbar to Pa
-        levels = 100 * data.variables[dictionary["level"]][:]
+        level_variable = data.variables[dictionary["level"]]
+        raw_levels = np.asarray(level_variable[:], dtype=float)
     except KeyError as e:
         raise ValueError(
             "Unable to read pressure levels from file. Check file and dictionary."
         ) from e
-    return levels
+
+    units = str(getattr(level_variable, "units", "")).strip().lower()
+    if units in ("pa", "pascal", "pascals"):
+        return raw_levels
+    if units in ("hpa", "mbar", "millibar", "millibars", "mb"):
+        return 100.0 * raw_levels
+
+    # Units missing/unknown: infer from magnitude. Atmospheric pressure levels
+    # are ~1e3-1.05e5 Pa, or ~1-1050 hPa/mbar. A maximum below ~2000 means the
+    # values are hPa/mbar and must be scaled; otherwise they are already Pa.
+    if raw_levels.size and float(np.nanmax(raw_levels)) < 2000.0:
+        return 100.0 * raw_levels
+    return raw_levels
 
 
 def mask_and_clean_dataset(*args):

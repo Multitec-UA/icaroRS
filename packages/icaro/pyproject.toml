@@ -1,0 +1,50 @@
+[project]
+name = "icaro"
+version = "0.1.0"
+description = "icaroRS domain layer: use-cases that turn RocketSerializer exports into RocketPy simulations."
+requires-python = ">=3.10"
+dependencies = [
+    "rocketpy",
+    "pydantic>=2",
+    "pyyaml>=6",
+]
+
+[project.optional-dependencies]
+# [convert] extra — gates the JVM/rocketserializer dependency.
+# Installing `icaro` without [convert] is JVM-free (default).
+# To enable the `convert_ork` use-case:
+#   pip install 'icaro[convert]'
+# or, via the CLI package:
+#   pip install 'icaro-cli[convert]'
+# Also requires: Java 21+ installed on the system (NFN-4).
+convert = [
+    "rocketserializer",
+    "orhelper",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["icaro"]
+
+[tool.setuptools.package-data]
+icaro = ["*.yaml", "templates/*.yaml"]
+
+# In this monorepo, rocketpy and rocketserializer resolve to the local packages
+# under packages/, NOT the PyPI release. uv honours this; with plain pip install
+# the local editable packages must already be on the path.
+[tool.uv.sources]
+rocketpy = { workspace = true }
+rocketserializer = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (require JVM/network/real files — skip in CI)",
+]

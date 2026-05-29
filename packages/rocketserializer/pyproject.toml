@@ -8,6 +8,11 @@ dependencies = {file = ["requirements.in"]}
 [tool.setuptools]
 packages = { find = { where = ["."], include = ["rocketserializer*"] } }
 
+# rocketpy (listed in requirements.in) resolves to the local workspace package,
+# not the PyPI release.
+[tool.uv.sources]
+rocketpy = { workspace = true }
+
 [project]
 name = "rocketserializer"
 version = "0.2.0"

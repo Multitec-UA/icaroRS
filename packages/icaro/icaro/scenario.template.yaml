@@ -1,0 +1,89 @@
+# icaroRS Scenario Template
+# =========================
+# Copy this file and fill in the values for your launch.
+# All fields documented here; optional ones can be removed.
+#
+# Usage:
+#   cp scenario.template.yaml my_launch.yaml
+#   icaro simulate --scenario my_launch.yaml --export ./export_dir
+#
+# NFN-2 INTERNET NOTE: GFS (forecast model) requires an active internet
+# connection at simulation time to fetch weather data from UCAR THREDDS.
+# If you are offline, set atmosphere.model to standard_atmosphere instead.
+#
+# NFN-3 GFS WINDOW NOTE: GFS covers approximately now to ~16 days ahead.
+# Dates outside this window will trigger the fallback to standard_atmosphere
+# automatically (with a warning). For historical dates, use ERA5 reanalysis
+# with a local .nc file (atmosphere.model: reanalysis, atmosphere.file: ...).
+
+# ── Name (optional, used as default Monte Carlo output prefix) ──────────────
+name: my_launch
+
+# ── Launch site (required: latitude and longitude) ──────────────────────────
+site:
+  latitude: 37.1        # decimal degrees, WGS-84. REQUIRED.
+  longitude: -6.73      # decimal degrees, WGS-84. REQUIRED.
+  elevation: 10.0       # metres above sea level. Optional — if omitted,
+                        # the value from the export's environment block is used.
+
+# ── Launch date (required for forecast / wyoming_sounding) ──────────────────
+date:
+  year: 2025
+  month: 6
+  day: 15
+  hour: 12              # UTC hour (0–23)
+
+# ── Atmosphere model ────────────────────────────────────────────────────────
+# model values:
+#   forecast          — GFS via UCAR THREDDS (internet required, date required)
+#   wyoming_sounding  — radiosonde data (station required, date required)
+#   standard_atmosphere — ICAO standard atmosphere, no network needed
+#   reanalysis        — ERA5-compatible local .nc file (file path required)
+atmosphere:
+  model: forecast       # one of the four values above
+  file: GFS             # for forecast: GFS (default) or UCAR ensemble name.
+                        # for reanalysis: path to your local .nc file.
+  # station: XXXXX      # wyoming_sounding only: station id (e.g. "82332")
+  fallback: standard_atmosphere   # model to use if primary fetch fails.
+                                  # standard_atmosphere never needs network.
+
+# ── Launch rail overrides (optional) ────────────────────────────────────────
+# Each field independently overrides the corresponding value from parameters.json.
+# Remove the rail block entirely (or comment it out) to use all export values.
+rail:
+  length: 5.0           # metres. Optional.
+  inclination: 84.0     # degrees from horizontal. Optional.
+  heading: 90.0         # degrees clockwise from north. Optional.
+
+# ── Uncertainty budget for Monte Carlo dispersion ───────────────────────────
+# If this block is ENTIRELY omitted, the DEFAULT_UNCERTAINTY template is used
+# (shown below with the default values).
+#
+# If this block IS present (even with only one entry), ONLY the listed entries
+# are used — the others are NOT auto-filled from the template. This is
+# intentional so a partial override is explicit.
+#
+# kind values:
+#   relative — std is a fraction of the nominal (e.g. 0.05 = 5%)
+#   absolute — std is in the same units as the nominal (e.g. 2.0 degrees)
+#
+# kind is REQUIRED for every entry — omitting it is a validation error.
+uncertainty:
+  mass:
+    std: 0.05             # ±5% of nominal dry mass (relative)
+    kind: relative
+  inclination:
+    std: 2.0              # ±2° of nominal inclination (absolute)
+    kind: absolute
+  heading:
+    std: 2.0              # ±2° of nominal heading (absolute)
+    kind: absolute
+  wind_factor:
+    std: 0.10             # ±10% scaling factor on wind velocity (relative)
+    kind: relative
+  thrust:
+    std: 0.03             # ±3% of nominal thrust (relative)
+    kind: relative
+  rail_length:
+    std: 0.05             # ±5% of nominal rail length (relative)
+    kind: relative
