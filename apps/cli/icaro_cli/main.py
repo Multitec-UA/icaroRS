@@ -18,7 +18,7 @@ from typing import Optional
 
 import typer
 
-from icaro import load_scenario, simulate_from_export
+from icaro import ConvertUnavailableError, convert_ork, load_scenario, simulate_from_export
 
 app = typer.Typer(
     help="icaroRS rocket simulation toolkit.",
@@ -92,6 +92,54 @@ def simulate(
     if report:
         flight.plots.trajectory_3d()
         flight.prints.all()
+
+
+@app.command()
+def convert(
+    ork_file: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+        help="Path to the OpenRocket .ork file to convert.",
+    ),
+    output_dir: Optional[Path] = typer.Option(
+        None,
+        "--output-dir",
+        "-o",
+        help=(
+            "Destination directory for the export files "
+            "(parameters.json, thrust_source.csv, drag_curve.csv). "
+            "Defaults to a directory named after the .ork file stem in the "
+            "current working directory."
+        ),
+    ),
+    ork_jar: Optional[Path] = typer.Option(
+        None,
+        "--ork-jar",
+        help=(
+            "Path to the OpenRocket .jar file. "
+            "When omitted, searches the current directory for OpenRocket*.jar. "
+            "NFN-4: requires Java 21+ installed on your system."
+        ),
+    ),
+) -> None:
+    """Convert an OpenRocket .ork file to a RocketSerializer export directory.
+
+    The export directory contains parameters.json, thrust_source.csv and
+    drag_curve.csv — ready for use with 'icaro simulate'.
+
+    NFN-4: requires Java 21+ and the [convert] optional extra:
+        pip install 'icaro-cli[convert]'
+    """
+    try:
+        result = convert_ork(ork_path=ork_file, output_dir=output_dir, ork_jar=ork_jar)
+    except ConvertUnavailableError as exc:
+        typer.echo(str(exc), err=True)
+        raise typer.Exit(code=1)
+
+    typer.echo(str(result))
 
 
 if __name__ == "__main__":

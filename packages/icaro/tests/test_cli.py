@@ -145,3 +145,113 @@ def test_req_sim07_no_atmosphere_logic_in_cli():
             f"REQ-SIM-07 violation: CLI contains forbidden pattern '{pattern}'. "
             "Atmosphere/rocketpy logic must stay in icaro use-cases."
         )
+
+
+# ---------------------------------------------------------------------------
+# Phase B — icaro convert CLI tests (B2.1)
+# ---------------------------------------------------------------------------
+
+
+def test_cvt2_convert_without_extra_prints_install_hint(tmp_path):
+    """CVT-2: when [convert] extra is missing, CLI prints install hint + exits non-zero.
+
+    No traceback, no raw ImportError — a human-readable message only.
+    typer's CliRunner captures both stdout and stderr in result.output.
+    """
+    ork_file = tmp_path / "rocket.ork"
+    ork_file.write_text("<openrocket/>")
+
+    from icaro.convert import ConvertUnavailableError
+
+    with patch(
+        "icaro_cli.main.convert_ork",
+        side_effect=ConvertUnavailableError(
+            "Install with: pip install 'icaro-cli[convert]' and ensure Java 21 is available."
+        ),
+    ):
+        result = runner.invoke(app, ["convert", str(ork_file)])
+
+    assert result.exit_code != 0, (
+        f"Expected non-zero exit for missing [convert] extra, got {result.exit_code}"
+    )
+    # The install hint must be visible in the combined output.
+    combined = result.output.lower()
+    assert "convert" in combined or "install" in combined, (
+        f"Expected install hint in output, got: {result.output!r}"
+    )
+
+
+def test_cvt3_convert_nonexistent_ork_exits_nonzero(tmp_path):
+    """CVT-3: non-existent .ork file → CLI exits non-zero with error referencing the file."""
+    missing = tmp_path / "ghost.ork"
+    # Do NOT create the file.
+
+    result = runner.invoke(app, ["convert", str(missing)])
+
+    assert result.exit_code != 0, (
+        f"Expected non-zero exit for missing .ork file, got {result.exit_code}"
+    )
+    # Typer's Path(exists=True) will catch this before the use-case is called.
+
+
+def test_cvt_success_prints_output_dir(tmp_path):
+    """REQ-CVT-05: on success, CLI prints the output directory path."""
+    ork_file = tmp_path / "rocket.ork"
+    ork_file.write_text("<openrocket/>")
+    output_dir = tmp_path / "export"
+
+    expected_path = output_dir
+
+    with patch("icaro_cli.main.convert_ork", return_value=expected_path) as mock_convert:
+        result = runner.invoke(
+            app,
+            ["convert", str(ork_file), "--output-dir", str(output_dir)],
+        )
+
+    assert result.exit_code == 0, f"Expected exit 0, got {result.exit_code}: {result.output}"
+    assert str(expected_path) in result.output, (
+        f"Expected output dir path in stdout, got: {result.output!r}"
+    )
+    mock_convert.assert_called_once()
+
+
+def test_cvt_calls_use_case_with_correct_args(tmp_path):
+    """REQ-CVT-04: CLI passes ork_path and output_dir to convert_ork use-case."""
+    ork_file = tmp_path / "rocket.ork"
+    ork_file.write_text("<openrocket/>")
+    output_dir = tmp_path / "export"
+
+    with patch("icaro_cli.main.convert_ork", return_value=output_dir) as mock_convert:
+        runner.invoke(
+            app,
+            ["convert", str(ork_file), "--output-dir", str(output_dir)],
+        )
+
+    mock_convert.assert_called_once()
+    call_args = mock_convert.call_args
+    # ork_path is the first positional/keyword argument.
+    positional = call_args[0]
+    keyword = call_args[1]
+    ork_arg = positional[0] if positional else keyword.get("ork_path")
+    assert Path(str(ork_arg)) == ork_file or str(ork_file) in str(ork_arg)
+
+
+def test_req_cvt_no_ork_extractor_import_in_cli():
+    """REQ-CVT-04: CLI must NOT import rocketserializer or ork_extractor directly."""
+    import icaro_cli.main as cli_module
+
+    source_path = Path(cli_module.__file__)
+    source = source_path.read_text()
+
+    forbidden = [
+        "import rocketserializer",
+        "from rocketserializer",
+        "import orhelper",
+        "from orhelper",
+        "ork_extractor",
+    ]
+    for pattern in forbidden:
+        assert pattern not in source, (
+            f"REQ-CVT-04 violation: CLI contains '{pattern}'. "
+            "rocketserializer must be accessed only via the icaro.convert use-case."
+        )

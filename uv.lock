@@ -999,6 +999,12 @@ dependencies = [
     { name = "rocketpy" },
 ]
 
+[package.optional-dependencies]
+convert = [
+    { name = "orhelper" },
+    { name = "rocketserializer" },
+]
+
 [package.dev-dependencies]
 dev = [
     { name = "pytest" },
@@ -1006,10 +1012,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "orhelper", marker = "extra == 'convert'" },
     { name = "pydantic", specifier = ">=2" },
     { name = "pyyaml", specifier = ">=6" },
     { name = "rocketpy", editable = "packages/rocketpy" },
+    { name = "rocketserializer", marker = "extra == 'convert'", editable = "packages/rocketserializer" },
 ]
+provides-extras = ["convert"]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=9.0.3" }]
@@ -1023,11 +1032,18 @@ dependencies = [
     { name = "typer" },
 ]
 
+[package.optional-dependencies]
+convert = [
+    { name = "icaro", extra = ["convert"] },
+]
+
 [package.metadata]
 requires-dist = [
     { name = "icaro", editable = "packages/icaro" },
+    { name = "icaro", extras = ["convert"], marker = "extra == 'convert'", editable = "packages/icaro" },
     { name = "typer", specifier = ">=0.12" },
 ]
+provides-extras = ["convert"]
 
 [[package]]
 name = "idna"
