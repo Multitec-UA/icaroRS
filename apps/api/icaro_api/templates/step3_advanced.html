@@ -24,8 +24,8 @@
 <form id="step3-form" method="post" action="/step3">
   <!-- Carry state forward -->
   <input type="hidden" name="export_id" value="{{ export_id or '' }}" />
-  <input type="hidden" name="latitude"  value="{{ scenario.site.latitude if scenario and scenario.site else '' }}" />
-  <input type="hidden" name="longitude" value="{{ scenario.site.longitude if scenario and scenario.site else '' }}" />
+  <input type="hidden" name="latitude"  value="{{ scenario.site.latitude if scenario and scenario.site and scenario.site.latitude is not none else '' }}" />
+  <input type="hidden" name="longitude" value="{{ scenario.site.longitude if scenario and scenario.site and scenario.site.longitude is not none else '' }}" />
   <input type="hidden" name="elevation" value="{{ scenario.site.elevation if scenario and scenario.site and scenario.site.elevation is not none else '' }}" />
   <input type="hidden" name="launch_datetime" value="{{ launch_datetime or '' }}" />
   <input type="hidden" id="atmosphere-model-hidden" name="atmosphere_model" value="{{ scenario.atmosphere.model if scenario and scenario.atmosphere else 'standard_atmosphere' }}" />

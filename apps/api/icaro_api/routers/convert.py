@@ -11,18 +11,19 @@ Spec RG-2.1, AC-RG-2.1, AC-RG-2.2.
 from __future__ import annotations
 
 import json
-import shutil
+import logging
 import tempfile
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
-from icaro import convert_ork
-from icaro.convert import ConvertUnavailableError
 from icaro_api.auth import require_auth
 from icaro_api.config import Settings, get_settings
 from icaro_api.runs import make_run_id
+from icaro_api.services.convert import run_convert
+
+logger = logging.getLogger("icaro_api.convert")
 
 router = APIRouter(
     tags=["convert"],
@@ -64,26 +65,37 @@ async def post_convert(
         run_id = make_run_id()
         output_dir = settings.results_dir / run_id
 
-        try:
-            export_dir = convert_ork(
-                ork_path=tmp_path,
-                output_dir=output_dir,
-                ork_jar=settings.ork_jar,
+        # Each conversion runs in its own subprocess so it gets a fresh JVM
+        # (jpype cannot restart a JVM in the same process). The service never
+        # raises for a conversion failure — it returns an outcome we map below.
+        outcome = run_convert(
+            ork_path=tmp_path,
+            output_dir=output_dir,
+            ork_jar=settings.ork_jar,
+        )
+
+        if outcome.get("status") == "unavailable":
+            # Java/jar missing — hint is verbatim from icaro (AC-RG-2.2).
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail={"error": "convert_unavailable", "hint": outcome.get("hint", "")},
             )
-        except ConvertUnavailableError as exc:
-            # Hint is the str() of the exception — pass it verbatim (AC-RG-2.2).
+        if outcome.get("status") != "ok":
+            # Any other engine fault → clean 503, never a 500/traceback (RG-9.4).
+            logger.error("convert failed for %s: %s", filename, outcome.get("message"))
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail={
-                    "error": "convert_unavailable",
-                    "hint": str(exc),
+                    "error": "convert_failed",
+                    "hint": outcome.get(
+                        "message",
+                        "The conversion engine could not process this file. "
+                        "Please try again or contact your administrator.",
+                    ),
                 },
             )
-        except FileNotFoundError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=str(exc),
-            )
+
+        export_dir = outcome["export_dir"]
 
         # Load the manifest (parameters.json from the export directory).
         manifest: dict[str, Any] = {}

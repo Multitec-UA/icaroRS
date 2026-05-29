@@ -78,7 +78,7 @@
           min="-90"
           max="90"
           placeholder="e.g. -34.6037"
-          value="{{ scenario.site.latitude if scenario and scenario.site else '' }}"
+          value="{{ scenario.site.latitude if scenario and scenario.site and scenario.site.latitude is not none else '' }}"
           aria-label="Latitude in decimal degrees"
         />
         {{ field_error(errors, "site.latitude") }}
@@ -96,7 +96,7 @@
           min="-180"
           max="180"
           placeholder="e.g. -58.3816"
-          value="{{ scenario.site.longitude if scenario and scenario.site else '' }}"
+          value="{{ scenario.site.longitude if scenario and scenario.site and scenario.site.longitude is not none else '' }}"
           aria-label="Longitude in decimal degrees"
         />
         {{ field_error(errors, "site.longitude") }}
@@ -176,7 +176,7 @@
 <!-- Leaflet JS — map library via CDN -->
 <script
   src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WPc="
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""
 ></script>
 

@@ -182,3 +182,5 @@ serializer.log
 # Local agent / SDD scratch (uncomment to ignore)
 # .atl/
 # .agent/
+# API run artifacts (PNGs + result.json per simulate)
+.icaro_runs/

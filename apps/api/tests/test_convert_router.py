@@ -41,20 +41,19 @@ def _ork_file_content() -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Unit tests (task 1.28) — mock convert_ork
+# Unit tests (task 1.28) — mock the convert SERVICE (run_convert), which runs
+# the real conversion in an isolated subprocess. The router only maps outcomes.
 # ---------------------------------------------------------------------------
 
 
 class TestConvertUnavailable:
     def test_convert_unavailable_returns_503(self):
-        """AC-RG-2.2: ConvertUnavailableError → 503."""
-        from icaro.convert import ConvertUnavailableError
-
+        """AC-RG-2.2: an 'unavailable' outcome → 503."""
         client = _make_client()
 
         with patch(
-            "icaro_api.routers.convert.convert_ork",
-            side_effect=ConvertUnavailableError("hint text: install Java 21"),
+            "icaro_api.routers.convert.run_convert",
+            return_value={"status": "unavailable", "hint": "hint text: install Java 21"},
         ):
             resp = client.post(
                 "/api/convert",
@@ -66,14 +65,12 @@ class TestConvertUnavailable:
 
     def test_convert_unavailable_hint_in_body(self):
         """AC-RG-2.2: hint text appears verbatim in response body."""
-        from icaro.convert import ConvertUnavailableError
-
         client = _make_client()
         hint = "hint text: install Java 21"
 
         with patch(
-            "icaro_api.routers.convert.convert_ork",
-            side_effect=ConvertUnavailableError(hint),
+            "icaro_api.routers.convert.run_convert",
+            return_value={"status": "unavailable", "hint": hint},
         ):
             resp = client.post(
                 "/api/convert",
@@ -86,13 +83,11 @@ class TestConvertUnavailable:
 
     def test_convert_unavailable_no_traceback(self):
         """RG-9.4: no traceback in error response."""
-        from icaro.convert import ConvertUnavailableError
-
         client = _make_client()
 
         with patch(
-            "icaro_api.routers.convert.convert_ork",
-            side_effect=ConvertUnavailableError("some hint"),
+            "icaro_api.routers.convert.run_convert",
+            return_value={"status": "unavailable", "hint": "some hint"},
         ):
             resp = client.post(
                 "/api/convert",
@@ -103,6 +98,23 @@ class TestConvertUnavailable:
         body = resp.text
         assert "Traceback" not in body
         assert "traceback" not in body
+
+    def test_convert_engine_error_returns_503_no_traceback(self):
+        """An 'error' outcome (e.g. JVM cannot restart) → clean 503, no 500/traceback."""
+        client = _make_client()
+
+        with patch(
+            "icaro_api.routers.convert.run_convert",
+            return_value={"status": "error", "message": "JVM cannot be restarted"},
+        ):
+            resp = client.post(
+                "/api/convert",
+                files={"file": ("rocket.ork", io.BytesIO(_ork_file_content()), "application/octet-stream")},
+                headers=_auth(),
+            )
+
+        assert resp.status_code == 503
+        assert "Traceback" not in resp.text
 
 
 class TestConvertSuccess:
@@ -119,8 +131,8 @@ class TestConvertSuccess:
         client = _make_client()
 
         with patch(
-            "icaro_api.routers.convert.convert_ork",
-            return_value=export_dir,
+            "icaro_api.routers.convert.run_convert",
+            return_value={"status": "ok", "export_dir": str(export_dir)},
         ):
             resp = client.post(
                 "/api/convert",
@@ -134,10 +146,10 @@ class TestConvertSuccess:
         assert "manifest" in data
 
     def test_non_ork_filename_returns_422(self):
-        """Non-.ork extension → 422."""
+        """Non-.ork extension → 422 (rejected before the subprocess is spawned)."""
         client = _make_client()
 
-        with patch("icaro_api.routers.convert.convert_ork", return_value=Path("/fake")):
+        with patch("icaro_api.routers.convert.run_convert") as mock_run:
             resp = client.post(
                 "/api/convert",
                 files={"file": ("rocket.txt", io.BytesIO(b"content"), "text/plain")},
@@ -145,6 +157,7 @@ class TestConvertSuccess:
             )
 
         assert resp.status_code == 422
+        mock_run.assert_not_called()
 
     def test_returns_401_without_auth(self):
         client = _make_client()
