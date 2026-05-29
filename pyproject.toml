@@ -10,4 +10,4 @@
 # Only real packages (with a pyproject.toml) are members. apps/api and apps/web
 # are README stubs today; add them here when they become actual packages.
 [tool.uv.workspace]
-members = ["packages/*", "apps/cli"]
+members = ["packages/*", "apps/cli", "apps/api"]

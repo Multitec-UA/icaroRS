@@ -1,0 +1,45 @@
+[project]
+name = "icaro-api"
+version = "0.1.0"
+description = "icaroRS FastAPI delivery surface — thin HTTP layer over the icaro domain."
+requires-python = ">=3.10"
+dependencies = [
+    "icaro",
+    "fastapi",
+    "uvicorn[standard]",
+    "jinja2",
+    "python-multipart",
+    "pydantic-settings",
+    "httpx",
+]
+
+[project.optional-dependencies]
+# [convert] extra — gates the JVM/rocketserializer dependency.
+# Default install is JVM-free.  To enable POST /api/convert:
+#   pip install 'icaro-api[convert]'
+# Also requires: Java 21+ installed on the system.
+convert = [
+    "icaro[convert]",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["icaro_api"]
+
+# In this monorepo, icaro resolves to packages/icaro — never PyPI.
+[tool.uv.sources]
+icaro = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "httpx",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: marks tests as integration tests (require JVM/network/real files — skip in CI)",
+]

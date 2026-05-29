@@ -33,6 +33,7 @@ trigger those imports — they only fire when ``convert_ork`` is called.
 """
 
 from .convert import ConvertUnavailableError, convert_ork
+from .discovery import choose_atmosphere_model_for_date, gfs_window_check
 from .scenario import Scenario, load_scenario
 from .simulation import simulate_from_export
 
@@ -44,6 +45,9 @@ __all__ = [
     # Phase B
     "convert_ork",
     "ConvertUnavailableError",
+    # Phase 1 web helpers
+    "gfs_window_check",
+    "choose_atmosphere_model_for_date",
     # Phase C — added when montecarlo.py is implemented
     # "run_monte_carlo",
     # Phase D — added when sensitivity.py is implemented
