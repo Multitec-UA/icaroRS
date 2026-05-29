@@ -7,5 +7,7 @@
 # Install everything (editable, cross-linked) with:  uv sync
 # Docs on the layout and rules live in ARCHITECTURE.md.
 
+# Only real packages (with a pyproject.toml) are members. apps/api and apps/web
+# are README stubs today; add them here when they become actual packages.
 [tool.uv.workspace]
-members = ["packages/*", "apps/*"]
+members = ["packages/*", "apps/cli"]
