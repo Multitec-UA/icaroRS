@@ -38,6 +38,7 @@ the step with _field_error.html inline — never a traceback.
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -197,6 +198,10 @@ def step2_post(
     }
     if elev_f is not None:
         partial_scenario_body["site"]["elevation"] = elev_f
+    # forecast/wyoming need a date block — derive it from the picked datetime.
+    launch_date = _parse_launch_date(launch_datetime)
+    if launch_date:
+        partial_scenario_body["date"] = launch_date
 
     api_errors = _validate_via_api(partial_scenario_body, settings)
     if api_errors:
@@ -321,8 +326,12 @@ def step3_post(
     }
     if elev_f is not None:
         scenario_body["site"]["elevation"] = elev_f
-    if launch_datetime.strip():
-        scenario_body["site"]["launch_date"] = launch_datetime.strip()
+    # forecast/wyoming need a top-level date block (year/month/day/hour), NOT a
+    # string under site — the model ignores unknown site fields, leaving date
+    # None and failing validation. Derive the block from the picked datetime.
+    launch_date = _parse_launch_date(launch_datetime)
+    if launch_date:
+        scenario_body["date"] = launch_date
 
     # Rail overrides (optional)
     rail_l = _parse_float(rail_length)
@@ -438,6 +447,28 @@ def _parse_float(value: str | None) -> float | None:
         return float(value)
     except (ValueError, TypeError):
         return None
+
+
+def _parse_launch_date(launch_datetime: str | None) -> dict[str, int] | None:
+    """Parse a ``datetime-local`` string into a Scenario ``date`` block.
+
+    The browser's ``<input type="datetime-local">`` submits ``YYYY-MM-DDThh:mm``.
+    The Scenario model needs a ``date`` block (``year, month, day, hour``) for
+    real-atmosphere models (forecast/wyoming) — without it, validation fails
+    with "atmosphere.model 'forecast' requires a 'date' block".
+
+    Returns ``{year, month, day, hour}`` or ``None`` when the input is empty or
+    unparseable.  The entered wall-clock hour is used as-is (treated as the
+    launch instant); a precise local→UTC conversion is a future refinement.
+    """
+    s = (launch_datetime or "").strip()
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    return {"year": dt.year, "month": dt.month, "day": dt.day, "hour": dt.hour}
 
 
 def _build_partial_scenario(

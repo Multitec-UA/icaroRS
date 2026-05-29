@@ -351,6 +351,46 @@ class TestStep2Post:
         assert "<details" in body
         assert "Typical" in body
 
+    def test_post_step2_forecast_with_date_advances(self, client, auth):
+        """Regression: forecast model + a picked date → date block derived →
+        validation passes → advance to Step 3 (the Alicante smoke case)."""
+        resp = client.post(
+            "/step2",
+            headers=auth,
+            data={
+                "export_id": "exp-1",
+                "latitude": "38.343637",
+                "longitude": "-0.488171",
+                "elevation": "26",
+                "launch_datetime": "2026-06-01T09:54",
+                "atmosphere_model": "forecast",  # set by the atmosphere-suggest JS
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.text
+        # Advanced to Step 3 — no "requires a 'date' block" error.
+        assert "<details" in body
+        assert "requires a 'date' block" not in body
+
+    def test_post_step2_forecast_without_date_errors(self, client, auth):
+        """forecast with NO date → inline error asking for the date, stays on Step 2."""
+        resp = client.post(
+            "/step2",
+            headers=auth,
+            data={
+                "export_id": "exp-1",
+                "latitude": "38.343637",
+                "longitude": "-0.488171",
+                "elevation": "26",
+                "launch_datetime": "",
+                "atmosphere_model": "forecast",
+            },
+        )
+        assert resp.status_code == 200
+        body = resp.text
+        assert 'id="map"' in body  # stayed on Step 2
+        assert "date" in body.lower()
+
     def test_post_step2_validation_fails_closed(self, client, auth, monkeypatch):
         """If the validation call raises unexpectedly, the form is treated as
         INVALID (fail closed) — it must NOT silently advance to Step 3."""
