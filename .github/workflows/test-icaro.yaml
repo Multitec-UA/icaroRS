@@ -1,0 +1,89 @@
+name: Tests (icaro · API · web)
+
+# CI for the FIRST-PARTY code (issue #14). The inherited rocketpy /
+# rocketserializer workflows only cover packages/rocketpy and
+# packages/rocketserializer — this one guards the domain, the API and the web.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "packages/icaro/**"
+      - "apps/api/**"
+      - "apps/web/**"
+      - ".github/workflows/test-icaro.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/icaro/**"
+      - "apps/api/**"
+      - "apps/web/**"
+      - ".github/workflows/test-icaro.yaml"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Domain + API — uv workspace, strict-TDD unit suites (integration skipped).
+  # ---------------------------------------------------------------------------
+  python:
+    name: Python (icaro + api)
+    runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg
+    steps:
+      - uses: actions/checkout@v4
+
+      # Java 21 is here for forward-compat: any JVM-bound test (convert) needs
+      # it, mirroring the serializer workflow. Unit suites skip integration, but
+      # provisioning it keeps the job correct as integration tests are added.
+      - name: Set up Java 21 (OpenRocket .jar / convert)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync workspace (all packages + dev groups)
+        run: uv sync --all-packages --all-groups
+
+      - name: icaro unit tests (TDD suite)
+        working-directory: packages/icaro
+        run: uv run --no-sync pytest -m "not integration" -v
+
+      - name: api unit tests (TDD suite)
+        working-directory: apps/api
+        run: uv run --no-sync pytest -m "not integration" -v
+
+  # ---------------------------------------------------------------------------
+  # Web — typecheck + lint + production build. The build catches bundler/RSC
+  # failures (server/client boundary, dynamic imports) that tsc/eslint miss.
+  # ---------------------------------------------------------------------------
+  web:
+    name: Web (apps/web)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Production build
+        run: npm run build
