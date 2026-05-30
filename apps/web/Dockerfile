@@ -22,6 +22,13 @@ RUN npm ci
 FROM node:20-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
+# Next 16 evaluates `rewrites()` at BUILD time and bakes the resolved routes
+# into the standalone server bundle. ICARO_API_ORIGIN must therefore be
+# present here, not just at runtime. The default targets the MultitecUA
+# Cloud Run icaro-api service; override per environment with:
+#   docker build --build-arg ICARO_API_ORIGIN=https://your-api ...
+ARG ICARO_API_ORIGIN="https://mt-icaro-api-g4ch7vklma-ew.a.run.app"
+ENV ICARO_API_ORIGIN=$ICARO_API_ORIGIN
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
