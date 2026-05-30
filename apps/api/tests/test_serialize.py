@@ -17,6 +17,7 @@ from __future__ import annotations
 import json
 import warnings
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -252,3 +253,57 @@ class TestSerializeFlightDefensive:
                 delattr(flight, attr)
         result = serialize_flight(flight, tmp_path, "run-014", [])
         assert isinstance(result["scalars"], dict)
+
+
+# ---------------------------------------------------------------------------
+# Apogee reference frame — MSL → AGL correction
+#
+# rocketpy reports apogee above SEA LEVEL (raw Z), but the altitude chart is
+# above GROUND LEVEL. With a forecast atmosphere rocketpy overrides the env
+# elevation with terrain height, so the two diverge by env.elevation. The
+# summary apogee must be expressed AGL so it agrees with the chart's peak.
+# ---------------------------------------------------------------------------
+
+
+class TestApogeeAboveGroundLevel:
+    def test_apogee_corrected_to_agl_when_env_present(self, tmp_path):
+        """apogee_m = flight.apogee - env.elevation (matches the chart's peak)."""
+        flight = FakeFlight()
+        flight.apogee = 736.0
+        flight.env = SimpleNamespace(elevation=151.5)
+        result = serialize_flight(flight, tmp_path, "run-agl-1", [])
+        assert result["scalars"]["apogee_m"] == pytest.approx(584.5)
+
+    def test_apogee_unchanged_at_sea_level(self, tmp_path):
+        """elevation 0 (e.g. site at sea level) → AGL equals MSL."""
+        flight = FakeFlight()
+        flight.apogee = 1_000.0
+        flight.env = SimpleNamespace(elevation=0.0)
+        result = serialize_flight(flight, tmp_path, "run-agl-2", [])
+        assert result["scalars"]["apogee_m"] == pytest.approx(1_000.0)
+
+    def test_horizontal_apogee_components_not_corrected(self, tmp_path):
+        """apogee_x / apogee_y are horizontal — elevation must NOT touch them."""
+        flight = FakeFlight()
+        flight.apogee_x = 42.1
+        flight.apogee_y = 17.8
+        flight.env = SimpleNamespace(elevation=151.5)
+        result = serialize_flight(flight, tmp_path, "run-agl-3", [])
+        assert result["scalars"]["apogee_x_m"] == pytest.approx(42.1)
+        assert result["scalars"]["apogee_y_m"] == pytest.approx(17.8)
+
+    def test_apogee_preserved_when_env_missing(self, tmp_path):
+        """Defensive: no env on the flight → raw value kept, no crash."""
+        flight = FakeFlight()  # FakeFlight has no `env`
+        flight.apogee = 1_423.5
+        assert not hasattr(flight, "env")
+        result = serialize_flight(flight, tmp_path, "run-agl-4", [])
+        assert result["scalars"]["apogee_m"] == pytest.approx(1_423.5)
+
+    def test_apogee_preserved_when_elevation_not_numeric(self, tmp_path):
+        """Defensive: env.elevation not a number → raw value kept, no crash."""
+        flight = FakeFlight()
+        flight.apogee = 500.0
+        flight.env = SimpleNamespace(elevation=None)
+        result = serialize_flight(flight, tmp_path, "run-agl-5", [])
+        assert result["scalars"]["apogee_m"] == pytest.approx(500.0)
