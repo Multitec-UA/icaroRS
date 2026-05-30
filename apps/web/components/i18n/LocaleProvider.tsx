@@ -6,10 +6,9 @@
  * Wraps the entire provider tree (outermost inside <body>) so the login
  * screen and every downstream surface can call useT() / useLocale().
  *
- * Locale resolution order (first one wins):
- *   1. initialLocale prop (from server: NEXT_LOCALE cookie read in layout)
- *   2. navigator.language primary subtag on first mount (no cookie)
- *   3. Hard default: "en"
+ * Locale is resolved entirely on the server (NEXT_LOCALE cookie → Accept-Language
+ * → "en") and passed in via `initialLocale`, so the first paint is already in the
+ * right language — no client-side detection, no flash, no setState-in-effect.
  *
  * setLocale does three things atomically:
  *   1. Updates React state (triggers re-render of all t() consumers)
@@ -22,7 +21,6 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -70,34 +68,20 @@ function writeLocaleCookie(locale: Locale): void {
 interface LocaleProviderProps {
   children: ReactNode;
   /**
-   * Pass the cookie-resolved locale from the server layout, or `null` if no
-   * valid cookie was present (first-time visitor). When null, the provider
-   * falls back to navigator.language detection on mount.
+   * The locale resolved on the server (cookie → Accept-Language → "en").
+   * Always a concrete locale, so the first client render matches the server.
    */
-  initialLocale: Locale | null;
+  initialLocale: Locale;
 }
 
 export function LocaleProvider({ children, initialLocale }: LocaleProviderProps) {
-  const [locale, setLocaleState] = useState<Locale>(initialLocale ?? "en");
+  const [locale, setLocaleState] = useState<Locale>(initialLocale);
 
   const setLocale = useCallback((l: Locale) => {
     setLocaleState(l);
     writeLocaleCookie(l);
     document.documentElement.lang = l;
   }, []);
-
-  // First-visit detection: runs only when the server had no cookie.
-  // A single flash from en→es is accepted for first-time Spanish visitors
-  // and will never recur (cookie is written on first detect).
-  useEffect(() => {
-    if (initialLocale !== null) return; // cookie was present — skip detection
-    const primary = navigator.language.split("-")[0].toLowerCase();
-    if (primary === "es") {
-      setLocale("es");
-    }
-    // Any non-"es" language defaults to "en" (already the initial state).
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  // ^ intentionally empty deps — we only want this to run once on mount
 
   const t = useMemo(() => makeT(locale), [locale]);
 
