@@ -6,8 +6,10 @@ import type { NextConfig } from "next";
 // the Next dev/runtime server to the API. To the browser everything is
 // same-origin (:3000), so no CORS and the frozen /api contract is untouched.
 //
-// Override the target in other environments with ICARO_API_ORIGIN.
-const API_ORIGIN = process.env.ICARO_API_ORIGIN ?? "http://127.0.0.1:8000";
+// Override the target in other environments with ICARO_API_ORIGIN. The value
+// must be read INSIDE rewrites() — Next's standalone build (output: "standalone")
+// snapshots top-level config evaluation, so a module-scope `process.env` read
+// would freeze the default into the runtime image.
 
 const nextConfig: NextConfig = {
   // Emit a self-contained server (.next/standalone/server.js + the minimal
@@ -16,6 +18,7 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   async rewrites() {
+    const API_ORIGIN = process.env.ICARO_API_ORIGIN ?? "http://127.0.0.1:8000";
     return [
       {
         source: "/api/:path*",
