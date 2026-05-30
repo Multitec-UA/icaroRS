@@ -4,8 +4,11 @@
 
 - **Python ≥ 3.10**
 - **[uv](https://docs.astral.sh/uv/)** — `brew install uv` (recommended workflow)
-- **Java 21** — only for RocketSerializer's acceptance tests, which drive the
-  bundled OpenRocket `.jar`. Not needed for RocketPy or the CLI.
+- **Java 21** — for RocketSerializer's acceptance tests and the API's
+  `/api/convert` (both drive the bundled OpenRocket `.jar`). Not needed for
+  RocketPy or the CLI.
+- **Node ≥ 20** — only for the web UI (`apps/web`), a standalone npm/Next.js
+  project. Not needed for the Python packages, CLI, or API.
 
 ## Setup
 
@@ -37,6 +40,30 @@ python3 -m pip install -e apps/cli --no-deps && python3 -m pip install "typer>=0
 uv run icaro simulate Serializer-export-rockets/v1.5.0
 ```
 
+## Running the API
+
+```bash
+ICARO_BASIC_USER=icaro ICARO_BASIC_PASS=icaro \
+  ICARO_ORK_JAR=packages/rocketserializer/OpenRocket-23.09.jar \
+  uv run uvicorn icaro_api.main:app --port 8000 --workers 1
+```
+
+Wizard at <http://127.0.0.1:8000/>, JSON docs at `/docs`. Full env/endpoint
+reference: [`apps/api/README.md`](apps/api/README.md).
+
+## Running the web app
+
+`apps/web` is a standalone Next.js project — it talks to the API over a dev
+proxy, so start the API first (above), then:
+
+```bash
+cd apps/web
+npm install        # first time only
+npm run dev        # http://localhost:3000
+```
+
+See [`apps/web/README.md`](apps/web/README.md) for the proxy/auth model.
+
 ## Running tests
 
 Each core library has its own suite and **must be run from its own directory**
@@ -60,6 +87,22 @@ if you touch that area.
 cd packages/rocketserializer
 uv run pytest tests/unit
 uv run pytest tests/acceptance        # JVM-bound; requires Java 21 + OpenRocket jar
+```
+
+**icaro domain + API** (pure unit tests; no JVM/network):
+
+```bash
+uv run python -m pytest packages/icaro/tests
+cd apps/api && uv run python -m pytest -m "not integration"
+```
+
+**Web app** (`apps/web`):
+
+```bash
+cd apps/web
+npm run lint
+npx tsc --noEmit
+npm run build
 ```
 
 CI runs the same suites — see `.github/workflows/`.
