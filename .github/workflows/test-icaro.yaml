@@ -79,6 +79,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: i18n catalog completeness
+        run: npm run i18n:check
+
       - name: Typecheck
         run: npx tsc --noEmit
 

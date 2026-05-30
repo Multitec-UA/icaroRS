@@ -12,12 +12,14 @@ import { ApiError, convert } from "@/lib/api";
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Button, Callout, Eyebrow, Spinner } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 type Status = "idle" | "loading" | "done" | "error";
 
 export function RocketStep() {
   const { state, setExport, next } = useWizard();
   const { logout } = useAuth();
+  const t = useT();
   const [status, setStatus] = useState<Status>(state.exportId ? "done" : "idle");
   const [error, setError] = useState<string | null>(null);
   const [filename, setFilename] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export function RocketStep() {
     setError(null);
     if (!file.name.toLowerCase().endsWith(".ork")) {
       setStatus("error");
-      setError("That isn't an OpenRocket file. Please choose a .ork file.");
+      setError(t("rocket.errorNotOrk"));
       return;
     }
     setFilename(file.name);
@@ -43,7 +45,10 @@ export function RocketStep() {
         logout();
         return;
       }
-      setError(err instanceof Error ? err.message : "Conversion failed.");
+      if (err instanceof ApiError)
+        // Prefer server hint verbatim (503 service note) per design; otherwise map code to catalog key.
+        setError(err.hint ?? t(`errors.${err.code}`, { status: err.status }));
+      else setError(t("rocket.errorGeneric"));
     }
   }
 
@@ -55,16 +60,15 @@ export function RocketStep() {
   }
 
   const rocketName =
-    (state.manifest?.["name"] as string | undefined) ?? filename ?? "your rocket";
+    (state.manifest?.["name"] as string | undefined) ?? filename ?? t("rocket.defaultRocketName");
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Eyebrow>Step 1 · Rocket</Eyebrow>
-        <h2 className="text-2xl font-semibold tracking-tight">Upload your rocket</h2>
+        <Eyebrow>{t("rocket.eyebrow")}</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("rocket.heading")}</h2>
         <p className="text-sm text-muted">
-          Drop the OpenRocket <code className="rounded bg-white/10 px-1.5 py-0.5 text-foreground">.ork</code> file
-          you designed. We convert it into a simulation-ready model.
+          {t("rocket.description")}
         </p>
       </div>
 
@@ -96,23 +100,23 @@ export function RocketStep() {
         {status === "loading" ? (
           <div className="flex items-center gap-2 text-cyan-300">
             <Spinner />
-            <span>Converting {filename}… this can take up to a minute.</span>
+            <span>{t("rocket.converting", { filename: filename ?? "" })}</span>
           </div>
         ) : status === "done" ? (
           <div className="flex flex-col items-center gap-1">
             <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full bg-cyan-400/15 text-2xl text-cyan-300 ring-1 ring-cyan-400/30">
               ✓
             </span>
-            <p className="font-medium text-foreground">Ready: {rocketName}</p>
-            <p className="text-sm text-muted">Click to choose a different file.</p>
+            <p className="font-medium text-foreground">{t("rocket.readyPrefix", { name: rocketName })}</p>
+            <p className="text-sm text-muted">{t("rocket.changeFile")}</p>
           </div>
         ) : (
           <>
             <p className="text-3xl">🚀</p>
             <p className="font-medium text-foreground">
-              Drag &amp; drop your .ork file here
+              {t("rocket.dropPrompt")}
             </p>
-            <p className="text-sm text-muted">or click to browse</p>
+            <p className="text-sm text-muted">{t("rocket.browsePrompt")}</p>
           </>
         )}
       </div>
@@ -125,7 +129,7 @@ export function RocketStep() {
 
       <div className="flex justify-end">
         <Button onClick={next} disabled={status !== "done"} withArrow={status === "done"}>
-          Continue
+          {t("rocket.continue")}
         </Button>
       </div>
     </div>

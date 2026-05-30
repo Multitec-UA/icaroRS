@@ -160,25 +160,42 @@ function authHeader(): Record<string, string> {
 // ---------------------------------------------------------------------------
 
 /**
+ * Stable machine-readable error codes carried by ApiError.
+ * The React layer maps these to catalog keys (errors.*) for localized display.
+ * api.ts stays non-React — it never calls a hook.
+ */
+export type ErrorCode =
+  | "network"
+  | "validation"
+  | "unavailable"
+  | "requestFailed"
+  | "imageFailed";
+
+/**
  * Thrown for any non-2xx API response. Carries the HTTP status plus the parsed
  * body so callers can branch:
  *   401 → credentials missing/invalid → send the user back to the login screen
  *   422 → validation → `fieldErrors` holds per-field messages
  *   503 → a best-effort service is down → `hint` is the user-facing note
+ *
+ * `code` is a stable machine key; the React layer maps it to t("errors.<code>").
+ * `message` is kept as an English fallback for logs and non-React callers.
  */
 export class ApiError extends Error {
   readonly status: number;
+  readonly code: ErrorCode;
   readonly fieldErrors?: FieldError[];
   readonly hint?: string;
 
   constructor(
     status: number,
     message: string,
-    opts?: { fieldErrors?: FieldError[]; hint?: string },
+    opts?: { code?: ErrorCode; fieldErrors?: FieldError[]; hint?: string },
   ) {
     super(message);
     this.name = "ApiError";
     this.status = status;
+    this.code = opts?.code ?? "requestFailed";
     this.fieldErrors = opts?.fieldErrors;
     this.hint = opts?.hint;
   }
@@ -206,7 +223,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   try {
     res = await fetch(path, { ...init, headers });
   } catch {
-    throw new ApiError(0, "Could not reach the icaro API. Is the server running?");
+    throw new ApiError(0, "Could not reach the icaro API. Is the server running?", {
+      code: "network",
+    });
   }
 
   if (res.ok) {
@@ -225,6 +244,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (res.status === 422 && Array.isArray(detail)) {
     throw new ApiError(422, "Some fields need attention.", {
+      code: "validation",
       fieldErrors: detail as FieldError[],
     });
   }
@@ -235,15 +255,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
         ? detail.hint
         : isRecord(detail) && typeof detail.note === "string"
           ? detail.note
-          : "This service is temporarily unavailable.";
-    throw new ApiError(503, hint, { hint });
+          : undefined;
+    throw new ApiError(503, hint ?? "This service is temporarily unavailable.", {
+      code: "unavailable",
+      hint,
+    });
   }
 
   const message =
     typeof detail === "string"
       ? detail
       : `Request failed (${res.status}).`;
-  throw new ApiError(res.status, message);
+  throw new ApiError(res.status, message, { code: "requestFailed" });
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -328,9 +351,12 @@ export async function fetchImageObjectUrl(path: string): Promise<string> {
   try {
     res = await fetch(path, { headers });
   } catch {
-    throw new ApiError(0, "Could not reach the icaro API.");
+    throw new ApiError(0, "Could not reach the icaro API.", { code: "network" });
   }
-  if (!res.ok) throw new ApiError(res.status, `Failed to load image (${res.status}).`);
+  if (!res.ok)
+    throw new ApiError(res.status, `Failed to load image (${res.status}).`, {
+      code: "imageFailed",
+    });
   const blob = await res.blob();
   return URL.createObjectURL(blob);
 }

@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "i18n:check": "node scripts/check-i18n.mjs",
+    "i18n:types": "node scripts/gen-i18n-types.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",

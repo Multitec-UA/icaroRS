@@ -24,31 +24,31 @@ import {
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Button, Callout, Eyebrow, Field, Spinner, TextInput, cn, selectClass } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 type Presets = Record<string, Record<string, Dispersion>>;
 
-const PARAM_LABELS: Record<string, string> = {
-  mass: "Mass",
-  inclination: "Inclination",
-  heading: "Heading",
-  wind_factor: "Wind factor",
-  thrust: "Thrust",
-  rail_length: "Rail length",
+// API-level preset names (from scenario template) — NOT translated, used as keys
+const PRESET_NAMES = ["Typical", "Conservative", "Precise", "Customize"] as const;
+type PresetName = typeof PRESET_NAMES[number];
+
+// Maps API preset name → translation key suffix
+const PRESET_KEY: Record<PresetName, string> = {
+  Typical: "advanced.presetTypical",
+  Conservative: "advanced.presetConservative",
+  Precise: "advanced.presetPrecise",
+  Customize: "advanced.presetCustomize",
 };
 
-const MODEL_LABELS: Record<AtmosphereModel, string> = {
-  forecast: "Real forecast (GFS)",
-  standard_atmosphere: "Standard atmosphere",
-  wyoming_sounding: "Wyoming sounding",
-  reanalysis: "Reanalysis (ERA5 file)",
-};
+const MODEL_KEYS = ["forecast", "standard_atmosphere", "wyoming_sounding", "reanalysis"] as const;
 
 export function AdvancedStep() {
   const { state, setUncertainty, setRail, setAtmosphere, next, scenarioBody } = useWizard();
   const { logout } = useAuth();
+  const t = useT();
 
   const [presets, setPresets] = useState<Presets | null>(null);
-  const [selected, setSelected] = useState<string>("Typical");
+  const [selected, setSelected] = useState<PresetName>("Typical");
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [validating, setValidating] = useState(false);
 
@@ -56,11 +56,11 @@ export function AdvancedStep() {
   useEffect(() => {
     let active = true;
     getScenarioTemplate()
-      .then((t) => {
+      .then((tmpl) => {
         if (!active) return;
-        setPresets(t.uncertainty_presets);
-        if (state.uncertainty === null && t.uncertainty_presets["Typical"]) {
-          setUncertainty(t.uncertainty_presets["Typical"]);
+        setPresets(tmpl.uncertainty_presets);
+        if (state.uncertainty === null && tmpl.uncertainty_presets["Typical"]) {
+          setUncertainty(tmpl.uncertainty_presets["Typical"]);
         }
       })
       .catch((err) => {
@@ -72,7 +72,7 @@ export function AdvancedStep() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function choosePreset(name: string) {
+  function choosePreset(name: PresetName) {
     setSelected(name);
     if (name !== "Customize" && presets?.[name]) {
       setUncertainty(presets[name]);
@@ -107,7 +107,7 @@ export function AdvancedStep() {
       if (err instanceof ApiError && err.isValidation) setErrors(err.fieldErrors ?? []);
       else
         setErrors([
-          { loc: [], field: "", message: err instanceof Error ? err.message : "Validation failed." },
+          { loc: [], field: "", message: err instanceof Error ? err.message : t("advanced.errorValidationFailed") },
         ]);
     } finally {
       setValidating(false);
@@ -119,21 +119,21 @@ export function AdvancedStep() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Eyebrow>Step 3 · Fine-tuning</Eyebrow>
-        <h2 className="text-2xl font-semibold tracking-tight">Fine-tuning</h2>
+        <Eyebrow>{t("advanced.eyebrow")}</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("advanced.heading")}</h2>
         <p className="text-sm text-muted">
-          Optional. The defaults are sensible — open a section only if you want more control.
+          {t("advanced.description")}
         </p>
       </div>
 
       {/* Uncertainty presets */}
       <details className="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10" open>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Uncertainty budget
+          {t("advanced.uncertaintyBudget")}
         </summary>
         <div className="mt-4 flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
-            {["Typical", "Conservative", "Precise", "Customize"].map((name) => (
+            {PRESET_NAMES.map((name) => (
               <label
                 key={name}
                 className={[
@@ -150,7 +150,7 @@ export function AdvancedStep() {
                   checked={selected === name}
                   onChange={() => choosePreset(name)}
                 />
-                {name}
+                {t(PRESET_KEY[name])}
               </label>
             ))}
           </div>
@@ -160,16 +160,18 @@ export function AdvancedStep() {
               <table className="w-full text-sm">
                 <thead className="bg-white/[0.03] text-left text-xs uppercase tracking-wide text-muted">
                   <tr>
-                    <th className="px-3 py-2.5 font-medium">Parameter</th>
-                    <th className="px-3 py-2.5 font-medium">Std deviation</th>
-                    <th className="px-3 py-2.5 font-medium">Kind</th>
+                    <th className="px-3 py-2.5 font-medium">{t("advanced.tableHeaderParameter")}</th>
+                    <th className="px-3 py-2.5 font-medium">{t("advanced.tableHeaderStdDev")}</th>
+                    <th className="px-3 py-2.5 font-medium">{t("advanced.tableHeaderKind")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(state.uncertainty).map(([key, disp]) => (
                     <tr key={key} className="border-t border-white/[0.06]">
                       <td className="px-3 py-2.5 font-medium text-foreground/90">
-                        {PARAM_LABELS[key] ?? key}
+                        {t(`advanced.paramLabels.${key}`) !== `advanced.paramLabels.${key}`
+                          ? t(`advanced.paramLabels.${key}`)
+                          : key}
                       </td>
                       <td className="px-3 py-2.5">
                         <TextInput
@@ -188,8 +190,8 @@ export function AdvancedStep() {
                             editDispersion(key, { kind: e.target.value as Dispersion["kind"] })
                           }
                         >
-                          <option value="relative">relative</option>
-                          <option value="absolute">absolute</option>
+                          <option value="relative">{t("advanced.kindRelative")}</option>
+                          <option value="absolute">{t("advanced.kindAbsolute")}</option>
                         </select>
                       </td>
                     </tr>
@@ -204,10 +206,10 @@ export function AdvancedStep() {
       {/* Rail overrides */}
       <details className="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Launch rail overrides
+          {t("advanced.railOverrides")}
         </summary>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <Field label="Length (m)" htmlFor="rl">
+          <Field label={t("advanced.railLength")} htmlFor="rl">
             <TextInput
               id="rl"
               type="number"
@@ -216,7 +218,7 @@ export function AdvancedStep() {
               onChange={(e) => editRail("length", e.target.value)}
             />
           </Field>
-          <Field label="Inclination (°)" htmlFor="ri">
+          <Field label={t("advanced.railInclination")} htmlFor="ri">
             <TextInput
               id="ri"
               type="number"
@@ -225,7 +227,7 @@ export function AdvancedStep() {
               onChange={(e) => editRail("inclination", e.target.value)}
             />
           </Field>
-          <Field label="Heading (°)" htmlFor="rh">
+          <Field label={t("advanced.railHeading")} htmlFor="rh">
             <TextInput
               id="rh"
               type="number"
@@ -240,10 +242,10 @@ export function AdvancedStep() {
       {/* Atmosphere override */}
       <details className="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Atmosphere model ({MODEL_LABELS[model]})
+          {t("advanced.atmosphereModel", { model: t(`models.${model}`) })}
         </summary>
         <div className="mt-4 flex flex-col gap-4">
-          <Field label="Model" htmlFor="am">
+          <Field label={t("advanced.fieldModel")} htmlFor="am">
             <select
               id="am"
               className={selectClass}
@@ -252,15 +254,15 @@ export function AdvancedStep() {
                 setAtmosphere({ ...state.atmosphere, model: e.target.value as AtmosphereModel })
               }
             >
-              {(Object.keys(MODEL_LABELS) as AtmosphereModel[]).map((m) => (
+              {MODEL_KEYS.map((m) => (
                 <option key={m} value={m}>
-                  {MODEL_LABELS[m]}
+                  {t(`models.${m}`)}
                 </option>
               ))}
             </select>
           </Field>
           {model === "wyoming_sounding" && (
-            <Field label="Station id" htmlFor="station" hint="Required for Wyoming soundings.">
+            <Field label={t("advanced.fieldStationId")} htmlFor="station" hint={t("advanced.fieldStationHint")}>
               <TextInput
                 id="station"
                 value={state.atmosphere.station ?? ""}
@@ -271,7 +273,7 @@ export function AdvancedStep() {
             </Field>
           )}
           {model === "reanalysis" && (
-            <Field label="ERA5 file path" htmlFor="file" hint="Required for reanalysis.">
+            <Field label={t("advanced.fieldEra5Path")} htmlFor="file" hint={t("advanced.fieldEra5Hint")}>
               <TextInput
                 id="file"
                 value={state.atmosphere.file ?? ""}
@@ -285,7 +287,7 @@ export function AdvancedStep() {
       </details>
 
       {errors.length > 0 && (
-        <Callout tone="error" title="Please fix the following">
+        <Callout tone="error" title={t("advanced.errorsTitle")}>
           <ul className="list-disc pl-5">
             {errors.map((e, i) => (
               <li key={i}>
@@ -300,7 +302,7 @@ export function AdvancedStep() {
       <div className="flex justify-end">
         <Button onClick={onContinue} disabled={validating} withArrow={!validating}>
           {validating && <Spinner />}
-          {validating ? "Checking…" : "Review"}
+          {validating ? t("advanced.checking") : t("advanced.review")}
         </Button>
       </div>
     </div>

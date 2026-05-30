@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * Presentational primitives — the "Ethereal Glass" design language (issue #10).
  *
@@ -5,6 +7,10 @@
  * composable: the haptic depth comes from the Double-Bezel nested architecture
  * (Surface), the kinetic feel from CSS spring transitions + group-hover physics.
  * No state lives here.
+ *
+ * "use client" is required because InfoTip uses useT() (a React context hook)
+ * to resolve glossary definitions from the active locale catalog.
+ * All callers of this module are already client components.
  */
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
@@ -266,14 +272,18 @@ export function Spinner({ className }: { className?: string }) {
 }
 
 // ---------------------------------------------------------------------------
-// InfoTip — a tiny "i" badge with a native-title definition (zero JS)
+// InfoTip — a tiny "i" badge with a native-title definition.
+// Definition text is resolved from the active locale catalog via useT().
 // ---------------------------------------------------------------------------
 
-import { GLOSSARY } from "@/lib/glossary";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 export function InfoTip({ term }: { term: string }) {
-  const def = GLOSSARY[term];
-  if (!def) return null;
+  const t = useT();
+  const key = `glossary.${term}`;
+  const def = t(key);
+  // If the key is missing (t returns the key itself), render nothing.
+  if (def === key) return null;
   return (
     <span
       title={def}

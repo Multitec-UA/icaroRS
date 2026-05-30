@@ -1,0 +1,216 @@
+{
+  "common": {
+    "technicalEnglishNote": "Technical messages are shown in English."
+  },
+
+  "auth": {
+    "eyebrow": "Rocket simulation",
+    "title": "icaro",
+    "subtitle": "Turn your OpenRocket design into a full 6-DOF flight simulation.",
+    "username": "Username",
+    "password": "Password",
+    "signIn": "Sign in",
+    "signingIn": "Signing in…",
+    "errorWrongCredentials": "Wrong username or password.",
+    "errorUnreachable": "Could not reach the API. Is the server running?",
+    "errorGeneric": "Sign-in failed."
+  },
+
+  "wizard": {
+    "appName": "icaro",
+    "appSubtitle": "rocket simulation",
+    "signOut": "Sign out"
+  },
+
+  "stepper": {
+    "rocket": "Rocket",
+    "basics": "Launch site & time",
+    "advanced": "Fine-tuning",
+    "review": "Review",
+    "results": "Results"
+  },
+
+  "rocket": {
+    "eyebrow": "Step 1 · Rocket",
+    "heading": "Upload your rocket",
+    "description": "Drop the OpenRocket .ork file you designed. We convert it into a simulation-ready model.",
+    "converting": "Converting {filename}… this can take up to a minute.",
+    "readyPrefix": "Ready: {name}",
+    "changeFile": "Click to choose a different file.",
+    "dropPrompt": "Drag & drop your .ork file here",
+    "browsePrompt": "or click to browse",
+    "continue": "Continue",
+    "errorNotOrk": "That isn't an OpenRocket file. Please choose a .ork file.",
+    "errorGeneric": "Conversion failed.",
+    "defaultRocketName": "your rocket"
+  },
+
+  "basics": {
+    "eyebrow": "Step 2 · Launch site & time",
+    "heading": "Where and when?",
+    "description": "Pick the launch site and time. We'll choose the best weather model for you.",
+    "fieldLatitude": "Latitude",
+    "fieldLongitude": "Longitude",
+    "fieldElevation": "Elevation (m)",
+    "elevationHint": "Above sea level.",
+    "elevationLookingUp": "Looking up elevation…",
+    "elevationAutoFilled": "Elevation auto-filled ({source}).",
+    "elevationEnterManually": "Enter elevation manually.",
+    "elevationFetchFailed": "Couldn't fetch elevation — enter it manually below.",
+    "fieldDateTime": "Launch date & hour (UTC)",
+    "dateTimeHint": "Simulated to the whole hour (UTC). Within ~16 days, we use a real weather forecast.",
+    "modelForecastLabel": "Real weather forecast (GFS)",
+    "modelStandardLabel": "Standard atmosphere",
+    "errorValidationFailed": "Validation failed.",
+    "continue": "Continue",
+    "checking": "Checking…",
+    "errorsTitle": "Please fix the following"
+  },
+
+  "models": {
+    "forecast": "Real forecast (GFS)",
+    "standard_atmosphere": "Standard atmosphere",
+    "wyoming_sounding": "Wyoming sounding",
+    "reanalysis": "Reanalysis (ERA5 file)"
+  },
+
+  "advanced": {
+    "eyebrow": "Step 3 · Fine-tuning",
+    "heading": "Fine-tuning",
+    "description": "Optional. The defaults are sensible — open a section only if you want more control.",
+    "uncertaintyBudget": "Uncertainty budget",
+    "presetTypical": "Typical",
+    "presetConservative": "Conservative",
+    "presetPrecise": "Precise",
+    "presetCustomize": "Customize",
+    "tableHeaderParameter": "Parameter",
+    "tableHeaderStdDev": "Std deviation",
+    "tableHeaderKind": "Kind",
+    "kindRelative": "relative",
+    "kindAbsolute": "absolute",
+    "railOverrides": "Launch rail overrides",
+    "railLength": "Length (m)",
+    "railInclination": "Inclination (°)",
+    "railHeading": "Heading (°)",
+    "atmosphereModel": "Atmosphere model ({model})",
+    "fieldModel": "Model",
+    "fieldStationId": "Station id",
+    "fieldStationHint": "Required for Wyoming soundings.",
+    "fieldEra5Path": "ERA5 file path",
+    "fieldEra5Hint": "Required for reanalysis.",
+    "errorsTitle": "Please fix the following",
+    "errorValidationFailed": "Validation failed.",
+    "review": "Review",
+    "checking": "Checking…",
+    "paramLabels": {
+      "mass": "Mass",
+      "inclination": "Inclination",
+      "heading": "Heading",
+      "wind_factor": "Wind factor",
+      "thrust": "Thrust",
+      "rail_length": "Rail length"
+    }
+  },
+
+  "review": {
+    "eyebrow": "Step 4 · Review",
+    "heading": "Review & launch",
+    "description": "Check the summary, then run the simulation.",
+    "rowScenario": "Scenario",
+    "rowSite": "Site",
+    "rowLaunchTime": "Launch time (UTC)",
+    "rowAtmosphere": "Atmosphere",
+    "rowUncertaintyParams": "Uncertainty params",
+    "uncertaintyDefault": "default",
+    "errorsTitle": "The scenario needs attention",
+    "running": "Running the 6-DOF simulation — this can take a moment…",
+    "runSimulation": "Run simulation 🚀",
+    "simulating": "Simulating…",
+    "errorGeneric": "Simulation failed."
+  },
+
+  "results": {
+    "eyebrow": "Mission report",
+    "heading": "Flight results",
+    "runId": "Run {runId}",
+    "simulateAgain": "Simulate again",
+    "newRocket": "New rocket",
+    "warningsTitle": "Heads up",
+    "moreNumbers": "More numbers",
+    "allPlots": "All plots",
+    "backToStart": "← Back to start",
+    "resultsUnavailableTitle": "Results unavailable",
+    "resultsNotFound": "This run could not be found.",
+    "loadingResults": "Loading results…",
+    "couldNotLoadPlot": "Couldn't load this plot.",
+    "valuesBadge": {
+      "one": "1 value",
+      "other": "{count} values"
+    },
+    "plotsBadge": {
+      "one": "1 plot",
+      "other": "{count} plots"
+    }
+  },
+
+  "interactive": {
+    "loadingFlightData": "Loading interactive flight data…",
+    "loading3d": "Loading 3D…",
+    "sectionHeading": "Interactive flight data",
+    "trajectoryEyebrow": "Trajectory",
+    "trajectoryHint": "Drag to orbit · scroll to zoom",
+    "telemetryEyebrow": "Telemetry"
+  },
+
+  "scalars": {
+    "apogee_m": "Highest point above ground (apogee)",
+    "max_velocity_ms": "Maximum speed",
+    "max_mach": "Maximum Mach number",
+    "flight_time_s": "Total flight time",
+    "apogee_time_s": "Time to apogee",
+    "max_acceleration_ms2": "Maximum acceleration",
+    "max_acceleration_time_s": "Time of max acceleration",
+    "max_velocity_time_s": "Time of maximum speed",
+    "rail_departure_velocity_ms": "Rail departure velocity",
+    "rail_departure_time_s": "Rail departure time",
+    "rail_departure_stability_margin": "Rail departure stability margin",
+    "impact_velocity_ms": "Impact velocity",
+    "apogee_x_m": "Apogee — East displacement",
+    "apogee_y_m": "Apogee — North displacement",
+    "impact_x_m": "Impact — East displacement",
+    "impact_y_m": "Impact — North displacement"
+  },
+
+  "plots": {
+    "trajectory_3d": "3D trajectory",
+    "linear_kinematics": "Linear kinematics",
+    "flight_path_angle": "Flight path angle",
+    "energy": "Energy",
+    "aerodynamic_forces": "Aerodynamic forces",
+    "stability_control": "Stability & control",
+    "angular_kinematics": "Angular kinematics",
+    "attitude": "Attitude",
+    "fluid_mechanics": "Fluid mechanics",
+    "pressure_altitude": "Pressure vs altitude",
+    "rail_bending_moments": "Rail button bending moments",
+    "rail_forces": "Rail button forces"
+  },
+
+  "errors": {
+    "network": "Could not connect to the server.",
+    "validation": "The request is not valid.",
+    "unavailable": "The service is not available.",
+    "requestFailed": "The request failed (code {status}).",
+    "imageFailed": "Could not load the image (code {status})."
+  },
+
+  "glossary": {
+    "apogee": "The highest point the rocket reaches before it starts falling back down.",
+    "mach": "Speed compared to the speed of sound. Mach 1 means the rocket is moving as fast as sound (~343 m/s at sea level).",
+    "rail_departure": "The moment the rocket leaves the launch rail. A faster, more stable departure means a straighter, safer flight.",
+    "stability_margin": "How stable the rocket is, measured in calibers (body diameters). Roughly 1–2 cal is a healthy, controllable flight.",
+    "forecast": "Real weather forecast (GFS) for your launch date and place. Available for dates within about 16 days from now.",
+    "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate.",
+    "uncertainty": "How much each input (mass, wind, thrust…) might vary in reality. It feeds the dispersion / landing-spread analysis."
+  }
+}

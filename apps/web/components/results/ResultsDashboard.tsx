@@ -23,9 +23,12 @@ import {
 } from "@/lib/api";
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
-import { SCALAR_SPECS, formatScalar, plotTitle } from "@/lib/scalars";
+import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
 import { Accordion, Button, Callout, Eyebrow, InfoTip, Spinner, Surface } from "@/components/ui";
 import { CountUp, Reveal } from "@/components/motion";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { useT, useLocale } from "@/components/i18n/LocaleProvider";
+import { plural } from "@/lib/i18n";
 
 // Interactive charts (three + echarts) are heavy and client-only — code-split
 // them off the initial bundle and keep them out of SSR.
@@ -38,6 +41,8 @@ export function ResultsDashboard({ runId }: { runId: string }) {
   const { state, goto, reset } = useWizard();
   const { logout } = useAuth();
   const router = useRouter();
+  const t = useT();
+  const { locale } = useLocale();
 
   const fromWizard = state.result?.run_id === runId ? state.result : null;
   const [result, setResult] = useState<SimulateResult | null>(fromWizard);
@@ -54,7 +59,10 @@ export function ResultsDashboard({ runId }: { runId: string }) {
       .catch((err) => {
         if (!active) return;
         if (err instanceof ApiError && err.isUnauthorized) return logout();
-        setError(err instanceof Error ? err.message : "Could not load results.");
+        if (err instanceof ApiError)
+          // Prefer server hint verbatim (503 service note) per design; otherwise map code to catalog key.
+          setError(err.hint ?? t(`errors.${err.code}`, { status: err.status }));
+        else setError(t("results.resultsNotFound"));
       })
       .finally(() => active && setLoading(false));
     return () => {
@@ -66,19 +74,19 @@ export function ResultsDashboard({ runId }: { runId: string }) {
   if (loading) {
     return (
       <div className="flex items-center justify-center gap-2 py-32 text-muted">
-        <Spinner /> Loading results…
+        <Spinner /> {t("results.loadingResults")}
       </div>
     );
   }
   if (error || !result) {
     return (
       <div className="py-12">
-        <Callout tone="error" title="Results unavailable">
-          {error ?? "This run could not be found."}
+        <Callout tone="error" title={t("results.resultsUnavailableTitle")}>
+          {error ?? t("results.resultsNotFound")}
         </Callout>
         <div className="mt-4">
           <Button variant="ghost" onClick={() => router.push("/")}>
-            ← Back to start
+            {t("results.backToStart")}
           </Button>
         </div>
       </div>
@@ -102,27 +110,31 @@ export function ResultsDashboard({ runId }: { runId: string }) {
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-12">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
-          <Eyebrow>Mission report</Eyebrow>
-          <h1 className="text-4xl font-semibold tracking-tight">Flight results</h1>
-          <p className="tabular-readout text-sm text-muted">Run {runId}</p>
+          <Eyebrow>{t("results.eyebrow")}</Eyebrow>
+          <h1 className="text-4xl font-semibold tracking-tight">{t("results.heading")}</h1>
+          <p className="tabular-readout text-sm text-muted">{t("results.runId", { runId })}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
+          <LanguageSwitch />
           <Button variant="ghost" onClick={simulateAgain}>
-            Simulate again
+            {t("results.simulateAgain")}
           </Button>
           <Button variant="ghost" onClick={newRocket}>
-            New rocket
+            {t("results.newRocket")}
           </Button>
         </div>
       </header>
 
       {result.warnings.length > 0 && (
-        <Callout tone="warning" title="Heads up">
+        <Callout tone="warning" title={t("results.warningsTitle")}>
+          {/* API warnings are English verbatim per RG-6.1 */}
           <ul className="list-disc pl-5">
             {result.warnings.map((w, i) => (
               <li key={i}>{w}</li>
             ))}
           </ul>
+          {/* Localized note per AC-6.3/6.4 */}
+          <p className="mt-2 text-xs opacity-75">{t("common.technicalEnglishNote")}</p>
         </Callout>
       )}
 
@@ -135,12 +147,12 @@ export function ResultsDashboard({ runId }: { runId: string }) {
             <Reveal key={spec.key} delay={i * 0.08}>
               <Surface className="h-full" innerClassName="flex h-full flex-col gap-3 p-5">
                 <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
-                  {spec.label}
+                  {t(`scalars.${spec.key}`)}
                   {spec.term && <InfoTip term={spec.term} />}
                 </div>
                 <div className="tabular-readout text-3xl font-semibold text-foreground">
                   {finite ? (
-                    <CountUp value={value} format={(n) => formatScalar(n, spec.unit)} />
+                    <CountUp value={value} format={(n) => formatScalar(n, spec.unit, locale)} />
                   ) : (
                     "—"
                   )}
@@ -158,15 +170,18 @@ export function ResultsDashboard({ runId }: { runId: string }) {
       {/* Secondary detail — collapsed by default so the hero + interactive
           section stays the focus. "More numbers" before the static plots. */}
       {details.length > 0 && (
-        <Accordion title="More numbers" badge={`${details.length} values`}>
+        <Accordion
+          title={t("results.moreNumbers")}
+          badge={plural(locale, details.length, "results.valuesBadge")}
+        >
           <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/10">
             <table className="w-full text-sm">
               <tbody>
                 {details.map((spec) => (
                   <tr key={spec.key} className="border-t border-white/[0.06] first:border-0">
-                    <td className="px-4 py-3 text-muted">{spec.label}</td>
+                    <td className="px-4 py-3 text-muted">{t(`scalars.${spec.key}`)}</td>
                     <td className="tabular-readout px-4 py-3 text-right font-medium text-foreground">
-                      {formatScalar(result.scalars[spec.key], spec.unit)}
+                      {formatScalar(result.scalars[spec.key], spec.unit, locale)}
                     </td>
                   </tr>
                 ))}
@@ -178,13 +193,20 @@ export function ResultsDashboard({ runId }: { runId: string }) {
 
       {/* Static plot gallery (PNGs) — fallback / complete set. */}
       {result.plot_urls.length > 0 && (
-        <Accordion title="All plots" badge={`${result.plot_urls.length} plots`}>
+        <Accordion
+          title={t("results.allPlots")}
+          badge={plural(locale, result.plot_urls.length, "results.plotsBadge")}
+        >
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {result.plot_urls.map((url, i) => {
               const stem = url.split("/").pop()?.replace(/\.png$/, "") ?? "plot";
+              // Resolve plot title from catalog; fall back to humanized stem if key missing
+              const title = t(`plots.${stem}`) !== `plots.${stem}`
+                ? t(`plots.${stem}`)
+                : stem.replace(/_/g, " ");
               return (
                 <Reveal key={url} delay={i * 0.05}>
-                  <PlotCard url={url} title={plotTitle(stem)} />
+                  <PlotCard url={url} title={title} failedLabel={t("results.couldNotLoadPlot")} />
                 </Reveal>
               );
             })}
@@ -195,7 +217,7 @@ export function ResultsDashboard({ runId }: { runId: string }) {
   );
 }
 
-function PlotCard({ url, title }: { url: string; title: string }) {
+function PlotCard({ url, title, failedLabel }: { url: string; title: string; failedLabel: string }) {
   const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -226,7 +248,7 @@ function PlotCard({ url, title }: { url: string; title: string }) {
         </figcaption>
         <div className="flex min-h-48 items-center justify-center bg-white p-2">
           {failed ? (
-            <span className="py-12 text-sm text-slate-400">Couldn&apos;t load this plot.</span>
+            <span className="py-12 text-sm text-slate-400">{failedLabel}</span>
           ) : src ? (
             // Object URL from an authenticated fetch — next/image can't handle blob: URLs.
             // eslint-disable-next-line @next/next/no-img-element
