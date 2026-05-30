@@ -53,7 +53,7 @@ from typing import Any
 
 _SCALAR_ATTR_MAP: list[tuple[str, str, str, str]] = [
     # (flight_attr, output_key, human_label, unit)
-    ("apogee", "apogee_m", "Highest point (apogee)", "m"),
+    ("apogee", "apogee_m", "Highest point above ground (apogee)", "m"),
     ("apogee_time", "apogee_time_s", "Time to apogee", "s"),
     ("apogee_x", "apogee_x_m", "Apogee — East displacement", "m"),
     ("apogee_y", "apogee_y_m", "Apogee — North displacement", "m"),
@@ -216,7 +216,36 @@ def _extract_scalars(flight: Any) -> dict[str, Any]:
             # Any error extracting a scalar → silently omit the key.
             continue
 
+    # rocketpy reports apogee as altitude above SEA LEVEL (the raw Z at vz=0),
+    # but the altitude chart (``flight.altitude``) is above GROUND LEVEL. With a
+    # forecast/reanalysis atmosphere rocketpy overrides the environment
+    # elevation with the model's terrain height, so the two reference frames
+    # diverge by exactly ``env.elevation`` and the summary apogee disagrees with
+    # the chart's peak. Express apogee AGL so the summary and the altitude chart
+    # tell one consistent story. (apogee_x/apogee_y are horizontal — untouched.)
+    if "apogee_m" in scalars:
+        elevation = _env_elevation(flight)
+        if elevation is not None:
+            scalars["apogee_m"] -= elevation
+
     return scalars
+
+
+def _env_elevation(flight: Any) -> float | None:
+    """Ground elevation (m, MSL) of the flight's environment, or ``None``.
+
+    Mirrors ``flight.altitude = z - env.elevation``: the value to subtract from
+    the MSL apogee to express it above ground level. Defensive — a flight stub
+    without a usable ``env.elevation`` yields ``None`` (no correction applied,
+    so the raw value is preserved rather than crashing the run).
+    """
+    env = getattr(flight, "env", None)
+    if env is None:
+        return None
+    try:
+        return float(env.elevation)
+    except (TypeError, ValueError, AttributeError):
+        return None
 
 
 def _render_plots(flight: Any, output_dir: Path, run_id: str) -> list[str]:

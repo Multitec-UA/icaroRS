@@ -17,7 +17,7 @@ export interface ScalarSpec {
 }
 
 export const SCALAR_SPECS: ScalarSpec[] = [
-  { key: "apogee_m", label: "Highest point (apogee)", unit: "m", primary: true, term: "apogee" },
+  { key: "apogee_m", label: "Highest point above ground (apogee)", unit: "m", primary: true, term: "apogee" },
   { key: "max_velocity_ms", label: "Maximum speed", unit: "m/s", primary: true },
   { key: "max_mach", label: "Maximum Mach number", unit: "", primary: true, term: "mach" },
   { key: "flight_time_s", label: "Total flight time", unit: "s", primary: true },
