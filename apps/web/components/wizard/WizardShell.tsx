@@ -11,21 +11,22 @@ import { AdvancedStep } from "./AdvancedStep";
 import { ReviewStep } from "./ReviewStep";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Card } from "@/components/ui";
+import { FadeSwap } from "@/components/motion";
 
 export function WizardShell() {
   const { step } = useWizard();
   const { logout } = useAuth();
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-10">
       <header className="flex items-center justify-between">
-        <span className="text-lg font-semibold tracking-tight text-slate-900">
-          icaro <span className="font-normal text-slate-400">· rocket simulation</span>
+        <span className="text-lg font-semibold tracking-tight">
+          icaro <span className="font-normal text-muted">· rocket simulation</span>
         </span>
         <button
           type="button"
           onClick={logout}
-          className="text-sm text-slate-500 hover:text-slate-800"
+          className="rounded-full px-3 py-1.5 text-sm text-muted ring-1 ring-inset ring-white/10 transition-colors duration-300 hover:text-foreground hover:ring-white/25"
         >
           Sign out
         </button>
@@ -34,10 +35,12 @@ export function WizardShell() {
       <Stepper />
 
       <Card>
-        {step === "rocket" && <RocketStep />}
-        {step === "basics" && <BasicsStep />}
-        {step === "advanced" && <AdvancedStep />}
-        {step === "review" && <ReviewStep />}
+        <FadeSwap key={step}>
+          {step === "rocket" && <RocketStep />}
+          {step === "basics" && <BasicsStep />}
+          {step === "advanced" && <AdvancedStep />}
+          {step === "review" && <ReviewStep />}
+        </FadeSwap>
       </Card>
     </div>
   );

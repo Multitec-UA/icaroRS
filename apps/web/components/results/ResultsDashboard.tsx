@@ -23,7 +23,8 @@ import {
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { SCALAR_SPECS, formatScalar, plotTitle } from "@/lib/scalars";
-import { Button, Callout, InfoTip, Spinner } from "@/components/ui";
+import { Button, Callout, Eyebrow, InfoTip, Spinner, Surface } from "@/components/ui";
+import { CountUp, Reveal } from "@/components/motion";
 
 export function ResultsDashboard({ runId }: { runId: string }) {
   const { state, goto, reset } = useWizard();
@@ -56,7 +57,7 @@ export function ResultsDashboard({ runId }: { runId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-24 text-slate-500">
+      <div className="flex items-center justify-center gap-2 py-32 text-muted">
         <Spinner /> Loading results…
       </div>
     );
@@ -90,13 +91,12 @@ export function ResultsDashboard({ runId }: { runId: string }) {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-8 px-4 py-8">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-900">
-            Flight results
-          </h1>
-          <p className="text-sm text-slate-500">Run {runId}</p>
+    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-12">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-3">
+          <Eyebrow>Mission report</Eyebrow>
+          <h1 className="text-4xl font-semibold tracking-tight">Flight results</h1>
+          <p className="tabular-readout text-sm text-muted">Run {runId}</p>
         </div>
         <div className="flex gap-2">
           <Button variant="ghost" onClick={simulateAgain}>
@@ -120,29 +120,41 @@ export function ResultsDashboard({ runId }: { runId: string }) {
 
       {/* Headline numbers */}
       <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {primary.map((spec) => (
-          <div key={spec.key} className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-slate-500">
-              {spec.label}
-              {spec.term && <InfoTip term={spec.term} />}
-            </div>
-            <div className="mt-2 text-2xl font-semibold text-slate-900">
-              {formatScalar(result.scalars[spec.key], spec.unit)}
-            </div>
-          </div>
-        ))}
+        {primary.map((spec, i) => {
+          const value = result.scalars[spec.key];
+          const finite = value !== null && Number.isFinite(value);
+          return (
+            <Reveal key={spec.key} delay={i * 0.08}>
+              <Surface className="h-full" innerClassName="flex h-full flex-col gap-3 p-5">
+                <div className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
+                  {spec.label}
+                  {spec.term && <InfoTip term={spec.term} />}
+                </div>
+                <div className="tabular-readout text-3xl font-semibold text-foreground">
+                  {finite ? (
+                    <CountUp value={value} format={(n) => formatScalar(n, spec.unit)} />
+                  ) : (
+                    "—"
+                  )}
+                </div>
+              </Surface>
+            </Reveal>
+          );
+        })}
       </section>
 
       {/* Plot gallery */}
       {result.plot_urls.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
-            Plots
-          </h2>
+        <section className="flex flex-col gap-4">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Plots</h2>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {result.plot_urls.map((url) => {
+            {result.plot_urls.map((url, i) => {
               const stem = url.split("/").pop()?.replace(/\.png$/, "") ?? "plot";
-              return <PlotCard key={url} url={url} title={plotTitle(stem)} />;
+              return (
+                <Reveal key={url} delay={i * 0.05}>
+                  <PlotCard url={url} title={plotTitle(stem)} />
+                </Reveal>
+              );
             })}
           </div>
         </section>
@@ -150,24 +162,24 @@ export function ResultsDashboard({ runId }: { runId: string }) {
 
       {/* Details table */}
       {details.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        <section className="flex flex-col gap-4">
+          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
             More numbers
           </h2>
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+          <Surface innerClassName="overflow-hidden">
             <table className="w-full text-sm">
               <tbody>
                 {details.map((spec) => (
-                  <tr key={spec.key} className="border-t border-slate-100 first:border-0">
-                    <td className="px-4 py-2.5 text-slate-600">{spec.label}</td>
-                    <td className="px-4 py-2.5 text-right font-medium text-slate-900">
+                  <tr key={spec.key} className="border-t border-white/[0.06] first:border-0">
+                    <td className="px-5 py-3 text-muted">{spec.label}</td>
+                    <td className="tabular-readout px-5 py-3 text-right font-medium text-foreground">
                       {formatScalar(result.scalars[spec.key], spec.unit)}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          </Surface>
         </section>
       )}
     </div>
@@ -198,21 +210,23 @@ function PlotCard({ url, title }: { url: string; title: string }) {
   }, [url]);
 
   return (
-    <figure className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <figcaption className="border-b border-slate-100 px-4 py-2 text-sm font-medium text-slate-700">
-        {title}
-      </figcaption>
-      <div className="flex min-h-48 items-center justify-center bg-slate-50 p-2">
-        {failed ? (
-          <span className="text-sm text-slate-400">Couldn&apos;t load this plot.</span>
-        ) : src ? (
-          // Object URL from an authenticated fetch — next/image can't handle blob: URLs.
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt={title} className="w-full" />
-        ) : (
-          <Spinner className="text-slate-400" />
-        )}
-      </div>
-    </figure>
+    <Surface as="div" innerClassName="overflow-hidden">
+      <figure>
+        <figcaption className="border-b border-white/[0.06] px-4 py-2.5 text-sm font-medium text-foreground/90">
+          {title}
+        </figcaption>
+        <div className="flex min-h-48 items-center justify-center bg-white p-2">
+          {failed ? (
+            <span className="py-12 text-sm text-slate-400">Couldn&apos;t load this plot.</span>
+          ) : src ? (
+            // Object URL from an authenticated fetch — next/image can't handle blob: URLs.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={src} alt={title} className="w-full rounded-lg" />
+          ) : (
+            <Spinner className="my-12 text-slate-400" />
+          )}
+        </div>
+      </figure>
+    </Surface>
   );
 }

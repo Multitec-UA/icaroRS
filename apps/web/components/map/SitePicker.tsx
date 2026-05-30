@@ -14,7 +14,7 @@ import { Spinner, TextInput } from "@/components/ui";
 const MapInner = dynamic(() => import("./MapInner"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-80 w-full items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-400">
+    <div className="flex h-80 w-full items-center justify-center rounded-2xl bg-white/[0.02] text-sm text-muted ring-1 ring-inset ring-white/10">
       Loading map…
     </div>
   ),
@@ -79,18 +79,18 @@ export function SitePicker({
           onChange={(e) => onQueryChange(e.target.value)}
         />
         {searching && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">
             <Spinner />
           </span>
         )}
         {hits.length > 0 && (
-          <ul className="absolute z-[1000] mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">
+          <ul className="absolute z-[1000] mt-2 w-full overflow-hidden rounded-2xl bg-[#0b0b0e]/95 p-1.5 ring-1 ring-white/10 backdrop-blur-xl">
             {hits.map((hit, i) => (
               <li key={i}>
                 <button
                   type="button"
                   onClick={() => choose(hit)}
-                  className="block w-full truncate px-3 py-2 text-left text-sm text-slate-700 hover:bg-sky-50"
+                  className="block w-full truncate rounded-xl px-3 py-2 text-left text-sm text-foreground/80 transition-colors hover:bg-white/[0.06] hover:text-foreground"
                 >
                   {hit.display_name}
                 </button>
@@ -99,8 +99,10 @@ export function SitePicker({
           </ul>
         )}
       </div>
-      <MapInner lat={lat} lon={lon} onPick={onPick} />
-      <p className="text-xs text-slate-500">
+      <div className="overflow-hidden rounded-2xl ring-1 ring-inset ring-white/10">
+        <MapInner lat={lat} lon={lon} onPick={onPick} />
+      </div>
+      <p className="text-xs text-muted">
         Click anywhere on the map to drop the launch point, or search for a place above.
       </p>
     </div>

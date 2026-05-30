@@ -36,26 +36,27 @@ export function Stepper() {
               disabled={!reachable || isCurrent}
               onClick={() => goto(s)}
               className={cn(
-                "flex items-center gap-2 rounded-full px-3 py-1.5 font-medium transition-colors",
-                isCurrent && "bg-sky-600 text-white",
-                isDone && "text-sky-700 hover:bg-sky-50",
-                !isCurrent && !isDone && "text-slate-400",
+                "flex items-center gap-2 rounded-full px-3 py-1.5 font-medium transition-all duration-500 ease-[var(--ease-spring)]",
+                isCurrent &&
+                  "bg-white/[0.06] text-foreground ring-1 ring-inset ring-white/15 shadow-[0_0_24px_-8px_rgba(34,211,238,0.5)]",
+                isDone && "text-cyan-300/80 hover:bg-white/[0.04]",
+                !isCurrent && !isDone && "text-white/30",
                 reachable && !isCurrent && "cursor-pointer",
               )}
             >
               <span
                 className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-full border text-xs",
-                  isCurrent && "border-white",
-                  isDone && "border-sky-600 bg-sky-600 text-white",
-                  !isCurrent && !isDone && "border-slate-300",
+                  "flex h-5 w-5 items-center justify-center rounded-full text-[11px] ring-1 transition-all duration-500 ease-[var(--ease-spring)]",
+                  isCurrent && "ring-cyan-400/60 text-cyan-300",
+                  isDone && "bg-cyan-400/90 text-[#050505] ring-transparent",
+                  !isCurrent && !isDone && "ring-white/15",
                 )}
               >
                 {isDone ? "✓" : i + 1}
               </span>
               {LABELS[s]}
             </button>
-            {i < VISIBLE.length - 1 && <span className="text-slate-300">→</span>}
+            {i < VISIBLE.length - 1 && <span className="text-white/15">→</span>}
           </li>
         );
       })}

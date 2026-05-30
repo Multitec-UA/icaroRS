@@ -1,19 +1,74 @@
 @import "tailwindcss";
 
+/*
+ * icaro — "Ethereal Glass" dark theme (issue #10).
+ * Deepest OLED black canvas, light-on-dark hierarchy, cyan/violet glow accents.
+ * Dark is the ONLY theme: the whole UI is designed dark-first, so no `dark:`
+ * variants are needed downstream — base styles already are the dark styles.
+ */
+
 :root {
-  --background: #f8fafc; /* slate-50 — calm mission-control canvas */
-  --foreground: #0f172a; /* slate-900 */
+  --background: #050505; /* deepest OLED black */
+  --foreground: #ededf2; /* near-white, never pure #fff */
+  --muted: #8b8f9c; /* secondary text on dark */
+
+  --accent-cyan: #22d3ee;
+  --accent-violet: #a78bfa;
+
+  color-scheme: dark;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent-cyan: var(--accent-cyan);
+  --color-accent-violet: var(--accent-violet);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Spring-physics easing — the ONLY curves used across the app. */
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+html {
+  background: var(--background);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  /* No accidental horizontal scroll from the ambient blobs. */
+  overflow-x: hidden;
+}
+
+/* Tabular numerals for the mono "instrument" readouts (apogee, Mach…). */
+.tabular-readout {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Ambient drifting orbs — slow, GPU-safe (transform/opacity only). */
+@keyframes drift-a {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(6%, 4%, 0) scale(1.08); }
+}
+@keyframes drift-b {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-5%, -6%, 0) scale(1.12); }
+}
+
+.orb-a { animation: drift-a 22s var(--ease-spring) infinite; }
+.orb-b { animation: drift-b 28s var(--ease-spring) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .orb-a, .orb-b { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

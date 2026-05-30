@@ -14,7 +14,7 @@ import { useEffect } from "react";
 // A pure-CSS/SVG pin — avoids bundling Leaflet's default marker PNG assets.
 const pinIcon = L.divIcon({
   className: "",
-  html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="#0284c7" stroke="white" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>`,
+  html: `<svg width="28" height="28" viewBox="0 0 24 24" fill="#22d3ee" stroke="#050505" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="#050505"/></svg>`,
   iconSize: [28, 28],
   iconAnchor: [14, 28],
 });
