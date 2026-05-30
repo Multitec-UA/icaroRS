@@ -155,12 +155,43 @@ def serialize_flight(
         json.dumps(result, ensure_ascii=False, indent=2)
     )
 
+    # Persist the interactive time-series alongside (issue #11). The Flight
+    # only exists during simulate, so the series MUST be extracted now and
+    # written to disk for GET /api/results/{run_id}/series to serve later.
+    # Additive: result.json's shape is untouched, so the /api contract holds.
+    # Series are a bonus — a failure here never fails the run.
+    _write_series(flight, output_dir)
+
     return result
 
 
 # ---------------------------------------------------------------------------
 # Private helpers
 # ---------------------------------------------------------------------------
+
+
+def _write_series(flight: Any, output_dir: Path) -> None:
+    """Extract flight time-series via the domain use-case and persist series.json.
+
+    Defensive by design: the series power the interactive charts but are not a
+    hard dependency of a run. If the domain extraction raises (e.g. a stub
+    lacking ``t_final``, or an unexpected rocketpy config), we simply skip
+    writing series.json — the run, its scalars and PNGs are unaffected, and the
+    series endpoint will 404 (the client then falls back to the PNG plots).
+    """
+    from icaro import extract_flight_series
+
+    try:
+        series = extract_flight_series(flight)
+    except Exception:  # noqa: BLE001 — series are a bonus, never fatal.
+        return
+
+    try:
+        (output_dir / "series.json").write_text(
+            json.dumps(series, ensure_ascii=False)
+        )
+    except Exception:  # noqa: BLE001
+        return
 
 
 def _extract_scalars(flight: Any) -> dict[str, Any]:

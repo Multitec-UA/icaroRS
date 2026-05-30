@@ -39,6 +39,7 @@ Interactive API docs are at `/docs`.
 | `POST` | `/api/convert` | Multipart `.ork` upload → `{export_id, manifest}` |
 | `POST` | `/api/simulate` | `{export_id, scenario}` → `{run_id, scalars, plot_urls, warnings}` |
 | `GET` | `/api/results/{run_id}` | Result envelope `{run_id, status, result}` |
+| `GET` | `/api/results/{run_id}/series` | Resampled flight time-series `{t, altitude, speed, mach, acceleration, path3d}` for interactive charts (404 for runs predating the feature) |
 | `GET` | `/api/results/{run_id}/plots/{name}.png` | A rendered plot PNG |
 
 The server-rendered wizard lives at `/`, `/step2`, `/step3`, `/results/{run_id}`.

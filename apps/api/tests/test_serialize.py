@@ -124,6 +124,54 @@ class TestSerializeFlightHappyPath:
 
 
 # ---------------------------------------------------------------------------
+# Time-series persistence (issue #11) — serialize writes series.json alongside
+# result.json so GET /api/results/{run_id}/series can serve it later.
+# ---------------------------------------------------------------------------
+
+
+class TestSerializeFlightSeries:
+    def test_series_json_written_to_run_dir(self, tmp_path):
+        """series.json must be written inside the run directory."""
+        run_id = "run-series-1"
+        serialize_flight(FakeFlight(), tmp_path, run_id, [])
+        series_json = tmp_path / run_id / "series.json"
+        assert series_json.exists(), "series.json not found in run directory"
+
+    def test_series_json_has_expected_keys(self, tmp_path):
+        """series.json must hold t + named series + path3d (issue #11 shape)."""
+        run_id = "run-series-2"
+        serialize_flight(FakeFlight(), tmp_path, run_id, [])
+        series = json.loads((tmp_path / run_id / "series.json").read_text())
+        assert set(series) == {"t", "altitude", "speed", "mach", "acceleration", "path3d"}
+
+    def test_series_arrays_aligned_and_json_safe(self, tmp_path):
+        """Every series aligns to the t grid and is JSON-serializable."""
+        run_id = "run-series-3"
+        serialize_flight(FakeFlight(), tmp_path, run_id, [])
+        series = json.loads((tmp_path / run_id / "series.json").read_text())
+        n = len(series["t"])
+        assert n >= 2
+        for key in ("altitude", "speed", "mach", "acceleration", "path3d"):
+            assert len(series[key]) == n
+
+    def test_result_json_shape_unchanged(self, tmp_path):
+        """Adding series must NOT change the result.json contract (additive)."""
+        run_id = "run-series-4"
+        result = serialize_flight(FakeFlight(), tmp_path, run_id, [])
+        assert set(result.keys()) == {"run_id", "scalars", "plot_urls", "warnings"}
+
+    def test_series_extraction_failure_does_not_break_serialize(self, tmp_path):
+        """If series extraction blows up, serialize_flight must still succeed
+        (series are a bonus, never a hard dependency)."""
+        flight = FakeFlight()
+        del flight.t_final  # extract_flight_series reads t_final → will raise
+        result = serialize_flight(flight, tmp_path, "run-series-5", [])
+        assert isinstance(result, dict) and "scalars" in result
+        # No series.json (extraction failed) — but the run still serialized.
+        assert not (tmp_path / "run-series-5" / "series.json").exists()
+
+
+# ---------------------------------------------------------------------------
 # Warnings passthrough tests (AC-RG-2.6 partial)
 # ---------------------------------------------------------------------------
 

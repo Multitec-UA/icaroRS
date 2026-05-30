@@ -3,6 +3,7 @@
 Routes (all require auth via router-level dependency):
   GET /api/results/{run_id}                   — result.json in job-status shape
   GET /api/results/{run_id}/plots/{name}.png  — serve a plot PNG
+  GET /api/results/{run_id}/series            — flight time-series (issue #11)
 
 Design §11 (forward-compat job-status shape), §2 (run dir layout).
 Spec RG-2.5, RG-9.7, ADR-6.
@@ -72,6 +73,44 @@ def get_result(
         "status": "done",
         "result": result,
     }
+
+
+@router.get("/results/{run_id}/series")
+def get_series(
+    run_id: str,
+    settings: Settings = Depends(get_settings),
+) -> dict[str, Any]:
+    """Return the resampled flight time-series for a completed run (issue #11).
+
+    Shape: ``{t, altitude, speed, mach, acceleration, path3d}`` — plain JSON
+    arrays sharing one ``t`` axis, written by ``serialize_flight`` at simulate
+    time. Powers the interactive 2D charts and the animated 3D trajectory.
+
+    Returns 404 if the run is unknown OR predates this feature (no series.json);
+    the client then falls back to the static PNG plots. Additive endpoint — the
+    rest of the ``/api`` contract is untouched.
+    """
+    run_dir = resolve_run_dir(settings.results_dir, run_id)
+    if run_dir is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{run_id}' not found.",
+        )
+
+    series_file = run_dir / "series.json"
+    if not series_file.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Series for run '{run_id}' not available.",
+        )
+
+    try:
+        return json.loads(series_file.read_text())
+    except Exception:  # noqa: BLE001
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Could not read series file.",
+        )
 
 
 @router.get("/results/{run_id}/plots/{name}.png")
