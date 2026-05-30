@@ -89,12 +89,28 @@ class _FakePlots:
         _write_png(filename)
 
 
+class _Fn:
+    """Minimal callable double for a rocketpy ``Function`` (callable at any t).
+
+    Mirrors how flight quantities (altitude, speed, …) are callable Functions
+    of time — so ``extract_flight_series`` can resample them via ``fn(t)``.
+    """
+
+    def __init__(self, f) -> None:
+        self._f = f
+
+    def __call__(self, t):
+        return self._f(t)
+
+
 class FakeFlight:
     """Minimal stub for ``rocketpy.Flight`` for use in serialize_flight tests.
 
     All scalar attributes are set to known floats.  The ``plots`` attribute
     exposes ``_FakePlots`` methods that write a tiny PNG when called with
-    ``filename=``.
+    ``filename=``.  The time-series quantities (``altitude``, ``speed``,
+    ``mach_number``, ``acceleration``, ``x``, ``y``) are callable Functions of
+    time so ``extract_flight_series`` can resample them (issue #11).
 
     Attributes can be explicitly deleted to test the defensive getattr path
     (task 1.16 — missing attr must not crash serialize_flight).
@@ -121,6 +137,14 @@ class FakeFlight:
         self.out_of_rail_velocity: float = 22.4
         self.out_of_rail_time: float = 0.8
         self.out_of_rail_stability_margin: float = 2.1
+
+        # --- Time-series (callable Functions of time), issue #11 ---
+        self.altitude: _Fn = _Fn(lambda t: 30.0 * t)  # AGL, starts at 0
+        self.speed: _Fn = _Fn(lambda t: 25.0)
+        self.mach_number: _Fn = _Fn(lambda t: 0.05 * t)
+        self.acceleration: _Fn = _Fn(lambda t: 9.81)
+        self.x: _Fn = _Fn(lambda t: 1.5 * t)  # East
+        self.y: _Fn = _Fn(lambda t: 2.0 * t)  # North
 
         # --- Plots stub ---
         self.plots: _FakePlots = _FakePlots()
