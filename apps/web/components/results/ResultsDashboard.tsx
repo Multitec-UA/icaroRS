@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
@@ -23,8 +24,15 @@ import {
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { SCALAR_SPECS, formatScalar, plotTitle } from "@/lib/scalars";
-import { Button, Callout, Eyebrow, InfoTip, Spinner, Surface } from "@/components/ui";
+import { Accordion, Button, Callout, Eyebrow, InfoTip, Spinner, Surface } from "@/components/ui";
 import { CountUp, Reveal } from "@/components/motion";
+
+// Interactive charts (three + echarts) are heavy and client-only — code-split
+// them off the initial bundle and keep them out of SSR.
+const InteractiveResults = dynamic(
+  () => import("@/components/results/InteractiveResults").then((m) => m.InteractiveResults),
+  { ssr: false },
+);
 
 export function ResultsDashboard({ runId }: { runId: string }) {
   const { state, goto, reset } = useWizard();
@@ -143,10 +151,34 @@ export function ResultsDashboard({ runId }: { runId: string }) {
         })}
       </section>
 
-      {/* Plot gallery */}
+      {/* Interactive charts + animated 3D trajectory (issue #11). Renders
+          nothing when the run has no series — the PNG gallery below stands in. */}
+      <InteractiveResults runId={runId} />
+
+      {/* Secondary detail — collapsed by default so the hero + interactive
+          section stays the focus. "More numbers" before the static plots. */}
+      {details.length > 0 && (
+        <Accordion title="More numbers" badge={`${details.length} values`}>
+          <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/10">
+            <table className="w-full text-sm">
+              <tbody>
+                {details.map((spec) => (
+                  <tr key={spec.key} className="border-t border-white/[0.06] first:border-0">
+                    <td className="px-4 py-3 text-muted">{spec.label}</td>
+                    <td className="tabular-readout px-4 py-3 text-right font-medium text-foreground">
+                      {formatScalar(result.scalars[spec.key], spec.unit)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Accordion>
+      )}
+
+      {/* Static plot gallery (PNGs) — fallback / complete set. */}
       {result.plot_urls.length > 0 && (
-        <section className="flex flex-col gap-4">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Plots</h2>
+        <Accordion title="All plots" badge={`${result.plot_urls.length} plots`}>
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             {result.plot_urls.map((url, i) => {
               const stem = url.split("/").pop()?.replace(/\.png$/, "") ?? "plot";
@@ -157,30 +189,7 @@ export function ResultsDashboard({ runId }: { runId: string }) {
               );
             })}
           </div>
-        </section>
-      )}
-
-      {/* Details table */}
-      {details.length > 0 && (
-        <section className="flex flex-col gap-4">
-          <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
-            More numbers
-          </h2>
-          <Surface innerClassName="overflow-hidden">
-            <table className="w-full text-sm">
-              <tbody>
-                {details.map((spec) => (
-                  <tr key={spec.key} className="border-t border-white/[0.06] first:border-0">
-                    <td className="px-5 py-3 text-muted">{spec.label}</td>
-                    <td className="tabular-readout px-5 py-3 text-right font-medium text-foreground">
-                      {formatScalar(result.scalars[spec.key], spec.unit)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </Surface>
-        </section>
+        </Accordion>
       )}
     </div>
   );

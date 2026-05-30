@@ -80,6 +80,48 @@ export function Eyebrow({ children, className }: { children: ReactNode; classNam
 }
 
 // ---------------------------------------------------------------------------
+// Accordion — glass <details> with an animated chevron. Native (keyboard- and
+// screen-reader-friendly, zero JS state); same idiom as the wizard's sections.
+// ---------------------------------------------------------------------------
+
+export function Accordion({
+  title,
+  badge,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  badge?: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <details
+      className="group rounded-2xl bg-white/[0.02] ring-1 ring-inset ring-white/10 [&_summary::-webkit-details-marker]:hidden"
+      open={defaultOpen}
+    >
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted transition-colors duration-300 hover:text-foreground">
+        <span>{title}</span>
+        <span className="flex items-center gap-3 normal-case tracking-normal">
+          {badge != null && <span className="text-[11px] text-muted">{badge}</span>}
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 14 14"
+            fill="none"
+            aria-hidden="true"
+            className="transition-transform duration-500 ease-[var(--ease-spring)] group-open:rotate-180"
+          >
+            <path d="M3 5l4 4 4-4" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </summary>
+      <div className="px-5 pb-5">{children}</div>
+    </details>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Button — fully-rounded "island" pill. Optional button-in-button trailing
 // icon nested in its own circle, with magnetic group-hover physics + press.
 // ---------------------------------------------------------------------------
