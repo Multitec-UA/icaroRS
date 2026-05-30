@@ -17,7 +17,17 @@ calls into this package — the logic lives here exactly once.
 
 | Function | What it does |
 | --- | --- |
-| `simulate_from_export(export_dir)` | Build + solve a `Flight` from a RocketSerializer export (`parameters.json` + thrust/drag CSVs). |
+| `simulate_from_export(export_dir, scenario=None)` | Build + solve a `Flight` from a RocketSerializer export (`parameters.json` + thrust/drag CSVs). An optional `Scenario` overrides site, atmosphere, rail. |
+| `convert_ork(...)` | Convert an OpenRocket `.ork` into an export directory. Needs the `icaro[convert]` extra + Java; raises `ConvertUnavailableError` otherwise. Lazy-imports rocketserializer. |
+| `load_scenario(path)` | Load and validate a scenario YAML into a `Scenario`. |
+| `Scenario` | Pydantic model for a simulation scenario: site, launch date, atmosphere model + fallback, rail overrides, uncertainty budget. |
+| `choose_atmosphere_model_for_date(date, online=True)` | Pick the best atmosphere model (real GFS `forecast` vs `standard_atmosphere`) for a launch date. |
+| `gfs_window_check(date)` | Whether a date falls inside the ~16-day GFS forecast window. |
+
+> Monte Carlo, sensitivity, and comparison use-cases are planned (issues
+> [#2](https://github.com/Multitec-UA/icaroRS/issues/2),
+> [#3](https://github.com/Multitec-UA/icaroRS/issues/3),
+> [#4](https://github.com/Multitec-UA/icaroRS/issues/4)).
 
 ## Example
 

@@ -8,7 +8,8 @@ repo. For deep, area-specific guidance, follow the pointers below.
 icaroRS is Multitec's rocket simulation monorepo — a **definitive fork** that
 evolves independently (no upstream RocketPy syncing). It contains two core
 libraries (`rocketpy`, `rocketserializer`), a domain layer (`icaro`), and a
-growing set of delivery surfaces (CLI now; API and web planned).
+set of delivery surfaces: a CLI, a FastAPI REST API (+ server-rendered wizard),
+and a React/Next.js web UI.
 
 ## Layout
 
@@ -47,6 +48,9 @@ restructuring or adding code.**
 - **Tests:** run each core's suite from its own directory; see
   [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - **Tooling:** uv workspace; `uv sync` to install, `uv run …` to execute.
+  Exception: `apps/web` is a standalone **Node** project (npm, Next.js 16) —
+  **not** a uv member. Work in it with `npm`, and read its `AGENTS.md` first
+  (Next 16 has breaking changes from older versions).
 - **Project-specific conventions & gotchas** (e.g. RocketSerializer test
   patching): `.atl/skill-registry.md`.
 

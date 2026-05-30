@@ -1,8 +1,8 @@
 # icaroRS
 
 Multitec's rocket simulation monorepo. It bundles two core libraries and builds
-a single, growing toolkit on top of them: a CLI today, a REST API and a web
-interface tomorrow.
+a single, growing toolkit on top of them: a **CLI**, a **REST API**, and a
+**web interface** — all thin surfaces over one shared domain layer.
 
 - **RocketPy** — advanced 6-DOF trajectory simulation for high-power rocketry.
 - **RocketSerializer** — converts OpenRocket `.ork` files into simulation
@@ -21,9 +21,9 @@ icaroRS/
 │   ├── rocketserializer/     #   core: OpenRocket → parameters
 │   └── icaro/                #   domain: use-cases gluing the cores
 └── apps/                     # delivery mechanisms (thin shells)
-    ├── cli/                  #   `icaro` command (available now)
-    ├── api/                  #   REST API (planned)
-    └── web/                  #   web UI (planned)
+    ├── cli/                  #   `icaro` command
+    ├── api/                  #   FastAPI REST API + server-rendered wizard
+    └── web/                  #   React/Next.js web UI
 ```
 
 The rules behind this layout — what goes in `packages/` vs `apps/`, and which
@@ -60,6 +60,8 @@ the surface that shows it.
 | RocketSerializer core | [`packages/rocketserializer/README.md`](packages/rocketserializer/README.md) |
 | icaro domain | [`packages/icaro/README.md`](packages/icaro/README.md) |
 | CLI | [`apps/cli/README.md`](apps/cli/README.md) |
+| REST API + wizard | [`apps/api/README.md`](apps/api/README.md) |
+| Web UI (React/Next.js) | [`apps/web/README.md`](apps/web/README.md) |
 
 ## Contributing & testing
 
