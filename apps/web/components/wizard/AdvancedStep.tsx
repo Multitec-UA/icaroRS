@@ -23,7 +23,7 @@ import {
 } from "@/lib/api";
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
-import { Button, Callout, Field, Spinner, TextInput } from "@/components/ui";
+import { Button, Callout, Eyebrow, Field, Spinner, TextInput, cn, selectClass } from "@/components/ui";
 
 type Presets = Record<string, Record<string, Dispersion>>;
 
@@ -118,16 +118,17 @@ export function AdvancedStep() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Fine-tuning</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="flex flex-col gap-3">
+        <Eyebrow>Step 3 · Fine-tuning</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">Fine-tuning</h2>
+        <p className="text-sm text-muted">
           Optional. The defaults are sensible — open a section only if you want more control.
         </p>
       </div>
 
       {/* Uncertainty presets */}
-      <details className="rounded-xl border border-slate-200 bg-white p-4" open>
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+      <details className="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10" open>
+        <summary className="cursor-pointer text-sm font-semibold text-foreground">
           Uncertainty budget
         </summary>
         <div className="mt-4 flex flex-col gap-4">
@@ -136,10 +137,10 @@ export function AdvancedStep() {
               <label
                 key={name}
                 className={[
-                  "cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium",
+                  "cursor-pointer rounded-full px-4 py-2 text-sm font-medium ring-1 ring-inset transition-all duration-500 ease-[var(--ease-spring)]",
                   selected === name
-                    ? "border-sky-500 bg-sky-50 text-sky-700"
-                    : "border-slate-300 text-slate-600 hover:bg-slate-50",
+                    ? "bg-cyan-400/10 text-cyan-200 ring-cyan-400/40 shadow-[0_0_24px_-10px_rgba(34,211,238,0.6)]"
+                    : "text-muted ring-white/10 hover:text-foreground hover:ring-white/25",
                 ].join(" ")}
               >
                 <input
@@ -155,22 +156,22 @@ export function AdvancedStep() {
           </div>
 
           {selected === "Customize" && state.uncertainty && (
-            <div className="overflow-hidden rounded-lg border border-slate-200">
+            <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/10">
               <table className="w-full text-sm">
-                <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+                <thead className="bg-white/[0.03] text-left text-xs uppercase tracking-wide text-muted">
                   <tr>
-                    <th className="px-3 py-2">Parameter</th>
-                    <th className="px-3 py-2">Std deviation</th>
-                    <th className="px-3 py-2">Kind</th>
+                    <th className="px-3 py-2.5 font-medium">Parameter</th>
+                    <th className="px-3 py-2.5 font-medium">Std deviation</th>
+                    <th className="px-3 py-2.5 font-medium">Kind</th>
                   </tr>
                 </thead>
                 <tbody>
                   {Object.entries(state.uncertainty).map(([key, disp]) => (
-                    <tr key={key} className="border-t border-slate-100">
-                      <td className="px-3 py-2 font-medium text-slate-700">
+                    <tr key={key} className="border-t border-white/[0.06]">
+                      <td className="px-3 py-2.5 font-medium text-foreground/90">
                         {PARAM_LABELS[key] ?? key}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <TextInput
                           type="number"
                           step="any"
@@ -179,9 +180,9 @@ export function AdvancedStep() {
                           onChange={(e) => editDispersion(key, { std: Number(e.target.value) })}
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-3 py-2.5">
                         <select
-                          className="h-9 rounded-lg border border-slate-300 bg-white px-2 text-sm"
+                          className={cn(selectClass, "h-9 w-auto px-3")}
                           value={disp.kind}
                           onChange={(e) =>
                             editDispersion(key, { kind: e.target.value as Dispersion["kind"] })
@@ -201,8 +202,8 @@ export function AdvancedStep() {
       </details>
 
       {/* Rail overrides */}
-      <details className="rounded-xl border border-slate-200 bg-white p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+      <details className="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10">
+        <summary className="cursor-pointer text-sm font-semibold text-foreground">
           Launch rail overrides
         </summary>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -237,15 +238,15 @@ export function AdvancedStep() {
       </details>
 
       {/* Atmosphere override */}
-      <details className="rounded-xl border border-slate-200 bg-white p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+      <details className="rounded-2xl bg-white/[0.02] p-4 ring-1 ring-inset ring-white/10">
+        <summary className="cursor-pointer text-sm font-semibold text-foreground">
           Atmosphere model ({MODEL_LABELS[model]})
         </summary>
         <div className="mt-4 flex flex-col gap-4">
           <Field label="Model" htmlFor="am">
             <select
               id="am"
-              className="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm"
+              className={selectClass}
               value={model}
               onChange={(e) =>
                 setAtmosphere({ ...state.atmosphere, model: e.target.value as AtmosphereModel })
@@ -297,9 +298,9 @@ export function AdvancedStep() {
       )}
 
       <div className="flex justify-end">
-        <Button onClick={onContinue} disabled={validating}>
+        <Button onClick={onContinue} disabled={validating} withArrow={!validating}>
           {validating && <Spinner />}
-          {validating ? "Checking…" : "Review →"}
+          {validating ? "Checking…" : "Review"}
         </Button>
       </div>
     </div>

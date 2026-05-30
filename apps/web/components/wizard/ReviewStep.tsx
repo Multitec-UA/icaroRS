@@ -11,13 +11,15 @@ import { useRouter } from "next/navigation";
 import { ApiError, simulate, type FieldError } from "@/lib/api";
 import { useWizard, toLaunchDate } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
-import { Button, Callout, Spinner } from "@/components/ui";
+import { Button, Callout, Eyebrow, Spinner, cn } from "@/components/ui";
 
-function Row({ label, value }: { label: string; value: string }) {
+function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm last:border-0">
-      <span className="text-slate-500">{label}</span>
-      <span className="text-right font-medium text-slate-800">{value}</span>
+    <div className="flex justify-between gap-4 border-b border-white/[0.06] py-2.5 text-sm last:border-0">
+      <span className="text-muted">{label}</span>
+      <span className={cn("text-right font-medium text-foreground", mono && "tabular-readout")}>
+        {value}
+      </span>
     </div>
   );
 }
@@ -52,16 +54,18 @@ export function ReviewStep() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Review &amp; launch</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="flex flex-col gap-3">
+        <Eyebrow>Step 4 · Review</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">Review &amp; launch</h2>
+        <p className="text-sm text-muted">
           Check the summary, then run the simulation.
         </p>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-5">
+      <div className="rounded-2xl bg-white/[0.02] px-5 py-1 ring-1 ring-inset ring-white/10">
         <Row label="Scenario" value={state.name} />
         <Row
+          mono
           label="Site"
           value={
             site && Number.isFinite(site.latitude)
@@ -72,6 +76,7 @@ export function ReviewStep() {
           }
         />
         <Row
+          mono
           label="Launch time (UTC)"
           value={
             date
@@ -102,7 +107,7 @@ export function ReviewStep() {
 
       <div className="flex items-center justify-end gap-3">
         {busy && (
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-muted">
             Running the 6-DOF simulation — this can take a moment…
           </span>
         )}

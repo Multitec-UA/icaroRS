@@ -22,7 +22,7 @@ import {
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { SitePicker } from "@/components/map/SitePicker";
-import { Button, Callout, Field, InfoTip, Spinner, TextInput } from "@/components/ui";
+import { Button, Callout, Eyebrow, Field, InfoTip, Spinner, TextInput } from "@/components/ui";
 
 export function BasicsStep() {
   const { state, setSite, setLaunchDatetime, setAtmosphere, next, scenarioBody } =
@@ -109,9 +109,10 @@ export function BasicsStep() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">Where and when?</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="flex flex-col gap-3">
+        <Eyebrow>Step 2 · Launch site &amp; time</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">Where and when?</h2>
+        <p className="text-sm text-muted">
           Pick the launch site and time. We&apos;ll choose the best weather model for you.
         </p>
       </div>
@@ -153,15 +154,19 @@ export function BasicsStep() {
       </div>
 
       <Field
-        label="Launch date & time (UTC)"
+        label="Launch date & hour (UTC)"
         htmlFor="dt"
         term="forecast"
         error={errorFor("date")}
-        hint="Within ~16 days, we use a real weather forecast."
+        hint="Simulated to the whole hour (UTC). Within ~16 days, we use a real weather forecast."
       >
         <TextInput
           id="dt"
           type="datetime-local"
+          // The domain LaunchDate is hour-granular (no minutes) — step=3600s
+          // constrains the picker to whole hours so the UI never invites a
+          // precision the simulation will silently drop.
+          step={3600}
           value={state.launchDatetime ?? ""}
           onChange={(e) => onDateChange(e.target.value)}
         />
@@ -194,9 +199,9 @@ export function BasicsStep() {
       )}
 
       <div className="flex justify-end">
-        <Button onClick={onContinue} disabled={validating}>
+        <Button onClick={onContinue} disabled={validating} withArrow={!validating}>
           {validating && <Spinner />}
-          {validating ? "Checking…" : "Continue →"}
+          {validating ? "Checking…" : "Continue"}
         </Button>
       </div>
     </div>

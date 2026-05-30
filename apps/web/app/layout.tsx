@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { WizardProvider } from "@/components/wizard/WizardProvider";
+import { AmbientBackground } from "@/components/AmbientBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +30,8 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="min-h-[100dvh] flex flex-col">
+        <AmbientBackground />
         {/* Auth + wizard state live at the root so they persist across the
             wizard (/) and the results page (/results/[runId]). */}
         <AuthGate>

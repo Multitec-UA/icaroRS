@@ -26,7 +26,8 @@ import {
   hasCredentials,
   setCredentials,
 } from "@/lib/api";
-import { Button, Callout, Card, Field, Spinner, TextInput } from "@/components/ui";
+import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { Reveal } from "@/components/motion";
 
 interface AuthContextValue {
   logout: () => void;
@@ -85,41 +86,46 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <div className="mb-6">
-          <h1 className="text-xl font-semibold text-slate-900">icaro</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Sign in to run a rocket simulation.
+    <div className="flex min-h-[100dvh] flex-1 items-center justify-center px-4 py-16">
+      <Reveal className="w-full max-w-sm">
+        <div className="mb-8 flex flex-col items-center gap-5 text-center">
+          <Eyebrow>Rocket simulation</Eyebrow>
+          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-transparent">
+            icaro
+          </h1>
+          <p className="max-w-xs text-sm text-muted">
+            Turn your OpenRocket design into a full 6-DOF flight simulation.
           </p>
         </div>
-        <form onSubmit={submit} className="flex flex-col gap-4">
-          <Field label="Username" htmlFor="user">
-            <TextInput
-              id="user"
-              autoComplete="username"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-              required
-            />
-          </Field>
-          <Field label="Password" htmlFor="pass">
-            <TextInput
-              id="pass"
-              type="password"
-              autoComplete="current-password"
-              value={pass}
-              onChange={(e) => setPass(e.target.value)}
-              required
-            />
-          </Field>
-          {error && <Callout tone="error">{error}</Callout>}
-          <Button type="submit" disabled={busy}>
-            {busy && <Spinner />}
-            {busy ? "Signing in…" : "Sign in"}
-          </Button>
-        </form>
-      </Card>
+        <Card innerClassName="p-6 sm:p-6">
+          <form onSubmit={submit} className="flex flex-col gap-4">
+            <Field label="Username" htmlFor="user">
+              <TextInput
+                id="user"
+                autoComplete="username"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Password" htmlFor="pass">
+              <TextInput
+                id="pass"
+                type="password"
+                autoComplete="current-password"
+                value={pass}
+                onChange={(e) => setPass(e.target.value)}
+                required
+              />
+            </Field>
+            {error && <Callout tone="error">{error}</Callout>}
+            <Button type="submit" disabled={busy} className="mt-1 w-full" withArrow={!busy}>
+              {busy && <Spinner />}
+              {busy ? "Signing in…" : "Sign in"}
+            </Button>
+          </form>
+        </Card>
+      </Reveal>
     </div>
   );
 }
