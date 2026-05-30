@@ -63,6 +63,36 @@ the surface that shows it.
 | REST API + wizard | [`apps/api/README.md`](apps/api/README.md) |
 | Web UI (React/Next.js) | [`apps/web/README.md`](apps/web/README.md) |
 
+## Deployment (Multitec hosted instance)
+
+A managed instance lives in the **`multitecweb`** GCP project (region `europe-west1`).
+
+| Surface | URL |
+| --- | --- |
+| Web (Next 16 SPA) | <https://icaro.multitecua.com> |
+| API (FastAPI + JDK 21 + OpenRocket) | *no public URL* — see below |
+
+The API is deployed with `ingress: INTERNAL_ONLY`. It has no public domain and the
+underlying `*.run.app` URL returns `404` to any external caller — the only legitimate
+client is `icaro-web`'s server-side proxy, which reaches `icaro-api` through direct
+VPC egress (`mt-vpc`). All HTTP traffic to `/api/*` therefore enters the system at
+`icaro.multitecua.com`, passes through Next's rewrite, and only then reaches the
+FastAPI app.
+
+Auth is HTTP Basic; credentials are stored in Secret Manager
+(`mt-icaro-api-basic-user`, `mt-icaro-api-basic-pass`) and never live in code or
+CI substitutions. Ask `@sergio` for the demo password.
+
+Both services build automatically on every push to `main`:
+
+- `mt-icaro-api` rebuilds when `packages/**`, `apps/api/**`, `apps/cli/**`,
+  `pyproject.toml`, or `uv.lock` change.
+- `mt-icaro-web` rebuilds when `apps/web/**` changes.
+
+Infrastructure is declared in [`Multitec-UA/multitec-terrafrom`](https://github.com/Multitec-UA/multitec-terrafrom)
+under `settings/multitecweb.yaml` (entries `app.service.icaro-api` and
+`app.service.icaro-web`). Operational runbook lives in [`DEPLOY.md`](DEPLOY.md).
+
 ## Contributing & testing
 
 Environment setup, per-package test commands, and code style live in
