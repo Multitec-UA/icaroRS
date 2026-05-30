@@ -1,0 +1,47 @@
+# Build context for the apps/api image (context = repo root).
+#
+# Deliberately a BLOCKLIST, not a whitelist: a whitelist is how apps/web/lib got
+# silently dropped from git once already. We only exclude things the API image
+# provably does not need at runtime, and never touch packages/ source.
+
+# Version control / CI
+.git
+.github
+.gitignore
+
+# The Next web has its own image — build context apps/web, not this one.
+apps/web
+
+# Python build/cache cruft
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.egg-info
+.venv
+**/.venv
+
+# Local virtualenvs / node (none belong in the API image)
+**/node_modules
+
+# Runtime artifacts + logs
+.icaro_runs
+**/.icaro_runs
+*.log
+serializer.log
+
+# Editor / OS
+.DS_Store
+**/.DS_Store
+.idea
+.vscode
+
+# Surplus OpenRocket jars — the API only uses OpenRocket-23.09.jar.
+packages/rocketserializer/OpenRocket-22.02.jar
+packages/rocketserializer/tests/OpenRocket-15.03.jar
+
+# Agent / SDD scratch
+.atl
+.agent
+databank
