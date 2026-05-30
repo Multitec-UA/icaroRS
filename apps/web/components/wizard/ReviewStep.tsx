@@ -12,6 +12,7 @@ import { ApiError, simulate, type FieldError } from "@/lib/api";
 import { useWizard, toLaunchDate } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Button, Callout, Eyebrow, Spinner, cn } from "@/components/ui";
+import { useT, useLocale } from "@/components/i18n/LocaleProvider";
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
@@ -28,6 +29,8 @@ export function ReviewStep() {
   const { state, setResult, scenarioBody } = useWizard();
   const { logout } = useAuth();
   const router = useRouter();
+  const t = useT();
+  const { locale } = useLocale();
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
@@ -44,7 +47,11 @@ export function ReviewStep() {
     } catch (err) {
       if (err instanceof ApiError && err.isUnauthorized) return logout();
       if (err instanceof ApiError && err.isValidation) setErrors(err.fieldErrors ?? []);
-      else setFatal(err instanceof Error ? err.message : "Simulation failed.");
+      else if (err instanceof ApiError)
+        // If the server sent a hint (503 service note), show it verbatim per RG-6 / design.
+        // Otherwise map the stable code to a catalog key.
+        setFatal(err.hint ?? t(`errors.${err.code}`, { status: err.status }));
+      else setFatal(t("review.errorGeneric"));
       setBusy(false);
     }
   }
@@ -52,21 +59,37 @@ export function ReviewStep() {
   const date = toLaunchDate(state.launchDatetime);
   const site = state.site;
 
+  // Format the launch time using the active locale for date conventions
+  function formatLaunchTime(): string {
+    if (!date) return "—";
+    // Build a Date object then format with locale conventions
+    const d = new Date(Date.UTC(date.year, date.month - 1, date.day, date.hour, 0, 0));
+    return d.toLocaleString(locale, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZone: "UTC",
+      hour12: false,
+    }) + " UTC";
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Eyebrow>Step 4 · Review</Eyebrow>
-        <h2 className="text-2xl font-semibold tracking-tight">Review &amp; launch</h2>
+        <Eyebrow>{t("review.eyebrow")}</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("review.heading")}</h2>
         <p className="text-sm text-muted">
-          Check the summary, then run the simulation.
+          {t("review.description")}
         </p>
       </div>
 
       <div className="rounded-2xl bg-white/[0.02] px-5 py-1 ring-1 ring-inset ring-white/10">
-        <Row label="Scenario" value={state.name} />
+        <Row label={t("review.rowScenario")} value={state.name} />
         <Row
           mono
-          label="Site"
+          label={t("review.rowSite")}
           value={
             site && Number.isFinite(site.latitude)
               ? `${site.latitude.toFixed(4)}, ${site.longitude.toFixed(4)}${
@@ -77,22 +100,18 @@ export function ReviewStep() {
         />
         <Row
           mono
-          label="Launch time (UTC)"
-          value={
-            date
-              ? `${date.year}-${String(date.month).padStart(2, "0")}-${String(date.day).padStart(2, "0")} ${String(date.hour).padStart(2, "0")}:00`
-              : "—"
-          }
+          label={t("review.rowLaunchTime")}
+          value={formatLaunchTime()}
         />
-        <Row label="Atmosphere" value={state.atmosphere.model} />
+        <Row label={t("review.rowAtmosphere")} value={t(`models.${state.atmosphere.model}`)} />
         <Row
-          label="Uncertainty params"
-          value={state.uncertainty ? String(Object.keys(state.uncertainty).length) : "default"}
+          label={t("review.rowUncertaintyParams")}
+          value={state.uncertainty ? String(Object.keys(state.uncertainty).length) : t("review.uncertaintyDefault")}
         />
       </div>
 
       {errors.length > 0 && (
-        <Callout tone="error" title="The scenario needs attention">
+        <Callout tone="error" title={t("review.errorsTitle")}>
           <ul className="list-disc pl-5">
             {errors.map((e, i) => (
               <li key={i}>
@@ -108,12 +127,12 @@ export function ReviewStep() {
       <div className="flex items-center justify-end gap-3">
         {busy && (
           <span className="text-sm text-muted">
-            Running the 6-DOF simulation — this can take a moment…
+            {t("review.running")}
           </span>
         )}
         <Button onClick={run} disabled={busy}>
           {busy && <Spinner />}
-          {busy ? "Simulating…" : "Run simulation 🚀"}
+          {busy ? t("review.simulating") : t("review.runSimulation")}
         </Button>
       </div>
     </div>

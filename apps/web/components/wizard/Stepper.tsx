@@ -5,20 +5,14 @@
 
 import { useWizard, STEP_ORDER, type WizardStep } from "./WizardProvider";
 import { cn } from "@/components/ui";
-
-const LABELS: Record<WizardStep, string> = {
-  rocket: "Rocket",
-  basics: "Launch site & time",
-  advanced: "Fine-tuning",
-  review: "Review",
-  results: "Results",
-};
+import { useT } from "@/components/i18n/LocaleProvider";
 
 // Steps shown in the wizard shell (results is its own page).
 const VISIBLE: WizardStep[] = ["rocket", "basics", "advanced", "review"];
 
 export function Stepper() {
   const { step, goto, state } = useWizard();
+  const t = useT();
   const currentIndex = STEP_ORDER.indexOf(step);
 
   return (
@@ -54,7 +48,7 @@ export function Stepper() {
               >
                 {isDone ? "✓" : i + 1}
               </span>
-              {LABELS[s]}
+              {t(`stepper.${s}`)}
             </button>
             {i < VISIBLE.length - 1 && <span className="text-white/15">→</span>}
           </li>

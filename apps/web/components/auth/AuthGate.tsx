@@ -28,6 +28,8 @@ import {
 } from "@/lib/api";
 import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
 import { Reveal } from "@/components/motion";
+import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 interface AuthContextValue {
   logout: () => void;
@@ -58,6 +60,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
 }
 
 function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
+  const t = useT();
   const [user, setUser] = useState("");
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
@@ -74,11 +77,11 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
     } catch (err) {
       clearCredentials();
       if (err instanceof ApiError && err.isUnauthorized) {
-        setError("Wrong username or password.");
+        setError(t("auth.errorWrongCredentials"));
       } else if (err instanceof ApiError && err.status === 0) {
-        setError("Could not reach the API. Is the server running?");
+        setError(t("auth.errorUnreachable"));
       } else {
-        setError(err instanceof Error ? err.message : "Sign-in failed.");
+        setError(t("auth.errorGeneric"));
       }
     } finally {
       setBusy(false);
@@ -86,20 +89,23 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
   }
 
   return (
-    <div className="flex min-h-[100dvh] flex-1 items-center justify-center px-4 py-16">
+    <div className="relative flex min-h-[100dvh] flex-1 items-center justify-center px-4 py-16">
+      <div className="absolute right-4 top-4">
+        <LanguageSwitch />
+      </div>
       <Reveal className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-5 text-center">
-          <Eyebrow>Rocket simulation</Eyebrow>
+          <Eyebrow>{t("auth.eyebrow")}</Eyebrow>
           <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-transparent">
-            icaro
+            {t("auth.title")}
           </h1>
           <p className="max-w-xs text-sm text-muted">
-            Turn your OpenRocket design into a full 6-DOF flight simulation.
+            {t("auth.subtitle")}
           </p>
         </div>
         <Card innerClassName="p-6 sm:p-6">
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label="Username" htmlFor="user">
+            <Field label={t("auth.username")} htmlFor="user">
               <TextInput
                 id="user"
                 autoComplete="username"
@@ -108,7 +114,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
                 required
               />
             </Field>
-            <Field label="Password" htmlFor="pass">
+            <Field label={t("auth.password")} htmlFor="pass">
               <TextInput
                 id="pass"
                 type="password"
@@ -121,7 +127,7 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
             {error && <Callout tone="error">{error}</Callout>}
             <Button type="submit" disabled={busy} className="mt-1 w-full" withArrow={!busy}>
               {busy && <Spinner />}
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? t("auth.signingIn") : t("auth.signIn")}
             </Button>
           </form>
         </Card>

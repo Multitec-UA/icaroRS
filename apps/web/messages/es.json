@@ -1,0 +1,216 @@
+{
+  "common": {
+    "technicalEnglishNote": "Los mensajes técnicos se muestran en inglés."
+  },
+
+  "auth": {
+    "eyebrow": "Simulación de cohetes",
+    "title": "icaro",
+    "subtitle": "Convierte tu diseño de OpenRocket en una simulación de vuelo completa con 6 grados de libertad.",
+    "username": "Usuario",
+    "password": "Contraseña",
+    "signIn": "Iniciar sesión",
+    "signingIn": "Iniciando sesión…",
+    "errorWrongCredentials": "Usuario o contraseña incorrectos.",
+    "errorUnreachable": "No se pudo alcanzar la API. ¿Está corriendo el servidor?",
+    "errorGeneric": "Error al iniciar sesión."
+  },
+
+  "wizard": {
+    "appName": "icaro",
+    "appSubtitle": "simulación de cohetes",
+    "signOut": "Cerrar sesión"
+  },
+
+  "stepper": {
+    "rocket": "Cohete",
+    "basics": "Sitio y hora de lanzamiento",
+    "advanced": "Ajuste fino",
+    "review": "Revisión",
+    "results": "Resultados"
+  },
+
+  "rocket": {
+    "eyebrow": "Paso 1 · Cohete",
+    "heading": "Carga tu cohete",
+    "description": "Sube el archivo .ork de OpenRocket que diseñaste. Lo convertimos en un modelo listo para simular.",
+    "converting": "Convirtiendo {filename}… esto puede tardar hasta un minuto.",
+    "readyPrefix": "Listo: {name}",
+    "changeFile": "Haz clic para elegir otro archivo.",
+    "dropPrompt": "Arrastra y suelta tu archivo .ork aquí",
+    "browsePrompt": "o haz clic para explorar",
+    "continue": "Continuar",
+    "errorNotOrk": "Ese no es un archivo de OpenRocket. Por favor selecciona un archivo .ork.",
+    "errorGeneric": "Falló la conversión.",
+    "defaultRocketName": "tu cohete"
+  },
+
+  "basics": {
+    "eyebrow": "Paso 2 · Sitio y hora de lanzamiento",
+    "heading": "¿Dónde y cuándo?",
+    "description": "Selecciona el sitio de lanzamiento y el momento. Nosotros elegimos el mejor modelo meteorológico para ti.",
+    "fieldLatitude": "Latitud",
+    "fieldLongitude": "Longitud",
+    "fieldElevation": "Elevación (m)",
+    "elevationHint": "Sobre el nivel del mar.",
+    "elevationLookingUp": "Buscando elevación…",
+    "elevationAutoFilled": "Elevación completada automáticamente ({source}).",
+    "elevationEnterManually": "Introduce la elevación manualmente.",
+    "elevationFetchFailed": "No se pudo obtener la elevación — introdúcela manualmente.",
+    "fieldDateTime": "Fecha y hora de lanzamiento (UTC)",
+    "dateTimeHint": "Simulado a la hora completa (UTC). Dentro de ~16 días, usamos un pronóstico meteorológico real.",
+    "modelForecastLabel": "Pronóstico meteorológico real (GFS)",
+    "modelStandardLabel": "Atmósfera estándar",
+    "errorValidationFailed": "Falló la validación.",
+    "continue": "Continuar",
+    "checking": "Verificando…",
+    "errorsTitle": "Por favor corrige lo siguiente"
+  },
+
+  "models": {
+    "forecast": "Pronóstico real (GFS)",
+    "standard_atmosphere": "Atmósfera estándar",
+    "wyoming_sounding": "Sondeo de Wyoming",
+    "reanalysis": "Reanálisis (archivo ERA5)"
+  },
+
+  "advanced": {
+    "eyebrow": "Paso 3 · Ajuste fino",
+    "heading": "Ajuste fino",
+    "description": "Opcional. Los valores por defecto son sensatos — abre una sección solo si deseas más control.",
+    "uncertaintyBudget": "Presupuesto de incertidumbre",
+    "presetTypical": "Típico",
+    "presetConservative": "Conservador",
+    "presetPrecise": "Preciso",
+    "presetCustomize": "Personalizar",
+    "tableHeaderParameter": "Parámetro",
+    "tableHeaderStdDev": "Desviación estándar",
+    "tableHeaderKind": "Tipo",
+    "kindRelative": "relativo",
+    "kindAbsolute": "absoluto",
+    "railOverrides": "Parámetros del riel de lanzamiento",
+    "railLength": "Longitud (m)",
+    "railInclination": "Inclinación (°)",
+    "railHeading": "Rumbo (°)",
+    "atmosphereModel": "Modelo de atmósfera ({model})",
+    "fieldModel": "Modelo",
+    "fieldStationId": "ID de estación",
+    "fieldStationHint": "Requerido para sondeos de Wyoming.",
+    "fieldEra5Path": "Ruta del archivo ERA5",
+    "fieldEra5Hint": "Requerido para reanálisis.",
+    "errorsTitle": "Por favor corrige lo siguiente",
+    "errorValidationFailed": "Falló la validación.",
+    "review": "Revisar",
+    "checking": "Verificando…",
+    "paramLabels": {
+      "mass": "Masa",
+      "inclination": "Inclinación",
+      "heading": "Rumbo",
+      "wind_factor": "Factor de viento",
+      "thrust": "Empuje",
+      "rail_length": "Longitud del riel"
+    }
+  },
+
+  "review": {
+    "eyebrow": "Paso 4 · Revisión",
+    "heading": "Revisión y lanzamiento",
+    "description": "Revisa el resumen y ejecuta la simulación.",
+    "rowScenario": "Escenario",
+    "rowSite": "Sitio",
+    "rowLaunchTime": "Hora de lanzamiento (UTC)",
+    "rowAtmosphere": "Atmósfera",
+    "rowUncertaintyParams": "Parámetros de incertidumbre",
+    "uncertaintyDefault": "predeterminado",
+    "errorsTitle": "El escenario necesita correcciones",
+    "running": "Ejecutando la simulación de 6 grados de libertad — esto puede tardar un momento…",
+    "runSimulation": "Ejecutar simulación 🚀",
+    "simulating": "Simulando…",
+    "errorGeneric": "Falló la simulación."
+  },
+
+  "results": {
+    "eyebrow": "Informe de misión",
+    "heading": "Resultados de vuelo",
+    "runId": "Corrida {runId}",
+    "simulateAgain": "Simular de nuevo",
+    "newRocket": "Nuevo cohete",
+    "warningsTitle": "Atención",
+    "moreNumbers": "Más números",
+    "allPlots": "Todas las gráficas",
+    "backToStart": "← Volver al inicio",
+    "resultsUnavailableTitle": "Resultados no disponibles",
+    "resultsNotFound": "No se encontró esta corrida.",
+    "loadingResults": "Cargando resultados…",
+    "couldNotLoadPlot": "No se pudo cargar esta gráfica.",
+    "valuesBadge": {
+      "one": "1 valor",
+      "other": "{count} valores"
+    },
+    "plotsBadge": {
+      "one": "1 gráfica",
+      "other": "{count} gráficas"
+    }
+  },
+
+  "interactive": {
+    "loadingFlightData": "Cargando datos de vuelo interactivos…",
+    "loading3d": "Cargando 3D…",
+    "sectionHeading": "Datos de vuelo interactivos",
+    "trajectoryEyebrow": "Trayectoria",
+    "trajectoryHint": "Arrastra para orbitar · desplaza para hacer zoom",
+    "telemetryEyebrow": "Telemetría"
+  },
+
+  "scalars": {
+    "apogee_m": "Punto más alto sobre el suelo (apogeo)",
+    "max_velocity_ms": "Velocidad máxima",
+    "max_mach": "Número de Mach máximo",
+    "flight_time_s": "Tiempo total de vuelo",
+    "apogee_time_s": "Tiempo hasta el apogeo",
+    "max_acceleration_ms2": "Aceleración máxima",
+    "max_acceleration_time_s": "Momento de la aceleración máxima",
+    "max_velocity_time_s": "Momento de la velocidad máxima",
+    "rail_departure_velocity_ms": "Velocidad de salida del riel",
+    "rail_departure_time_s": "Tiempo de salida del riel",
+    "rail_departure_stability_margin": "Margen de estabilidad al salir del riel",
+    "impact_velocity_ms": "Velocidad de impacto",
+    "apogee_x_m": "Apogeo — desplazamiento al este",
+    "apogee_y_m": "Apogeo — desplazamiento al norte",
+    "impact_x_m": "Impacto — desplazamiento al este",
+    "impact_y_m": "Impacto — desplazamiento al norte"
+  },
+
+  "plots": {
+    "trajectory_3d": "Trayectoria 3D",
+    "linear_kinematics": "Cinemática lineal",
+    "flight_path_angle": "Ángulo de trayectoria de vuelo",
+    "energy": "Energía",
+    "aerodynamic_forces": "Fuerzas aerodinámicas",
+    "stability_control": "Estabilidad y control",
+    "angular_kinematics": "Cinemática angular",
+    "attitude": "Actitud",
+    "fluid_mechanics": "Mecánica de fluidos",
+    "pressure_altitude": "Presión vs altitud",
+    "rail_bending_moments": "Momentos de flexión del riel",
+    "rail_forces": "Fuerzas en el riel"
+  },
+
+  "errors": {
+    "network": "No se pudo conectar con el servidor.",
+    "validation": "La solicitud no es válida.",
+    "unavailable": "El servicio no está disponible.",
+    "requestFailed": "La solicitud falló (código {status}).",
+    "imageFailed": "No se pudo cargar la imagen (código {status})."
+  },
+
+  "glossary": {
+    "apogee": "El punto más alto que alcanza el cohete antes de comenzar a descender.",
+    "mach": "Velocidad comparada con la velocidad del sonido. Mach 1 significa que el cohete se mueve tan rápido como el sonido (~343 m/s a nivel del mar).",
+    "rail_departure": "El momento en que el cohete deja el riel de lanzamiento. Una salida más rápida y estable implica un vuelo más recto y seguro.",
+    "stability_margin": "Qué tan estable es el cohete, medido en calibres (diámetros del cuerpo). Aproximadamente 1–2 cal representa un vuelo saludable y controlable.",
+    "forecast": "Pronóstico meteorológico real (GFS) para la fecha y el lugar de lanzamiento. Disponible para fechas dentro de aproximadamente 16 días desde ahora.",
+    "standard_atmosphere": "Una atmósfera promedio teórica. Se usa cuando no hay pronóstico real disponible — útil para una estimación rápida y reproducible.",
+    "uncertainty": "Cuánto puede variar en la realidad cada dato de entrada (masa, viento, empuje…). Alimenta el análisis de dispersión y la predicción de zona de impacto."
+  }
+}

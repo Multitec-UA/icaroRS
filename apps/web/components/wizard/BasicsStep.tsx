@@ -23,11 +23,13 @@ import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { SitePicker } from "@/components/map/SitePicker";
 import { Button, Callout, Eyebrow, Field, InfoTip, Spinner, TextInput } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 export function BasicsStep() {
   const { state, setSite, setLaunchDatetime, setAtmosphere, next, scenarioBody } =
     useWizard();
   const { logout } = useAuth();
+  const t = useT();
 
   const [elevationNote, setElevationNote] = useState<string | null>(null);
   const [suggestion, setSuggestion] = useState<AtmosphereSuggestion | null>(null);
@@ -44,19 +46,21 @@ export function BasicsStep() {
   const pickPoint = useCallback(
     async (lat: number, lon: number) => {
       setSite({ latitude: lat, longitude: lon, elevation: null });
-      setElevationNote("Looking up elevation…");
+      setElevationNote(t("basics.elevationLookingUp"));
       try {
         const { elevation, source } = await getElevation(lat, lon);
         setSite({ latitude: lat, longitude: lon, elevation });
         setElevationNote(
-          elevation !== null ? `Elevation auto-filled (${source}).` : "Enter elevation manually.",
+          elevation !== null
+            ? t("basics.elevationAutoFilled", { source })
+            : t("basics.elevationEnterManually"),
         );
       } catch (err) {
         if (err instanceof ApiError && err.isUnauthorized) return logout();
-        setElevationNote("Couldn't fetch elevation — enter it manually below.");
+        setElevationNote(t("basics.elevationFetchFailed"));
       }
     },
-    [setSite, logout],
+    [setSite, logout, t],
   );
 
   function updateSiteField(field: "latitude" | "longitude" | "elevation", value: string) {
@@ -99,7 +103,7 @@ export function BasicsStep() {
         setErrors(err.fieldErrors ?? []);
       } else {
         setErrors([
-          { loc: [], field: "", message: err instanceof Error ? err.message : "Validation failed." },
+          { loc: [], field: "", message: err instanceof Error ? err.message : t("basics.errorValidationFailed") },
         ]);
       }
     } finally {
@@ -107,13 +111,20 @@ export function BasicsStep() {
     }
   }
 
+  // Resolve localized model label for the suggestion callout
+  function modelLabel(model: string): string {
+    if (model === "forecast") return t("basics.modelForecastLabel");
+    if (model === "standard_atmosphere") return t("basics.modelStandardLabel");
+    return model;
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
-        <Eyebrow>Step 2 · Launch site &amp; time</Eyebrow>
-        <h2 className="text-2xl font-semibold tracking-tight">Where and when?</h2>
+        <Eyebrow>{t("basics.eyebrow")}</Eyebrow>
+        <h2 className="text-2xl font-semibold tracking-tight">{t("basics.heading")}</h2>
         <p className="text-sm text-muted">
-          Pick the launch site and time. We&apos;ll choose the best weather model for you.
+          {t("basics.description")}
         </p>
       </div>
 
@@ -124,7 +135,7 @@ export function BasicsStep() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Field label="Latitude" htmlFor="lat" error={errorFor("site.latitude")}>
+        <Field label={t("basics.fieldLatitude")} htmlFor="lat" error={errorFor("site.latitude")}>
           <TextInput
             id="lat"
             type="number"
@@ -133,7 +144,7 @@ export function BasicsStep() {
             onChange={(e) => updateSiteField("latitude", e.target.value)}
           />
         </Field>
-        <Field label="Longitude" htmlFor="lon" error={errorFor("site.longitude")}>
+        <Field label={t("basics.fieldLongitude")} htmlFor="lon" error={errorFor("site.longitude")}>
           <TextInput
             id="lon"
             type="number"
@@ -142,7 +153,12 @@ export function BasicsStep() {
             onChange={(e) => updateSiteField("longitude", e.target.value)}
           />
         </Field>
-        <Field label="Elevation (m)" htmlFor="elev" hint={elevationNote ?? "Above sea level."} error={errorFor("site.elevation")}>
+        <Field
+          label={t("basics.fieldElevation")}
+          htmlFor="elev"
+          hint={elevationNote ?? t("basics.elevationHint")}
+          error={errorFor("site.elevation")}
+        >
           <TextInput
             id="elev"
             type="number"
@@ -154,11 +170,11 @@ export function BasicsStep() {
       </div>
 
       <Field
-        label="Launch date & hour (UTC)"
+        label={t("basics.fieldDateTime")}
         htmlFor="dt"
         term="forecast"
         error={errorFor("date")}
-        hint="Simulated to the whole hour (UTC). Within ~16 days, we use a real weather forecast."
+        hint={t("basics.dateTimeHint")}
       >
         <TextInput
           id="dt"
@@ -175,21 +191,17 @@ export function BasicsStep() {
       {suggestion && (
         <Callout tone={suggestion.needs_internet ? "success" : "info"}>
           <div className="flex items-center gap-1.5">
-            <strong>
-              {suggestion.model === "forecast"
-                ? "Real weather forecast (GFS)"
-                : suggestion.model === "standard_atmosphere"
-                  ? "Standard atmosphere"
-                  : suggestion.model}
-            </strong>
+            <strong>{modelLabel(suggestion.model)}</strong>
             <InfoTip term={suggestion.model === "forecast" ? "forecast" : "standard_atmosphere"} />
           </div>
+          {/* suggestion.reason is API-originated English — rendered verbatim per RG-6.1/6.2 */}
           <p className="mt-0.5">{suggestion.reason}</p>
+          <p className="mt-1 text-xs opacity-75">{t("common.technicalEnglishNote")}</p>
         </Callout>
       )}
 
       {generalErrors.length > 0 && (
-        <Callout tone="error" title="Please fix the following">
+        <Callout tone="error" title={t("basics.errorsTitle")}>
           <ul className="list-disc pl-5">
             {generalErrors.map((e, i) => (
               <li key={i}>{e.message}</li>
@@ -201,7 +213,7 @@ export function BasicsStep() {
       <div className="flex justify-end">
         <Button onClick={onContinue} disabled={validating} withArrow={!validating}>
           {validating && <Spinner />}
-          {validating ? "Checking…" : "Continue"}
+          {validating ? t("basics.checking") : t("basics.continue")}
         </Button>
       </div>
     </div>
