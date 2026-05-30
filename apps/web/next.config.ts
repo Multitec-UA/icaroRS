@@ -10,6 +10,11 @@ import type { NextConfig } from "next";
 const API_ORIGIN = process.env.ICARO_API_ORIGIN ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  // Emit a self-contained server (.next/standalone/server.js + the minimal
+  // traced node_modules) so the Docker runtime image carries only what it needs
+  // — see apps/web/Dockerfile. Has no effect on `next dev`.
+  output: "standalone",
+
   async rewrites() {
     return [
       {

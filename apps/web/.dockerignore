@@ -1,0 +1,19 @@
+# Build context for the apps/web image (context = apps/web).
+# npm ci reinstalls node_modules; the build regenerates .next.
+
+node_modules
+.next
+.git
+.gitignore
+Dockerfile
+.dockerignore
+
+# Editor / OS
+.DS_Store
+.idea
+.vscode
+
+# Local env — never bake secrets into the image; inject at deploy time.
+.env
+.env.*
+!.env.example
