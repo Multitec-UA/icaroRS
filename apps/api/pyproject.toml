@@ -22,6 +22,18 @@ convert = [
     "icaro[convert]",
 ]
 
+# [gcp] extra — gates the Google Cloud client libraries for production
+# persistence.  Default install is GCP-free (uses the LocalFs + InMemory
+# adapters; data is ephemeral).  To enable GCS-backed artifact storage +
+# Firestore metadata in production:
+#   pip install 'icaro-api[gcp]'   (or: uv sync --extra gcp)
+# Also requires the ICARO_GCS_BUCKET + ICARO_FIRESTORE_PROJECT env vars and the
+# matching IAM on the runtime service account.  See DEPLOY.md → Persistence.
+gcp = [
+    "google-cloud-storage>=2.14",
+    "google-cloud-firestore>=2.16",
+]
+
 [build-system]
 requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
