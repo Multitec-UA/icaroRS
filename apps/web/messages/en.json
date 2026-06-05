@@ -22,6 +22,13 @@
     "signOut": "Sign out"
   },
 
+  "nav": {
+    "simulate": "Simulate",
+    "rockets": "Rockets",
+    "history": "History",
+    "signOut": "Sign out"
+  },
+
   "stepper": {
     "rocket": "Rocket",
     "basics": "Launch site & time",
@@ -202,6 +209,37 @@
     "unavailable": "The service is not available.",
     "requestFailed": "The request failed (code {status}).",
     "imageFailed": "Could not load the image (code {status})."
+  },
+
+  "rockets": {
+    "eyebrow": "Saved rockets",
+    "heading": "Your rockets",
+    "description": "Every converted rocket is saved here. Pick one to skip the upload step.",
+    "loading": "Loading rockets…",
+    "empty": "No rockets saved yet. Upload an .ork file to get started.",
+    "errorLoad": "Could not load the rockets list.",
+    "colName": "Name",
+    "colDate": "Saved on",
+    "colBy": "By",
+    "useThisRocket": "Use this rocket",
+    "backToWizard": "← Back to wizard"
+  },
+
+  "history": {
+    "eyebrow": "Simulation history",
+    "heading": "Flight history",
+    "description": "Every simulation run, newest first.",
+    "loading": "Loading history…",
+    "empty": "No simulations yet. Run one to see results here.",
+    "errorLoad": "Could not load the history.",
+    "colRocket": "Rocket",
+    "colDate": "Date",
+    "colStatus": "Status",
+    "colApogee": "Apogee (m)",
+    "statusDone": "Done",
+    "statusError": "Error",
+    "reRun": "Re-run",
+    "backToWizard": "← Back to wizard"
   },
 
   "glossary": {

@@ -3,27 +3,35 @@
 TDD: written BEFORE routers/results.py is implemented (RED phase).
 Tasks: 1.33.
 Coverage: file serving, 404 for missing, forward-compat job-status shape.
+
+Batch-2 note: results.py was migrated to use the Storage seam (T-13).
+Tests that previously relied on a local ``results_dir`` now inject a
+``LocalFsStorage`` instance so the router can call ``open_blob``.
 """
 
 from __future__ import annotations
 
 import base64
 import json
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
+from icaro_api.services.storage import LocalFsStorage
 
-def _make_client() -> TestClient:
-    from icaro_api.main import create_app
+
+def _make_client_with_storage(storage: Any, tmp_path) -> TestClient:
+    """Create a TestClient that injects *storage* as the Storage dep."""
     from icaro_api.config import Settings, get_settings
+    from icaro_api.main import create_app
+    from icaro_api.runs import get_storage
 
     app = create_app()
-
-    def override_settings():
-        return Settings(basic_user="test", basic_pass="test")
-
-    app.dependency_overrides[get_settings] = override_settings
+    app.dependency_overrides[get_settings] = lambda: Settings(
+        basic_user="test", basic_pass="test"
+    )
+    app.dependency_overrides[get_storage] = lambda: storage
     return TestClient(app, raise_server_exceptions=True)
 
 
@@ -39,28 +47,21 @@ def _auth() -> dict:
 
 class TestResultsEndpoint:
     def test_returns_result_json_if_exists(self, tmp_path):
-        """result.json found → 200 with forward-compat shape {run_id, status, result}."""
+        """result.json found in Storage → 200 with forward-compat shape {run_id, status, result}."""
         run_id = "20260529T000000Z-abc12345"
-        run_dir = tmp_path / run_id
-        run_dir.mkdir(parents=True)
-
         payload = {
             "run_id": run_id,
             "scalars": {"apogee_m": 1000.0},
             "plot_urls": [],
             "warnings": [],
         }
-        (run_dir / "result.json").write_text(json.dumps(payload))
+        # Build LocalFsStorage with the blob pre-seeded at the correct key.
+        storage = LocalFsStorage(tmp_path)
+        blob_dir = tmp_path / f"results/{run_id}"
+        blob_dir.mkdir(parents=True)
+        (blob_dir / "result.json").write_text(json.dumps(payload))
 
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get(f"/api/results/{run_id}", headers=_auth())
 
         assert resp.status_code == 200
@@ -72,28 +73,14 @@ class TestResultsEndpoint:
 
     def test_returns_404_if_run_missing(self, tmp_path):
         """Missing run_id → 404."""
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        storage = LocalFsStorage(tmp_path)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get("/api/results/nonexistent-run-id", headers=_auth())
         assert resp.status_code == 404
 
     def test_returns_401_without_auth(self, tmp_path):
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        storage = LocalFsStorage(tmp_path)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get("/api/results/some-run-id")
         assert resp.status_code == 401
 
@@ -114,68 +101,37 @@ _TINY_PNG = (
 
 class TestPlotsEndpoint:
     def test_serves_existing_png(self, tmp_path):
-        """Existing PNG file is served with 200 and image/png content-type."""
+        """Existing PNG in Storage → 200 with image/png content-type."""
         run_id = "20260529T000000Z-png12345"
-        run_dir = tmp_path / run_id
-        run_dir.mkdir(parents=True)
-        (run_dir / "trajectory_3d.png").write_bytes(_TINY_PNG)
+        storage = LocalFsStorage(tmp_path)
+        blob_dir = tmp_path / f"results/{run_id}"
+        blob_dir.mkdir(parents=True)
+        (blob_dir / "trajectory_3d.png").write_bytes(_TINY_PNG)
 
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get(f"/api/results/{run_id}/plots/trajectory_3d.png", headers=_auth())
 
         assert resp.status_code == 200
         assert "image" in resp.headers.get("content-type", "")
 
     def test_returns_404_for_missing_plot(self, tmp_path):
-        """Missing plot file → 404."""
+        """Missing plot blob → 404."""
         run_id = "20260529T000000Z-nopng123"
-        run_dir = tmp_path / run_id
-        run_dir.mkdir(parents=True)
-
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        storage = LocalFsStorage(tmp_path)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get(f"/api/results/{run_id}/plots/nonexistent.png", headers=_auth())
         assert resp.status_code == 404
 
     def test_returns_404_for_missing_run(self, tmp_path):
         """Missing run_id → 404."""
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        storage = LocalFsStorage(tmp_path)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get("/api/results/nonexistent-run/plots/traj.png", headers=_auth())
         assert resp.status_code == 404
 
     def test_returns_401_without_auth(self, tmp_path):
-        from icaro_api.config import Settings, get_settings
-        from icaro_api.main import create_app
-
-        app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test", results_dir=tmp_path
-        )
-
-        client = TestClient(app)
+        storage = LocalFsStorage(tmp_path)
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get("/api/results/some-run/plots/traj.png")
         assert resp.status_code == 401
 
@@ -185,23 +141,18 @@ class TestPlotsEndpoint:
 # ---------------------------------------------------------------------------
 
 
-def _app(tmp_path):
-    from icaro_api.config import Settings, get_settings
-    from icaro_api.main import create_app
-
-    app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test", results_dir=tmp_path
-    )
-    return app
+def _storage_client(tmp_path) -> TestClient:
+    storage = LocalFsStorage(tmp_path)
+    return _make_client_with_storage(storage, tmp_path)
 
 
 class TestSeriesEndpoint:
     def test_returns_series_json_if_exists(self, tmp_path):
-        """series.json found → 200 with the time-series payload."""
+        """series.json blob in Storage → 200 with the time-series payload."""
         run_id = "20260529T000000Z-series01"
-        run_dir = tmp_path / run_id
-        run_dir.mkdir(parents=True)
+        storage = LocalFsStorage(tmp_path)
+        blob_dir = tmp_path / f"results/{run_id}"
+        blob_dir.mkdir(parents=True)
         payload = {
             "t": [0.0, 1.0, 2.0],
             "altitude": [0.0, 30.0, 60.0],
@@ -210,9 +161,9 @@ class TestSeriesEndpoint:
             "acceleration": [9.81, 9.81, 9.81],
             "path3d": [[0.0, 0.0, 0.0], [1.5, 2.0, 30.0], [3.0, 4.0, 60.0]],
         }
-        (run_dir / "series.json").write_text(json.dumps(payload))
+        (blob_dir / "series.json").write_text(json.dumps(payload))
 
-        client = TestClient(_app(tmp_path))
+        client = _make_client_with_storage(storage, tmp_path)
         resp = client.get(f"/api/results/{run_id}/series", headers=_auth())
 
         assert resp.status_code == 200
@@ -221,21 +172,18 @@ class TestSeriesEndpoint:
         assert data["path3d"][1] == [1.5, 2.0, 30.0]
 
     def test_returns_404_when_series_missing(self, tmp_path):
-        """Run exists but has no series.json (e.g. an old run) → 404 so the
-        client falls back to the PNG plots."""
+        """No series blob → 404 so the client falls back to the PNG plots."""
         run_id = "20260529T000000Z-noseries"
-        (tmp_path / run_id).mkdir(parents=True)
-
-        client = TestClient(_app(tmp_path))
+        client = _storage_client(tmp_path)
         resp = client.get(f"/api/results/{run_id}/series", headers=_auth())
         assert resp.status_code == 404
 
     def test_returns_404_when_run_missing(self, tmp_path):
-        client = TestClient(_app(tmp_path))
+        client = _storage_client(tmp_path)
         resp = client.get("/api/results/does-not-exist/series", headers=_auth())
         assert resp.status_code == 404
 
     def test_returns_401_without_auth(self, tmp_path):
-        client = TestClient(_app(tmp_path))
+        client = _storage_client(tmp_path)
         resp = client.get("/api/results/some-run/series")
         assert resp.status_code == 401

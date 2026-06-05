@@ -22,6 +22,13 @@
     "signOut": "Cerrar sesión"
   },
 
+  "nav": {
+    "simulate": "Simular",
+    "rockets": "Cohetes",
+    "history": "Historial",
+    "signOut": "Cerrar sesión"
+  },
+
   "stepper": {
     "rocket": "Cohete",
     "basics": "Sitio y hora de lanzamiento",
@@ -202,6 +209,37 @@
     "unavailable": "El servicio no está disponible.",
     "requestFailed": "La solicitud falló (código {status}).",
     "imageFailed": "No se pudo cargar la imagen (código {status})."
+  },
+
+  "rockets": {
+    "eyebrow": "Cohetes guardados",
+    "heading": "Tus cohetes",
+    "description": "Cada cohete convertido se guarda aquí. Selecciona uno para omitir el paso de carga.",
+    "loading": "Cargando cohetes…",
+    "empty": "Todavía no hay cohetes guardados. Carga un archivo .ork para comenzar.",
+    "errorLoad": "No se pudo cargar la lista de cohetes.",
+    "colName": "Nombre",
+    "colDate": "Guardado el",
+    "colBy": "Por",
+    "useThisRocket": "Usar este cohete",
+    "backToWizard": "← Volver al asistente"
+  },
+
+  "history": {
+    "eyebrow": "Historial de simulaciones",
+    "heading": "Historial de vuelos",
+    "description": "Todas las simulaciones ejecutadas, las más recientes primero.",
+    "loading": "Cargando historial…",
+    "empty": "Todavía no hay simulaciones. Ejecuta una para ver los resultados aquí.",
+    "errorLoad": "No se pudo cargar el historial.",
+    "colRocket": "Cohete",
+    "colDate": "Fecha",
+    "colStatus": "Estado",
+    "colApogee": "Apogeo (m)",
+    "statusDone": "Completada",
+    "statusError": "Error",
+    "reRun": "Volver a lanzar",
+    "backToWizard": "← Volver al asistente"
   },
 
   "glossary": {

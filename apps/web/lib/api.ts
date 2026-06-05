@@ -107,6 +107,36 @@ export interface SimulateResult {
   warnings: string[];
 }
 
+// ---------------------------------------------------------------------------
+// Rockets + History endpoint shapes (simulation-persistence)
+// ---------------------------------------------------------------------------
+
+/** One item from GET /api/rockets */
+export interface RocketSummary {
+  rocket_id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+}
+
+/** Full rocket detail from GET /api/rockets/{rocket_id} */
+export interface RocketDetail extends RocketSummary {
+  manifest: Record<string, unknown>;
+  gcs_ref: string;
+}
+
+/** One item from GET /api/history */
+export interface SimulationSummary {
+  simulation_id: string;
+  rocket_id: string;
+  name: string;
+  created_at: string;
+  created_by: string;
+  status: "done" | "error";
+  scalars: Record<string, number | null>;
+  scenario: Record<string, unknown>;
+}
+
 /** GET /api/results/{run_id} — forward-compat job-status envelope. */
 export interface ResultEnvelope {
   run_id: string;
@@ -337,6 +367,31 @@ export function getSeries(runId: string): Promise<FlightSeries> {
  */
 export function plotUrl(runId: string, name: string): string {
   return `/api/results/${encodeURIComponent(runId)}/plots/${encodeURIComponent(name)}.png`;
+}
+
+/** GET /api/rockets?limit=&before= — reverse-chronological list of saved rockets. */
+export function getRockets(
+  limit = 20,
+  before?: string,
+): Promise<RocketSummary[]> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (before) q.set("before", before);
+  return request<RocketSummary[]>(`/api/rockets?${q}`);
+}
+
+/** GET /api/rockets/{rocketId} — full rocket detail including manifest. */
+export function getRocket(rocketId: string): Promise<RocketDetail> {
+  return request<RocketDetail>(`/api/rockets/${encodeURIComponent(rocketId)}`);
+}
+
+/** GET /api/history?limit=&before= — reverse-chronological simulation history. */
+export function getHistory(
+  limit = 20,
+  before?: string,
+): Promise<SimulationSummary[]> {
+  const q = new URLSearchParams({ limit: String(limit) });
+  if (before) q.set("before", before);
+  return request<SimulationSummary[]>(`/api/history?${q}`);
 }
 
 /**
