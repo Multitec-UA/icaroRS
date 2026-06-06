@@ -79,10 +79,12 @@ export default async function RootLayout({
             → "en"), so the first render is already in the right language. */}
         <LocaleProvider initialLocale={locale}>
           {/* Auth + wizard state live at the root so they persist across the
-              wizard (/) and the results page (/results/[runId]). */}
-          <AuthGate>
-            <WizardProvider>{children}</WizardProvider>
-          </AuthGate>
+              wizard (/) and the results page (/results/[runId]). WizardProvider
+              wraps AuthGate so the shared nav (AppNav) can reset the wizard form
+              when leaving the results screen. */}
+          <WizardProvider>
+            <AuthGate>{children}</AuthGate>
+          </WizardProvider>
         </LocaleProvider>
       </body>
     </html>

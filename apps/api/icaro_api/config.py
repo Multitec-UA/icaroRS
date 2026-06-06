@@ -38,6 +38,17 @@ class Settings(BaseSettings):
     allow_forecast : bool
         Gate for outbound GFS forecast network requests.
         Set ``False`` to force standard_atmosphere without network calls.
+    gcs_bucket : str | None
+        GCS bucket name for artifact storage.  When set, ``get_storage()``
+        returns ``GcsStorage``; when ``None``, ``LocalFsStorage`` is used
+        (dev/CI only — NEVER use ``None`` in production).
+    firestore_project : str | None
+        GCP project id for Firestore metadata.  When set, ``get_db()``
+        returns ``FirestoreDb``; when ``None``, ``InMemoryDb`` is used
+        (dev/CI only).
+    firestore_database : str
+        Firestore database name.  Default ``"(default)"`` matches the
+        native-mode default database.
     """
 
     results_dir: Path = Path(".icaro_runs")
@@ -46,6 +57,9 @@ class Settings(BaseSettings):
     basic_user: str = "icaro"
     basic_pass: str = "changeme"
     allow_forecast: bool = True
+    gcs_bucket: str | None = None
+    firestore_project: str | None = None
+    firestore_database: str = "(default)"
 
     model_config = SettingsConfigDict(
         env_prefix="ICARO_",

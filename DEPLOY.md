@@ -4,12 +4,13 @@ This is the hand-off doc for infra. It tells you **what to deploy, with which
 settings, and why** — so you own the `gcloud`/Terraform without needing the app
 internals. The repo ships the two Dockerfiles; this doc is the runbook.
 
-> **Scope: MVP.** Goal is to expose the app at `icaro.multitecua.com` for the
-> team to try. **Run data is ephemeral and may be lost on any restart/redeploy —
-> that is accepted for now.** Persistence + history + members/organizations are
-> planned next; the storage layer is already isolated behind a seam
-> (`apps/api/icaro_api/runs.py` + `serialize.py`) so swapping local disk → GCS
-> later won't touch the domain.
+> **Scope.** Goal is to expose the app at `icaro.multitecua.com` for the team.
+> **Persistence is now available** — saved rockets, simulation history, and
+> re-launch — backed by GCS + Firestore. See
+> [Persistence (GCS + Firestore)](#persistence-gcs--firestore). It is **opt-in**:
+> if the persistence env vars are NOT set, run data stays **ephemeral** and is
+> lost on any restart/redeploy (the original MVP behavior, still the default).
+> Members/organizations (per-user auth) are still planned next.
 
 ---
 
@@ -56,8 +57,61 @@ Three facts, all verified in the code:
    instance restarts. Size the service memory with headroom and know that a
    redeploy wipes past runs (acceptable for the MVP).
 
-When persistence lands (GCS), the API becomes stateless and this pin can be
-lifted.
+When persistence lands (GCS), the artifact store becomes stateless — but see the
+caveat in [Persistence](#persistence-gcs--firestore): the simulate lock still
+pins the API to one instance for now.
+
+---
+
+## Persistence (GCS + Firestore)
+
+The API persists **saved rockets, simulation history, and run artifacts** when
+configured for Google Cloud. It is **opt-in**: with the env vars below unset, the
+API falls back to ephemeral per-instance storage (local tmpfs + in-memory
+metadata) — data is lost on restart and not shared across instances.
+
+The Google client libraries (`google-cloud-storage`, `google-cloud-firestore`)
+are **already baked into the API image** (the `[gcp]` extra, installed in the
+Dockerfile). No build flag to flip — just provision the resources and set the
+env vars below.
+
+**Provision once:**
+
+```bash
+# 1. GCS bucket — run artifacts (result.json, series.json, plot PNGs, source .ork)
+gcloud storage buckets create gs://PROJECT-icaro-runs \
+  --location REGION --uniform-bucket-level-access
+
+# 2. Firestore (Native mode) — metadata: `rockets` + `simulations` collections
+gcloud firestore databases create --location REGION   # creates the "(default)" db
+
+# 3. IAM on the API's runtime service account (SA_EMAIL = what the API runs as)
+gcloud storage buckets add-iam-policy-binding gs://PROJECT-icaro-runs \
+  --member serviceAccount:SA_EMAIL --role roles/storage.objectAdmin
+gcloud projects add-iam-policy-binding PROJECT \
+  --member serviceAccount:SA_EMAIL --role roles/datastore.user
+```
+
+**Point the API at them** (runtime env — no rebuild needed):
+
+```bash
+gcloud run services update icaro-api --region REGION \
+  --set-env-vars ICARO_GCS_BUCKET=PROJECT-icaro-runs,ICARO_FIRESTORE_PROJECT=PROJECT
+  # ICARO_FIRESTORE_DATABASE defaults to "(default)"; set only for a named DB.
+```
+
+- Adapter selection is automatic: `ICARO_GCS_BUCKET` set → GCS (else local
+  tmpfs); `ICARO_FIRESTORE_PROJECT` set → Firestore (else in-memory). Auth uses
+  the service account's Application Default Credentials — **no key file**.
+- **Set BOTH** for real persistence. Setting neither = ephemeral (looks like it
+  works within one instance, but data vanishes on restart/scale).
+
+> **Caveat — keep the single-instance pin for now.** GCS makes artifact storage
+> stateless, but `simulate` is still serialized by a **per-instance** process
+> lock guarding matplotlib's global state. With `max-instances > 1` that lock no
+> longer serializes globally. Lifting the pin needs a cross-instance lock (or
+> moving simulate off the request path) — not done yet. Keep
+> `min-instances = max-instances = 1`.
 
 ---
 
@@ -189,7 +243,7 @@ app, and run a `.ork` → simulate end-to-end.
 
 | Limitation | Reason | Future fix |
 | --- | --- | --- |
-| Runs lost on restart/redeploy | tmpfs is ephemeral | GCS-backed storage |
-| API can't scale past 1 instance | per-instance disk + simulate lock | GCS → stateless API |
+| Runs lost on restart/redeploy | tmpfs is ephemeral | ✅ **Fixed** when GCS + Firestore are configured — see [Persistence](#persistence-gcs--firestore) |
+| API can't scale past 1 instance | per-instance simulate lock (matplotlib global state) | GCS removes the disk constraint, but the per-instance lock remains — needs a cross-instance lock to lift the pin |
 | Shared Basic-auth credential | no user model yet | members/organizations + IAP/OAuth |
 | First `convert` is slow | JVM cold start | `min-instances ≥ 1` already mitigates |

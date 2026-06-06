@@ -51,10 +51,13 @@ COPY packages/ packages/
 COPY apps/cli/ apps/cli/
 COPY apps/api/ apps/api/
 
-# Install ONLY icaro-api + its [convert] extra, frozen to the lockfile.
+# Install icaro-api + its [convert] (JVM convert) and [gcp] (GCS + Firestore
+# persistence) extras, frozen to the lockfile. The gcp libs ship in every image;
+# whether they're USED is decided at runtime by the ICARO_GCS_BUCKET /
+# ICARO_FIRESTORE_PROJECT env vars (unset → ephemeral LocalFs + InMemory).
 # --no-dev drops pytest et al. Editable workspace installs point back at the
 # copied source, so that source must stay in the image (it does).
-RUN uv sync --frozen --no-dev --package icaro-api --extra convert
+RUN uv sync --frozen --no-dev --package icaro-api --extra convert --extra gcp
 
 ENV PATH="/app/.venv/bin:${PATH}"
 

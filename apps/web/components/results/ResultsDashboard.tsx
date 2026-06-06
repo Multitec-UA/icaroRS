@@ -26,7 +26,6 @@ import { useAuth } from "@/components/auth/AuthGate";
 import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
 import { Accordion, Button, Callout, Eyebrow, InfoTip, Spinner, Surface } from "@/components/ui";
 import { CountUp, Reveal } from "@/components/motion";
-import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useT, useLocale } from "@/components/i18n/LocaleProvider";
 import { plural } from "@/lib/i18n";
 
@@ -115,7 +114,6 @@ export function ResultsDashboard({ runId }: { runId: string }) {
           <p className="tabular-readout text-sm text-muted">{t("results.runId", { runId })}</p>
         </div>
         <div className="flex items-center gap-2">
-          <LanguageSwitch />
           <Button variant="ghost" onClick={simulateAgain}>
             {t("results.simulateAgain")}
           </Button>

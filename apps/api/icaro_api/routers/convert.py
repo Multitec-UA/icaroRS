@@ -1,11 +1,14 @@
 """Convert endpoint — POST /api/convert.
 
-Accepts a multipart .ork file upload, calls convert_ork, returns export_id
-and manifest.  On ConvertUnavailableError (Java/jar missing) → 503 with the
-hint verbatim in the body (AC-RG-2.2).
+Accepts a multipart .ork file upload, calls convert_ork, uploads export
+artifacts to Storage, saves a RocketRecord to Db, and returns a logical
+``export_id`` (a URL-safe run_id slug — never a filesystem path).
+
+On ConvertUnavailableError (Java/jar missing) → 503 with the hint verbatim
+in the body (AC-RG-2.2).
 
 Design §9 (packaging/convert optional extra).
-Spec RG-2.1, AC-RG-2.1, AC-RG-2.2.
+Spec RG-2.1, AC-RG-2.1, AC-RG-2.2, REQ-01.1, REQ-02.1, REQ-03.1.
 """
 
 from __future__ import annotations
@@ -13,15 +16,19 @@ from __future__ import annotations
 import json
 import logging
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.security import HTTPBasicCredentials
 
 from icaro_api.auth import require_auth
 from icaro_api.config import Settings, get_settings
-from icaro_api.runs import make_run_id
+from icaro_api.runs import get_db, get_storage, make_run_id
 from icaro_api.services.convert import run_convert
+from icaro_api.services.db import Db, RocketRecord
+from icaro_api.services.storage import Storage
 
 logger = logging.getLogger("icaro_api.convert")
 
@@ -35,16 +42,21 @@ router = APIRouter(
 async def post_convert(
     file: UploadFile = File(..., description="OpenRocket .ork file"),
     settings: Settings = Depends(get_settings),
+    storage: Storage = Depends(get_storage),
+    db: Db = Depends(get_db),
+    credentials: HTTPBasicCredentials = Depends(require_auth),
 ) -> dict[str, Any]:
-    """Convert a .ork file to an export directory.
+    """Convert a .ork file to an export directory and persist artifacts.
 
-    Multipart upload → ``convert_ork`` → returns ``{export_id, manifest}``.
+    Multipart upload → ``convert_ork`` → upload export dir to Storage
+    under ``exports/{run_id}/`` → save RocketRecord to Db → returns
+    ``{export_id, manifest}`` where ``export_id`` is a logical run_id slug.
 
     On ``ConvertUnavailableError``: 503 with the install hint verbatim.
     On non-.ork file: 422.
     Never returns a Python traceback (RG-9.4).
 
-    Satisfies RG-2.1, AC-RG-2.1, AC-RG-2.2.
+    Satisfies RG-2.1, AC-RG-2.1, AC-RG-2.2, REQ-01.1, REQ-02.1, REQ-03.1.
     """
     # Validate file extension.
     filename = file.filename or ""
@@ -61,8 +73,10 @@ async def post_convert(
         tmp_path = Path(tmp.name)
 
     try:
-        # Determine output dir: results_dir / run_id (so the export is durable).
+        # Mint a logical run_id — this becomes the export_id returned to the client.
         run_id = make_run_id()
+
+        # Determine output dir: results_dir / run_id (local staging area).
         output_dir = settings.results_dir / run_id
 
         # Each conversion runs in its own subprocess so it gets a fresh JVM
@@ -95,19 +109,39 @@ async def post_convert(
                 },
             )
 
-        export_dir = outcome["export_dir"]
+        export_dir = Path(outcome["export_dir"])
 
         # Load the manifest (parameters.json from the export directory).
         manifest: dict[str, Any] = {}
-        params_file = Path(export_dir) / "parameters.json"
+        params_file = export_dir / "parameters.json"
         if params_file.exists():
             try:
                 manifest = json.loads(params_file.read_text())
             except Exception:  # noqa: BLE001
                 manifest = {}
 
+        # Upload export artifacts to Storage under exports/{run_id}/ (REQ-02.1).
+        export_prefix = f"exports/{run_id}/"
+        storage.upload_dir(export_prefix, export_dir)
+
+        # Persist rocket metadata to Db (REQ-03.1).
+        rocket_name = manifest.get("name", filename.removesuffix(".ork"))
+        rec = RocketRecord(
+            rocket_id=run_id,
+            name=rocket_name,
+            created_at=datetime.now(timezone.utc),
+            created_by=credentials.username,
+            export_prefix=export_prefix,
+            manifest=manifest,
+            gcs_ref=export_prefix,
+            ork_filename=filename or None,
+            has_source_ork=False,  # .ork upload to GCS deferred (REQ-02.8)
+        )
+        db.save_rocket(rec)
+
+        # Return the logical id — NEVER a filesystem path (REQ-01.1).
         return {
-            "export_id": str(export_dir),
+            "export_id": run_id,
             "manifest": manifest,
         }
 

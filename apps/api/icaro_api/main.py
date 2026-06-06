@@ -15,7 +15,7 @@ from pathlib import Path  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from icaro_api.routers import convert, discovery, results, scenario, simulate, ui  # noqa: E402
+from icaro_api.routers import convert, discovery, results, rockets, history, scenario, simulate, ui  # noqa: E402
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -44,6 +44,8 @@ def create_app() -> FastAPI:
     app.include_router(scenario.router, prefix="/api")
     app.include_router(simulate.router, prefix="/api")
     app.include_router(results.router, prefix="/api")
+    app.include_router(rockets.router, prefix="/api")
+    app.include_router(history.router, prefix="/api")
     app.include_router(discovery.router, prefix="/api")
 
     # Phase 1-F: Jinja2 wizard UI routes (no prefix — routes at /, /step2, etc.)

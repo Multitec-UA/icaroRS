@@ -17,6 +17,7 @@ import {
   useCallback,
   useContext,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
@@ -30,6 +31,7 @@ import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/com
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useT } from "@/components/i18n/LocaleProvider";
+import { AppNav } from "@/components/AppNav";
 
 interface AuthContextValue {
   logout: () => void;
@@ -43,20 +45,47 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+/** Credentials live in sessionStorage (client-only). We expose them to React as
+ * an external store so reads are SSR-safe: `getServerSnapshot` returns false so
+ * the server and first client paint agree (no hydration mismatch), then React
+ * re-reads the real value. login/logout call `notifyAuthChange` to re-sync. */
+const AUTH_EVENT = "icaro-auth-change";
+
+function subscribeAuth(onChange: () => void): () => void {
+  window.addEventListener(AUTH_EVENT, onChange);
+  window.addEventListener("storage", onChange);
+  return () => {
+    window.removeEventListener(AUTH_EVENT, onChange);
+    window.removeEventListener("storage", onChange);
+  };
+}
+
+function notifyAuthChange(): void {
+  window.dispatchEvent(new Event(AUTH_EVENT));
+}
+
 export function AuthGate({ children }: { children: ReactNode }) {
-  // Lazy initial state — sessionStorage is only available client-side.
-  const [authed, setAuthed] = useState<boolean>(() => hasCredentials());
+  const authed = useSyncExternalStore(
+    subscribeAuth,
+    hasCredentials,
+    () => false,
+  );
 
   const logout = useCallback(() => {
     clearCredentials();
-    setAuthed(false);
+    notifyAuthChange();
   }, []);
 
   if (!authed) {
-    return <LoginScreen onSuccess={() => setAuthed(true)} />;
+    return <LoginScreen onSuccess={notifyAuthChange} />;
   }
 
-  return <AuthContext.Provider value={{ logout }}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={{ logout }}>
+      <AppNav />
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
