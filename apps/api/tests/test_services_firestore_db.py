@@ -100,7 +100,7 @@ class TestFirestoreDbSaveRocket:
         assert doc_ref.set.called
 
     def test_set_contains_expected_fields(self, fs, mock_db_client):
-        """The dict passed to .set() must include name, created_at, manifest, gcs_ref."""
+        """The dict passed to .set() must include name, created_at, gcs_ref."""
         rec = _make_rocket("r-fields")
         fs.save_rocket(rec)
 
@@ -111,8 +111,34 @@ class TestFirestoreDbSaveRocket:
 
         assert set_kwargs["name"] == "TestRocket"
         assert set_kwargs["created_at"] == rec.created_at
-        assert set_kwargs["manifest"] == {"name": "TestRocket", "version": "1"}
         assert set_kwargs["gcs_ref"] == "exports/r-fields/"
+
+    def test_set_excludes_manifest(self, fs, mock_db_client):
+        """Regression: the manifest must NOT be written to Firestore.
+
+        OpenRocket manifests can contain arrays nested directly inside arrays
+        (e.g. ``freeform_fins[].shape_points``), which Firestore Native rejects
+        with ``400 Property manifest contains an invalid nested entity``. The
+        manifest lives in object storage instead; Firestore stores metadata only.
+        """
+        rec = _make_rocket("r-nested")
+        rec.manifest = {
+            "name": "FreeformRocket",
+            "freeform_fins": [
+                {"shape_points": [[0.0, 0.0], [0.1, 0.05], [0.2, 0.0]]}
+            ],
+        }
+        fs.save_rocket(rec)
+
+        set_kwargs = (
+            mock_db_client.collection.return_value.document.return_value
+        ).set.call_args[0][0]
+
+        assert "manifest" not in set_kwargs
+        # Metadata is still persisted (name is the record's name, not the
+        # manifest's — _make_rocket sets name="TestRocket").
+        assert set_kwargs["name"] == "TestRocket"
+        assert set_kwargs["export_prefix"] == "exports/r-nested/"
 
     def test_set_preserves_datetime_object(self, fs, mock_db_client):
         """created_at must remain a datetime object (Firestore serialises it natively)."""
