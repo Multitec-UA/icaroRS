@@ -10,14 +10,16 @@ Req: REQ-04.1 (reverse-chrono), REQ-04.2 (list fields), REQ-04.3 (pagination),
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from icaro_api.auth import require_auth
-from icaro_api.runs import get_db
+from icaro_api.runs import get_db, get_storage
 from icaro_api.services.db import Db
+from icaro_api.services.storage import Storage
 
 router = APIRouter(
     tags=["rockets"],
@@ -67,8 +69,15 @@ def list_rockets(
 def get_rocket(
     rocket_id: str,
     db: Db = Depends(get_db),
+    storage: Storage = Depends(get_storage),
 ) -> dict[str, Any]:
     """Return the full rocket record including manifest and gcs_ref.
+
+    The ``manifest`` is the single source of truth in object storage
+    (``parameters.json`` under the export prefix), NOT Firestore — it can
+    contain nested arrays that Firestore Native rejects (see
+    ``FirestoreDb.save_rocket``). It is loaded here from Storage and degrades to
+    ``{}`` if the blob is missing, so the endpoint never 500s on a stale record.
 
     Returns 404 if the rocket_id is not found.
     Satisfies REQ-04.4.
@@ -80,13 +89,22 @@ def get_rocket(
             detail=f"Rocket '{rocket_id}' not found.",
         )
 
+    manifest: dict[str, Any] = {}
+    try:
+        raw = storage.open_blob(f"{record.export_prefix}parameters.json")
+        manifest = json.loads(raw)
+    except (KeyError, ValueError):
+        # Blob absent (KeyError) or unparseable (ValueError/JSONDecodeError) —
+        # serve an empty manifest rather than failing the detail request.
+        manifest = {}
+
     return {
         "rocket_id": record.rocket_id,
         "name": record.name,
         "created_at": record.created_at.isoformat(),
         "created_by": record.created_by,
         "export_prefix": record.export_prefix,
-        "manifest": record.manifest,
+        "manifest": manifest,
         "gcs_ref": record.gcs_ref,
         "ork_filename": record.ork_filename,
         "has_source_ork": record.has_source_ork,

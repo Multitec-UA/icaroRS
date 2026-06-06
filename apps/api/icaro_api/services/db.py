@@ -241,8 +241,18 @@ class FirestoreDb:
     # ------------------------------------------------------------------
 
     def save_rocket(self, rec: RocketRecord) -> None:
-        """Write rocket document to Firestore collection ``rockets``."""
+        """Write rocket metadata to Firestore collection ``rockets``.
+
+        The ``manifest`` (the full ``parameters.json``) is intentionally NOT
+        persisted to Firestore. It can contain arrays nested directly inside
+        arrays (e.g. ``freeform_fins[].shape_points``), which Firestore Native
+        rejects with ``400 InvalidArgument: Property manifest contains an
+        invalid nested entity``. The manifest is already stored verbatim in
+        object storage at ``{export_prefix}parameters.json`` and is served from
+        there by the rocket-detail endpoint — so Firestore holds metadata only.
+        """
         doc = asdict(rec)
+        doc.pop("manifest", None)
         doc["created_at"] = rec.created_at  # keep as datetime; Firestore handles it
         self._db.collection("rockets").document(rec.rocket_id).set(doc)
 

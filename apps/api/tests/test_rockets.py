@@ -10,6 +10,7 @@ Req: REQ-04.1 (reverse-chronological list)
 from __future__ import annotations
 
 import base64
+import json
 from datetime import datetime, timezone, timedelta
 from typing import Any
 
@@ -24,16 +25,43 @@ def _auth() -> dict:
     return {"Authorization": f"Basic {token}"}
 
 
-def _make_client(db: Any) -> TestClient:
+class _FakeStorage:
+    """Minimal in-memory Storage stub.
+
+    The detail endpoint loads the manifest via ``open_blob`` from object
+    storage (``parameters.json``), so the storage seam must be overridden in
+    tests that exercise the manifest. Other Storage methods are unused here.
+    """
+
+    def __init__(self, blobs: dict[str, bytes] | None = None) -> None:
+        self._blobs = blobs or {}
+
+    def open_blob(self, key: str) -> bytes:
+        if key not in self._blobs:
+            raise KeyError(key)
+        return self._blobs[key]
+
+    def upload_dir(self, prefix: str, local_dir: Any) -> None:  # pragma: no cover
+        ...
+
+    def download_dir(self, prefix: str, dest: Any) -> None:  # pragma: no cover
+        ...
+
+    def exists(self, prefix: str) -> bool:
+        return any(k.startswith(prefix) for k in self._blobs)
+
+
+def _make_client(db: Any, storage: Any = None) -> TestClient:
     from icaro_api.config import Settings, get_settings
     from icaro_api.main import create_app
-    from icaro_api.runs import get_db
+    from icaro_api.runs import get_db, get_storage
 
     app = create_app()
     app.dependency_overrides[get_settings] = lambda: Settings(
         basic_user="test", basic_pass="test"
     )
     app.dependency_overrides[get_db] = lambda: db
+    app.dependency_overrides[get_storage] = lambda: storage or _FakeStorage()
     return TestClient(app, raise_server_exceptions=True)
 
 
@@ -182,11 +210,18 @@ class TestRocketsList:
 
 class TestRocketDetail:
     def test_returns_full_record_including_manifest(self):
-        """REQ-04.4: detail endpoint must include manifest and gcs_ref."""
+        """REQ-04.4: detail endpoint must include manifest and gcs_ref.
+
+        The manifest is served from object storage (``parameters.json`` under
+        the export prefix), not Firestore — see ``FirestoreDb.save_rocket``.
+        """
         db = InMemoryDb()
         manifest = {"name": "Prometheus", "mass": 12.5, "diameter": 0.08}
         db.save_rocket(_rocket("r-detail", "Prometheus", _T1, manifest=manifest, gcs_ref="exports/r-detail/"))
-        client = _make_client(db)
+        storage = _FakeStorage(
+            {"exports/r-detail/parameters.json": json.dumps(manifest).encode()}
+        )
+        client = _make_client(db, storage=storage)
 
         resp = client.get("/api/rockets/r-detail", headers=_auth())
 
@@ -195,6 +230,40 @@ class TestRocketDetail:
         assert "manifest" in data, f"Missing manifest in detail response: {data.keys()}"
         assert "gcs_ref" in data, f"Missing gcs_ref in detail response: {data.keys()}"
         assert data["manifest"]["name"] == "Prometheus"
+
+    def test_manifest_with_nested_arrays_served_from_storage(self):
+        """Regression for the 500: freeform-fin manifests (arrays nested in
+        arrays) are stored in object storage and load fine via the endpoint,
+        even though Firestore could never have held them."""
+        db = InMemoryDb()
+        manifest = {
+            "name": "Freeform",
+            "freeform_fins": [
+                {"shape_points": [[0.0, 0.0], [0.1, 0.05], [0.2, 0.0]]}
+            ],
+        }
+        db.save_rocket(_rocket("r-ff", "Freeform", _T1))
+        storage = _FakeStorage(
+            {"exports/r-ff/parameters.json": json.dumps(manifest).encode()}
+        )
+        client = _make_client(db, storage=storage)
+
+        resp = client.get("/api/rockets/r-ff", headers=_auth())
+
+        assert resp.status_code == 200
+        assert resp.json()["manifest"]["freeform_fins"][0]["shape_points"][1] == [0.1, 0.05]
+
+    def test_manifest_absent_in_storage_degrades_to_empty(self):
+        """If parameters.json is missing, the detail endpoint serves manifest={}
+        rather than 500ing."""
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-nomani", "NoManifest", _T1))
+        client = _make_client(db)  # default empty storage
+
+        resp = client.get("/api/rockets/r-nomani", headers=_auth())
+
+        assert resp.status_code == 200
+        assert resp.json()["manifest"] == {}
 
     def test_returns_all_required_fields(self):
         """REQ-04.4: detail must include rocket_id, name, created_at, created_by, manifest, gcs_ref."""
