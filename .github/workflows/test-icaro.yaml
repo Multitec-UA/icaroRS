@@ -57,6 +57,83 @@ jobs:
         run: uv run --no-sync pytest -m "not integration" -v
 
   # ---------------------------------------------------------------------------
+  # Firestore emulator — integration tests (T-46/T-47, issue #29).
+  #
+  # Runs the Firestore-emulator integration suite that was deferred from the
+  # unit job.  The unit job uses -m "not integration"; this job explicitly
+  # selects -m integration and scopes to the emulator test file only (so it
+  # does not accidentally pull in JVM-bound tests like test_convert_router.py
+  # or network-bound tests like test_elevation.py).
+  #
+  # Key choices:
+  # - gcp extra: google-cloud-firestore is NOT installed by --all-groups;
+  #   we install it explicitly with --extra gcp (mirrors the Dockerfile).
+  # - Emulator auth: the google-cloud-firestore client auto-connects when
+  #   FIRESTORE_EMULATOR_HOST is set — no code change in the adapter.
+  # - Test selection: scoped to tests/test_firestore_emulator.py, not the full
+  #   -m integration set, so only the emulator tests run in this job.
+  # ---------------------------------------------------------------------------
+  firestore-integration:
+    name: Firestore emulator (integration)
+    runs-on: ubuntu-latest
+    env:
+      MPLBACKEND: Agg
+      # The emulator stores no real data, but the gcloud CLI requires a project
+      # to be set to start it (none is configured on a clean CI runner).
+      CLOUDSDK_CORE_PROJECT: icaro-emulator-test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 21 (Firestore emulator is a JVM app)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install icaro-api with [gcp] extra
+        # --all-groups installs dev dependencies (pytest etc.); --extra gcp
+        # adds google-cloud-firestore (not included in the default workspace
+        # sync because it is an optional production dependency).
+        run: uv sync --package icaro-api --all-groups --extra gcp
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          # No project or credentials needed — emulator only, no real GCP calls.
+          skip_install: false
+
+      - name: Install Firestore emulator component
+        run: gcloud components install cloud-firestore-emulator beta --quiet
+
+      - name: Start Firestore emulator
+        run: |
+          gcloud emulators firestore start --host-port=127.0.0.1:8085 &
+          # Wait up to 30 s for the emulator to accept connections.
+          for i in $(seq 1 30); do
+            if nc -z 127.0.0.1 8085 2>/dev/null; then
+              echo "Firestore emulator ready after ${i}s"
+              break
+            fi
+            sleep 1
+          done
+          nc -z 127.0.0.1 8085 || (echo "Emulator did not start" && exit 1)
+
+      - name: Run Firestore emulator integration tests
+        working-directory: apps/api
+        env:
+          FIRESTORE_EMULATOR_HOST: 127.0.0.1:8085
+        run: >-
+          uv run --no-sync pytest
+          -m integration
+          tests/test_firestore_emulator.py
+          -v
+
+  # ---------------------------------------------------------------------------
   # Web — typecheck + lint + production build. The build catches bundler/RSC
   # failures (server/client boundary, dynamic imports) that tsc/eslint miss.
   # ---------------------------------------------------------------------------
