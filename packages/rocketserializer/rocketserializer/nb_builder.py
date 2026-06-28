@@ -494,12 +494,19 @@ class NotebookBuilder:
             parachute_i = self.parameters["parachutes"][str(i)]
             cd_s = parachute_i["cd"] * parachute_i["area"]
             deploy_event = parachute_i["deploy_event"]
+            # OpenRocket's deploy delay maps to rocketpy's `lag`: the time
+            # between the ejection signal and the parachute being fully open.
+            lag = float(parachute_i.get("deploy_delay") or 0.0)
 
             # evaluating trigger
             if deploy_event == "apogee":
-                trigger = "apogee"
+                trigger = "'apogee'"
             elif deploy_event == "altitude":
-                trigger = float(parachute_i["deploy_altitude"])
+                trigger = f"{float(parachute_i['deploy_altitude']):.3f}"
+            elif deploy_event == "launch":
+                # "Deploys at Launch plus N seconds": the ejection signal fires
+                # at launch and rocketpy's `lag` models the N-second delay.
+                trigger = "lambda p, h, y: True"
             else:
                 logger.warning("Invalid deploy event for parachute %d", i)
                 raise ValueError(f"Invalid deploy event for parachute {i}")
@@ -508,13 +515,10 @@ class NotebookBuilder:
             text = f"parachutes[{i}] = Parachute(\n"
             text += f"    name='{name}',\n"
             text += f"    cd_s={cd_s:.3f},\n"
-            # adding trigger
-            if isinstance(trigger, str):
-                text += f"    trigger='{trigger}',\n"
-            else:
-                text += f"    trigger={trigger:.3f},\n"
-
-            text += "    sampling_rate=100, \n"
+            text += f"    trigger={trigger},\n"
+            text += "    sampling_rate=100,\n"
+            if lag:
+                text += f"    lag={lag:.3f},\n"
             text += ")\n"
             nb["cells"].append(nbf.v4.new_code_cell(text))
 
