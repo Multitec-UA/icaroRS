@@ -499,6 +499,12 @@ class NotebookBuilder:
             lag = float(parachute_i.get("deploy_delay") or 0.0)
 
             # evaluating trigger
+            # NOTE: this renders the deploy_event → trigger mapping as *source
+            # code* for the notebook. icaro.simulation.deploy_trigger() builds
+            # the same mapping as live objects for the API/CLI. The two cannot
+            # share an implementation (icaro must not import rocketserializer
+            # outside convert.py — it is an optional [convert] dependency), so
+            # if you add or change an event here, change it there too.
             if deploy_event == "apogee":
                 trigger = "'apogee'"
             elif deploy_event == "altitude":
