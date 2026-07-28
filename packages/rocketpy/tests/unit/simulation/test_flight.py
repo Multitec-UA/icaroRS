@@ -413,6 +413,87 @@ def test_max_values(flight_calisto_robust):
     assert pytest.approx(285.94948, rel=rtol) == test.max_speed
 
 
+# ---------------------------------------------------------------------------
+# Duplicated solution rows
+#
+# A parachute whose trigger is already true at t=0 (e.g. OpenRocket's "deploys
+# at launch plus N seconds", which maps to an unconditional trigger plus a lag)
+# fires while the rocket is still on the rail. The resulting flight phase
+# collides with the initial one; FlightPhases.add() nudges the *phase* by 1e-7,
+# but the solver still logged one solution row with a timestamp identical to the
+# initial one. Two rows sharing a timestamp give the spline interpolator a zero
+# spacing, so every spline-derived Function evaluates to NaN and scipy then
+# refuses the array ("array must not contain infs or NaNs").
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def flight_parachute_triggered_at_launch(calisto_robust, example_plain_env):
+    """A flight whose parachute is already triggered at t=0 and has a lag."""
+    calisto_robust.parachutes.clear()
+    calisto_robust.add_parachute(
+        "ImmediateChute",
+        cd_s=1.0,
+        trigger=lambda p, h, y: True,
+        sampling_rate=100,
+        lag=1.0,
+    )
+    return Flight(
+        rocket=calisto_robust,
+        environment=example_plain_env,
+        rail_length=5.0,
+        inclination=85,
+        heading=0,
+        max_time=300,
+    )
+
+
+def test_solution_has_no_duplicated_timestamps(flight_parachute_triggered_at_launch):
+    """No two consecutive solution rows may share a timestamp.
+
+    A zero spacing is what breaks the spline interpolation downstream.
+    """
+    time = np.array(flight_parachute_triggered_at_launch.solution)[:, 0]
+
+    duplicated = np.where(np.diff(time) == 0)[0]
+
+    assert duplicated.size == 0, (
+        f"solution has {duplicated.size} duplicated timestamp(s) at "
+        f"indices {duplicated.tolist()} (t={time[duplicated].tolist()})"
+    )
+
+
+@pytest.mark.parametrize(
+    "attribute",
+    ["max_speed", "max_mach_number", "max_acceleration", "out_of_rail_velocity"],
+)
+def test_spline_derived_values_are_finite_with_launch_trigger(
+    flight_parachute_triggered_at_launch, attribute
+):
+    """Spline-derived values must be computable, not NaN-poisoned."""
+    value = getattr(flight_parachute_triggered_at_launch, attribute)
+
+    assert np.isfinite(value), f"{attribute} is not finite: {value}"
+
+
+def test_duplicated_rows_are_dropped_without_losing_distinct_states(
+    flight_parachute_triggered_at_launch,
+):
+    """Only exact duplicates are dropped; a real discontinuity is preserved.
+
+    The parachute inflation at t=lag is a genuine state discontinuity. It must
+    survive, so the run must still contain rows on both sides of it.
+    """
+    solution = np.array(flight_parachute_triggered_at_launch.solution)
+    time = solution[:, 0]
+
+    assert (time[:-1] <= time[1:]).all(), "timestamps must be non-decreasing"
+    # The inflation phase starts at t=1.0 (the lag); rows must exist after it.
+    assert (time > 1.0).any(), "no rows after parachute inflation"
+    # And the initial state must still be there exactly once.
+    assert np.count_nonzero(time == 0.0) == 1, "initial state must appear once"
+
+
 @pytest.mark.parametrize(
     "flight_time_attr",
     ["t_initial", "out_of_rail_time", "apogee_time", "t_final"],
