@@ -1224,6 +1224,23 @@ class Flight:
         ]
         if len(valid_t_root) > 1:  # pragma: no cover
             raise ValueError("Multiple roots found when solving for impact time.")
+        if len(valid_t_root) == 0:
+            # Mirrors the guard __handle_out_of_rail_event already has for rail
+            # exit. No root inside the interval means the ground crossing did not
+            # happen between these two logged points, which in practice means the
+            # rocket was already below ground at both of them. Report that
+            # instead of letting valid_t_root[0] raise a bare IndexError.
+            z_previous = self.solution[-2][3] - self.env.elevation
+            z_current = self.solution[-1][3] - self.env.elevation
+            raise ValueError(
+                "No valid roots found when solving for impact time. The ground "
+                f"crossing is not bracketed by the last two solution points "
+                f"(t={self.solution[-2][0]:.6g} s at {z_previous:.6g} m and "
+                f"t={self.solution[-1][0]:.6g} s at {z_current:.6g} m, both "
+                "relative to ground). If the rocket never gained altitude, the "
+                "integrator may have stepped over the motor burn: setting "
+                "max_time_step bounds the step size and usually resolves it."
+            )
         # Determine impact state at t_root
         self.t = self.t_final = valid_t_root[0] + self.solution[-2][0]
         interpolator = phase.solver.dense_output()

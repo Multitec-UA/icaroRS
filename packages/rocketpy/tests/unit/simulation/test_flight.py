@@ -867,6 +867,33 @@ def test_deployed_parachute_actually_slows_the_rocket(
     )
 
 
+@pytest.mark.parametrize("lag", [0.0, 4.0, 5.0, 14.0])
+def test_impact_solve_with_no_valid_root_raises_explicit_error(
+    calisto_robust, example_plain_env, lag
+):
+    """An empty root list must not surface as IndexError.
+
+    __handle_impact_event guards the "too many roots" case but not the empty
+    one, so `valid_t_root[0]` raised a bare IndexError. Its sibling
+    __handle_out_of_rail_event already handles this properly.
+    """
+    with pytest.raises(ValueError, match="No valid roots found"):
+        _fly_with_immediate_chute(calisto_robust, example_plain_env, lag)
+
+
+@pytest.mark.parametrize("lag", [0.0, 5.0])
+def test_impact_solve_error_is_not_an_index_error(
+    calisto_robust, example_plain_env, lag
+):
+    """Explicitly pin that the bare IndexError is gone."""
+    with pytest.raises(Exception) as exc_info:
+        _fly_with_immediate_chute(calisto_robust, example_plain_env, lag)
+
+    assert not isinstance(exc_info.value, IndexError), (
+        f"still raising a bare IndexError: {exc_info.value}"
+    )
+
+
 def test_apogee_does_not_decrease_as_deployment_is_delayed(
     calisto_robust, example_plain_env
 ):
