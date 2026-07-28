@@ -385,7 +385,17 @@ def test_freestream_speed_at_apogee(example_plain_env, calisto):
     """
     # NOTE: this rocket doesn't move in x or z direction. There's no wind.
     hard_atol = 1e-12
-    soft_atol = 1e-6
+    # NOTE: soft_atol covers stream_velocity_z only, which is not a physical
+    # quantity converging to zero but an artefact of *when* apogee is estimated.
+    # It was 1e-6 until the integrator started bounding its step size on the rail
+    # (so that a short max_time can no longer step over the motor burn). Sampling
+    # the rail more finely shifts the estimated apogee instant slightly, and
+    # stream_velocity_z with it: 3.8e-05 m/s, i.e. physically zero, and 1e-6 was
+    # always finer than the apogee estimate itself. Every other assertion here
+    # still holds at hard_atol=1e-12, which shows the trajectory did not move —
+    # only the instant at which it is sampled. The real-flight acceptance suite
+    # (Bella Lui, NDRT, Prometheus) passes unchanged.
+    soft_atol = 1e-4
     test_flight = Flight(
         environment=example_plain_env,
         rocket=calisto,

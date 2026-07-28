@@ -1,5 +1,6 @@
 import json
 import os
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import matplotlib as plt
@@ -867,6 +868,69 @@ def test_deployed_parachute_actually_slows_the_rocket(
     )
 
 
+def test_impact_solve_with_no_valid_root_raises_explicit_error(
+    calisto_robust, example_plain_env
+):
+    """An empty root list must not surface as a bare IndexError.
+
+    __handle_impact_event guarded the "too many roots" case but not the empty
+    one, so `valid_t_root[0]` raised IndexError. Its sibling
+    __handle_out_of_rail_event already handled this properly.
+
+    Exercised directly: the flight path that used to reach this state (a rocket
+    that never lifted off, because the burn was stepped over) no longer exists,
+    so the guard is defence in depth. Two consecutive points below ground leave
+    no crossing to bracket, which is exactly the condition it covers.
+    """
+    flight = _fly_plain(calisto_robust, example_plain_env, 300)
+    elevation = flight.env.elevation
+    # [t, x, y, z, vx, vy, vz, e0, e1, e2, e3, w1, w2, w3]
+    flight.solution = [
+        [1.0, 0, 0, elevation - 5.0, 0, 0, -10.0, 1, 0, 0, 0, 0, 0, 0],
+        [1.1, 0, 0, elevation - 8.0, 0, 0, -10.0, 1, 0, 0, 0, 0, 0, 0],
+    ]
+    phase = SimpleNamespace(solver=SimpleNamespace(step_size=0.1))
+
+    with pytest.raises(ValueError, match="No valid roots found"):
+        # pylint: disable=protected-access
+        flight._Flight__handle_impact_event(phase, 0, 0)
+
+
+def test_impact_solve_error_is_not_an_index_error(calisto_robust, example_plain_env):
+    """Pin that the bare IndexError is gone, not merely replaced elsewhere."""
+    flight = _fly_plain(calisto_robust, example_plain_env, 300)
+    elevation = flight.env.elevation
+    flight.solution = [
+        [1.0, 0, 0, elevation - 5.0, 0, 0, -10.0, 1, 0, 0, 0, 0, 0, 0],
+        [1.1, 0, 0, elevation - 8.0, 0, 0, -10.0, 1, 0, 0, 0, 0, 0, 0],
+    ]
+    phase = SimpleNamespace(solver=SimpleNamespace(step_size=0.1))
+
+    with pytest.raises(Exception) as exc_info:
+        # pylint: disable=protected-access
+        flight._Flight__handle_impact_event(phase, 0, 0)
+
+    assert not isinstance(exc_info.value, IndexError), (
+        f"still raising a bare IndexError: {exc_info.value}"
+    )
+
+
+@pytest.mark.parametrize("lag", [4.0, 5.0, 14.0])
+def test_immediate_trigger_with_a_long_lag_now_flies(
+    calisto_robust, example_plain_env, lag
+):
+    """These used to raise IndexError, and the cause was the skipped burn.
+
+    With the burn always integrated the rocket leaves the rail and the parachute
+    inflates well after rail departure, which is a perfectly valid flight. Pinned
+    so the old failure cannot come back unnoticed.
+    """
+    flight = _fly_with_immediate_chute(calisto_robust, example_plain_env, lag)
+
+    assert _left_the_rail(flight)
+    assert flight.apogee - flight.env.elevation > 1.0
+
+
 def test_apogee_does_not_decrease_as_deployment_is_delayed(
     calisto_robust, example_plain_env
 ):
@@ -888,3 +952,103 @@ def test_apogee_does_not_decrease_as_deployment_is_delayed(
             f"apogee dropped from {apogee_a:.2f} m at lag={lag_a} to "
             f"{apogee_b:.2f} m at lag={lag_b}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Motor burn must always be integrated
+#
+# max_time_step defaults to inf, so nothing bounds the step size. On the rail
+# the initial thrust is negligible against the rocket's weight, so the state
+# looks stationary and the solver could take a single step straight to the
+# phase's t_bound, never sampling the ignition. The rocket then sat at z=0 for
+# the whole simulation and the flight completed without any error.
+# ---------------------------------------------------------------------------
+
+
+def _fly_plain(rocket, env, max_time):
+    """Fly *rocket* with no parachutes at all."""
+    rocket.parachutes.clear()
+    return Flight(
+        rocket=rocket,
+        environment=env,
+        rail_length=5.0,
+        inclination=85,
+        heading=0,
+        max_time=max_time,
+    )
+
+
+def _left_the_rail(flight):
+    return any(
+        getattr(phase.derivative, "__name__", "") == "u_dot_generalized"
+        for phase in flight.flight_phases.list
+    )
+
+
+@pytest.mark.parametrize("max_time", [4.0, 5.0, 8.0, 10.0, 15.0, 20.0])
+def test_rocket_leaves_the_rail_with_a_short_max_time(
+    calisto_robust, example_plain_env, max_time
+):
+    """A short max_time must not stop the rocket from taking off.
+
+    Asserting "no exception" would pass while the burn is skipped, so assert the
+    rocket actually left the rail.
+    """
+    flight = _fly_plain(calisto_robust, example_plain_env, max_time)
+
+    assert _left_the_rail(flight), (
+        f"rocket never left the rail with max_time={max_time}: the motor burn "
+        f"was stepped over (solution has {len(flight.solution)} rows)"
+    )
+
+
+@pytest.mark.parametrize("max_time", [5.0, 20.0])
+def test_motor_burn_window_is_sampled(calisto_robust, example_plain_env, max_time):
+    """The burn window must contain real integration points, not just its edges."""
+    flight = _fly_plain(calisto_robust, example_plain_env, max_time)
+    burn_out = calisto_robust.motor.burn_out_time
+
+    time = np.array(flight.solution)[:, 0]
+    points_in_burn = int(((time > 0) & (time <= burn_out)).sum())
+
+    assert points_in_burn > 20, (
+        f"only {points_in_burn} solution point(s) inside the {burn_out} s burn"
+    )
+
+
+@pytest.mark.parametrize("max_time", [5.0, 10.0, 20.0])
+def test_rocket_actually_gains_altitude_with_a_short_max_time(
+    calisto_robust, example_plain_env, max_time
+):
+    """The reported trajectory must leave the ground."""
+    flight = _fly_plain(calisto_robust, example_plain_env, max_time)
+
+    max_altitude = np.array(flight.solution)[:, 3].max() - flight.env.elevation
+
+    assert max_altitude > 1.0, f"rocket never left the ground (max {max_altitude} m)"
+
+
+def test_long_max_time_flight_matches_known_apogee(calisto_robust, example_plain_env):
+    """A valid long flight still reaches its expected apogee.
+
+    History, so the number is not mistaken for arbitrary: before the solver step
+    was bounded on the rail this configuration reached 3157.469425 m; bounding it
+    moved the result by 1.65e-05 relative. That shift is the accepted cost of no
+    longer stepping over the motor burn (see the burn tests above), and the
+    real-flight acceptance suite is what rules out a physical regression.
+
+    On tolerance: the last digits of an integration result are NOT portable.
+    The same code gives 3157.425534 m on CPython 3.10 and 3.12 and 3157.417274 m
+    on 3.14, a 2.6e-06 spread from the underlying scipy/numpy build alone. So
+    this asserts the apogee is right to within 1e-04 (about 0.3 m), which catches
+    a structural break such as the rocket not leaving the rail while tolerating
+    platform noise. Finer drift detection belongs to the acceptance suite, which
+    compares against real flights with physically meaningful tolerances.
+    """
+    flight = _fly_plain(calisto_robust, example_plain_env, 300)
+
+    apogee = flight.apogee - flight.env.elevation
+
+    assert apogee == pytest.approx(3157.4255, rel=1e-4), (
+        "apogee of a valid long flight moved well beyond platform noise"
+    )
