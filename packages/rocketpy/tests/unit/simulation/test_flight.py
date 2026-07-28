@@ -772,3 +772,119 @@ def test_max_acceleration_power_off_time_with_controllers(
     assert test.max_acceleration_power_off > 0, (
         "max_acceleration_power_off should be greater than zero"
     )
+
+
+# ---------------------------------------------------------------------------
+# Parachute inflating before out-of-rail
+#
+# The out-of-rail event installs u_dot_generalized, and nothing ever restores
+# the parachute dynamics. A parachute that inflated while still on the rail was
+# therefore discarded for the rest of the flight, and the run reported the
+# apogee of a rocket with no parachute — silently, with no exception or warning.
+# ---------------------------------------------------------------------------
+
+
+def _fly_with_immediate_chute(rocket, env, lag, cd_s=1.0):
+    """Fly *rocket* with one parachute whose trigger is already true at t=0."""
+    rocket.parachutes.clear()
+    rocket.add_parachute(
+        "ImmediateChute",
+        cd_s=cd_s,
+        trigger=lambda p, h, y: True,
+        sampling_rate=100,
+        lag=lag,
+    )
+    return Flight(
+        rocket=rocket,
+        environment=env,
+        rail_length=5.0,
+        inclination=85,
+        heading=0,
+        max_time=300,
+    )
+
+
+@pytest.mark.parametrize("lag", [0.2, 0.25, 0.3, 0.35])
+def test_parachute_inflating_on_the_rail_is_rejected(
+    calisto_robust, example_plain_env, lag
+):
+    """Inflating before out-of-rail must fail loudly, not drop the parachute.
+
+    These lags are all below this rocket's out_of_rail_time (~0.3554 s).
+    """
+    with pytest.raises(ValueError, match="still on the launch rail"):
+        _fly_with_immediate_chute(calisto_robust, example_plain_env, lag)
+
+
+def test_parachute_rejection_message_names_the_parachute(
+    calisto_robust, example_plain_env
+):
+    """The error has to be actionable: which parachute, and when."""
+    with pytest.raises(ValueError) as exc_info:
+        _fly_with_immediate_chute(calisto_robust, example_plain_env, 0.25)
+
+    message = str(exc_info.value)
+    assert "ImmediateChute" in message
+    assert "lag" in message
+
+
+@pytest.mark.parametrize("lag", [0.4, 0.45, 0.5, 1.0, 2.0])
+def test_parachute_inflating_after_out_of_rail_still_works(
+    calisto_robust, example_plain_env, lag
+):
+    """Valid configurations must be untouched by the guard."""
+    flight = _fly_with_immediate_chute(calisto_robust, example_plain_env, lag)
+
+    assert flight.apogee - flight.env.elevation > 0
+
+
+@pytest.mark.parametrize("lag", [0.4, 0.45, 0.5, 1.0, 2.0])
+def test_deployed_parachute_actually_slows_the_rocket(
+    calisto_robust, example_plain_env, lag
+):
+    """A run that reports a deployment must not fly like it had no parachute.
+
+    This is the invariant the silent bug violated: the apogee came within 0.27%
+    of the no-parachute baseline while parachute_events recorded a deployment.
+    """
+    baseline = Flight(
+        rocket=calisto_robust,
+        environment=example_plain_env,
+        rail_length=5.0,
+        inclination=85,
+        heading=0,
+        max_time=300,
+    )
+    baseline_apogee = baseline.apogee - baseline.env.elevation
+
+    flight = _fly_with_immediate_chute(calisto_robust, example_plain_env, lag)
+    apogee = flight.apogee - flight.env.elevation
+
+    assert flight.parachute_events, "no deployment recorded"
+    assert apogee < 0.5 * baseline_apogee, (
+        f"apogee {apogee:.2f} m is too close to the no-parachute baseline "
+        f"{baseline_apogee:.2f} m: the parachute was ignored"
+    )
+
+
+def test_apogee_does_not_decrease_as_deployment_is_delayed(
+    calisto_robust, example_plain_env
+):
+    """Physical monotonicity: a later deployment cannot lower the apogee.
+
+    The silent bug broke this badly — lag=0.25 gave 2948 m while lag=0.5 gave
+    33.5 m, a factor of 88 the wrong way.
+    """
+    lags = [0.4, 0.5, 1.0, 2.0, 3.0]
+    apogees = [
+        _fly_with_immediate_chute(calisto_robust, example_plain_env, lag).apogee
+        for lag in lags
+    ]
+
+    for (lag_a, apogee_a), (lag_b, apogee_b) in zip(
+        zip(lags, apogees), zip(lags[1:], apogees[1:])
+    ):
+        assert apogee_b >= apogee_a, (
+            f"apogee dropped from {apogee_a:.2f} m at lag={lag_a} to "
+            f"{apogee_b:.2f} m at lag={lag_b}"
+        )

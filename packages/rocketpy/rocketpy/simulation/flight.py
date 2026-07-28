@@ -1051,6 +1051,34 @@ class Flight:
         bool
             True to indicate the simulation should break.
         """
+        # This event ends by installing u_dot_generalized, and nothing ever
+        # restores the parachute dynamics. If a parachute has already inflated,
+        # continuing would discard it for the rest of the flight and report the
+        # trajectory of a rocket that never had one — silently, since the
+        # deployment still shows up in parachute_events. Refuse the
+        # configuration instead of inventing a trajectory: a parachute open on
+        # the rail is a catastrophic launch failure, and this model represents
+        # neither the rail constraint nor a dragging canopy.
+        #
+        # parachute_cd_s is not initialised in __init__; only an inflation phase
+        # callback sets it, so hasattr is an exact test for "already inflated"
+        # and is false in the valid ordering (out-of-rail, then inflation).
+        if hasattr(self, "parachute_cd_s"):
+            name = (
+                self.parachute_events[-1][1].name
+                if self.parachute_events
+                else "<unknown>"
+            )
+            raise ValueError(
+                f"Parachute {name!r} inflated while the rocket was still on the "
+                f"launch rail, which this model cannot represent. Its trigger "
+                f"fired at t={self.parachute_events[-1][0]:.6g} s and the "
+                f"inflation completed before the rocket left the rail. Delay the "
+                f"deployment past rail departure (increase the parachute's lag, "
+                f"or make its trigger depend on altitude or vertical velocity), "
+                f"or shorten the rail."
+            )
+
         # Check exactly when it went out using root finding
         # Disconsider elevation
         self.solution[-2][3] -= self.env.elevation
