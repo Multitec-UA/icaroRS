@@ -670,7 +670,7 @@ class Flight:
                 t_bound=phase.time_bound,
                 rtol=self.rtol,
                 atol=self.atol,
-                max_step=self.max_time_step,
+                max_step=self.__phase_max_step(phase),
                 min_step=self.min_time_step,
             )
 
@@ -810,6 +810,50 @@ class Flight:
             self.__cache_sensor_data()
         if verbose:
             print(f"\n>>> Simulation Completed at Time: {self.t:3.4f} s")
+
+    # Number of integration steps to spend inside the motor burn. The resulting
+    # bound (burn_out_time / this) stays close to the step size the solver picks
+    # on its own during a healthy ascent, so it prevents the pathological jump
+    # without dominating a valid flight. For the reference Cesaroni M1670
+    # (burn_out_time 3.9 s) it gives 0.078 s, against the ~0.048 s the solver
+    # reaches unaided.
+    _MIN_STEPS_DURING_BURN = 50
+
+    # Below this burn duration the motor is an idealised impulse rather than a
+    # thrust curve worth sampling, and dividing it would produce an absurd bound
+    # (a 1e-10 s burn would ask for 2e-12 s steps and never finish). Real motors
+    # burn for tenths of a second at least; test doubles like dummy_empty_motor
+    # do not, so they must be left alone.
+    _NEGLIGIBLE_BURN_TIME = 1e-3
+
+    def __phase_max_step(self, phase):
+        """Largest step the solver may take during *phase*.
+
+        ``max_time_step`` defaults to infinity, so nothing otherwise bounds the
+        step. While the rocket is on the rail the initial thrust is negligible
+        against its weight, so the state looks stationary and the solver could
+        take a single step straight to ``phase.time_bound``, never sampling the
+        ignition. The flight then completed with the rocket sitting at ``z=0``
+        for its whole duration, reporting no error at all.
+
+        Thrust is a function of time, so the step must not exceed the scale over
+        which it varies. The bound is applied only to rail phases: that is where
+        the runaway step happens (the rocket is momentarily stationary there, and
+        the phase bound can sit far away), the rail is traversed in a fraction of
+        a second so the cost is negligible, and the rest of the flight keeps the
+        solver's own adaptive stepping.
+        """
+        max_step = self.max_time_step
+        if phase.derivative not in (self.udot_rail1, self.udot_rail2):
+            return max_step
+        burn_out_time = getattr(
+            getattr(self.rocket, "motor", None), "burn_out_time", None
+        )
+        if not burn_out_time or burn_out_time <= self._NEGLIGIBLE_BURN_TIME:
+            return max_step
+        if phase.t >= burn_out_time:
+            return max_step
+        return min(max_step, burn_out_time / self._MIN_STEPS_DURING_BURN)
 
     def __setup_phase_time_nodes(self, phase):
         """Set up time nodes for the current phase.
