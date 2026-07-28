@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -26,6 +27,61 @@ if TYPE_CHECKING:
 
 def _is_empty(value) -> bool:
     return value is None or value == {} or value == []
+
+
+def deploy_trigger(parachute: dict) -> str | float | Callable[..., bool]:
+    """Translate an export's ``deploy_event`` into a RocketPy parachute trigger.
+
+    OpenRocket says *when the ejection charge fires*; RocketPy wants the trigger
+    itself, and accepts only three shapes — a callable, a number, or the exact
+    string ``"apogee"``. The three events OpenRocket can emit map like this:
+
+    ``apogee``
+        Straight through: RocketPy has its own apogee detector.
+    ``altitude``
+        The deployment height as a number. RocketPy deploys once the rocket is
+        descending *below* that height.
+    ``launch``
+        OpenRocket's "Deploys at Launch plus N seconds". The ejection signal
+        fires immediately, so the trigger is unconditional; the N-second delay
+        is RocketPy's ``lag``, which the caller passes separately. Folding the
+        delay into the trigger here would double-count it.
+
+    The same mapping is rendered as *source code* by RocketSerializer's
+    notebook builder (``rocketserializer/nb_builder.py``, ``add_parachutes``).
+    That duplication is deliberate: ``icaro`` must not import
+    ``rocketserializer`` outside ``convert.py`` (it is an optional ``[convert]``
+    dependency, and simulating an existing export has to work JVM-free). If you
+    add or change an event here, change it there too.
+
+    Raises:
+        ValueError: if the event is unknown, or is ``altitude`` with no height.
+    """
+    event = parachute.get("deploy_event")
+    name = parachute.get("name", "<unnamed>")
+
+    if event == "apogee":
+        return "apogee"
+
+    if event == "altitude":
+        altitude = parachute.get("deploy_altitude")
+        if altitude is None:
+            raise ValueError(
+                f"Parachute {name!r} deploys at an altitude, but the export has "
+                f"no 'deploy_altitude'. The export is malformed: re-run the "
+                f"conversion, or set the deployment altitude in OpenRocket."
+            )
+        return float(altitude)
+
+    if event == "launch":
+        # Signature is (pressure, height, state_vector); RocketPy adapts the
+        # 3-argument form to its internal 4-argument one.
+        return lambda p, h, y: True
+
+    raise ValueError(
+        f"Parachute {name!r} has an unsupported deploy_event {event!r}. "
+        f"Supported events are 'apogee', 'altitude' and 'launch'."
+    )
 
 
 def _load_drag_curve(path: str | os.PathLike) -> list[tuple[float, float]]:
@@ -276,7 +332,7 @@ def _build_rocket(params: dict, motor: SolidMotor, export_dir: Path) -> Rocket:
         rocket.add_parachute(
             name=para["name"],
             cd_s=para["cds"],
-            trigger=para["deploy_event"],
+            trigger=deploy_trigger(para),
             lag=para["deploy_delay"],
         )
 

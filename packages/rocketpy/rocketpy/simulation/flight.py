@@ -1399,7 +1399,22 @@ class Flight:
             # Rollback history
             self.t = overshootable_node.t
             self.y_sol = overshootable_node.y_sol
-            self.solution[-1] = [overshootable_node.t, *overshootable_node.y_sol]
+            rolled_back_state = [overshootable_node.t, *overshootable_node.y_sol]
+            # Rolling back overwrites the last logged row with the state at the
+            # node. When the trigger is already true as the phase begins (an
+            # unconditional trigger, which is how OpenRocket's "deploys at launch
+            # plus N seconds" maps), the node sits on the phase's own start, so
+            # the rewritten row becomes an exact copy of the one before it. Two
+            # rows sharing a timestamp give the spline interpolators a zero
+            # spacing, and every spline-derived Function then evaluates to NaN
+            # (max_speed, max_acceleration, mach_number, and all their plots).
+            # The copy carries no information, so drop it instead of duplicating.
+            if len(self.solution) > 1 and np.array_equal(
+                rolled_back_state, self.solution[-2]
+            ):
+                self.solution.pop()
+            else:
+                self.solution[-1] = rolled_back_state
 
             # Prepare to leave loops and start new flight phase
             overshootable_nodes.flush_after(overshootable_index)
