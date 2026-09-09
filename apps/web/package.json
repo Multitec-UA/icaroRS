@@ -10,7 +10,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "i18n:check": "node scripts/check-i18n.mjs",
-    "i18n:types": "node scripts/gen-i18n-types.mjs"
+    "i18n:types": "node scripts/gen-i18n-types.mjs",
+    "api:schema": "node scripts/refresh-api-schema.mjs",
+    "api:types": "node scripts/gen-api-types.mjs",
+    "api:check": "node scripts/check-api-types.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -39,6 +42,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "jsdom": "^27.4.0",
+    "openapi-typescript": "7.13.0",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vite-tsconfig-paths": "^6.1.1",

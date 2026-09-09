@@ -1,0 +1,798 @@
+{
+  "components": {
+    "schemas": {
+      "Body_post_convert_api_convert_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "description": "OpenRocket .ork file",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_post_convert_api_convert_post",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "IdentityResponse": {
+        "description": "Response body for GET /api/auth/me.",
+        "properties": {
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "org_id": {
+            "title": "Org Id",
+            "type": "string"
+          },
+          "user_id": {
+            "title": "User Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "user_id",
+          "org_id"
+        ],
+        "title": "IdentityResponse",
+        "type": "object"
+      },
+      "SessionRequest": {
+        "description": "Request body for POST /api/auth/session.",
+        "properties": {
+          "id_token": {
+            "title": "Id Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id_token"
+        ],
+        "title": "SessionRequest",
+        "type": "object"
+      },
+      "SimulateRequest": {
+        "description": "Request body for POST /api/simulate.",
+        "properties": {
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "scenario": {
+            "additionalProperties": true,
+            "title": "Scenario",
+            "type": "object"
+          }
+        },
+        "required": [
+          "export_id",
+          "scenario"
+        ],
+        "title": "SimulateRequest",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "HTTP delivery surface for icaroRS rocket simulation. Thin adapter over the icaro domain package.",
+    "title": "icaroRS API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/atmosphere/suggest": {
+      "get": {
+        "description": "Suggest the best atmosphere model for a given launch date.\n\nCalls ``choose_atmosphere_model_for_date`` from the icaro domain \u2014 the\nrouter encodes NO decision logic itself (RG-1.1, RG-1.5).\n\nReturns\n-------\ndict\n    ``{model, reason, within_gfs_window, needs_internet}``\n\nSatisfies AC-RG-2.7, AC-RG-2.8, RG-2.6.",
+        "operationId": "suggest_atmosphere_api_atmosphere_suggest_get",
+        "parameters": [
+          {
+            "description": "ISO 8601 date+time for the launch",
+            "in": "query",
+            "name": "date",
+            "required": true,
+            "schema": {
+              "description": "ISO 8601 date+time for the launch",
+              "title": "Date",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Suggest Atmosphere Api Atmosphere Suggest Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Atmosphere",
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "description": "Clear the session cookie. Always succeeds, even on a stale cookie.\n\nBest-effort revokes the underlying refresh token so a captured cookie\nvalue cannot keep verifying after logout.",
+        "operationId": "logout_api_auth_logout_post",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Logout",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "description": "Return the caller's identity \u2014 lets the browser confirm it's signed in.",
+        "operationId": "me_api_auth_me_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentityResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/session": {
+      "post": {
+        "description": "Verify the Identity Platform ID token and set the session cookie.\n\n401 on an invalid/expired ID token, 403 when the account has no\n``org_id`` claim yet \u2014 never a 500 (RG-9.4 pattern).",
+        "operationId": "create_session_api_auth_session_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/convert": {
+      "post": {
+        "description": "Convert a .ork file to an export directory and persist artifacts.\n\nMultipart upload \u2192 ``convert_ork`` \u2192 upload export dir to Storage\nunder ``orgs/{org_id}/exports/{run_id}/`` \u2192 save RocketRecord to Db \u2192\nreturns ``{export_id, manifest}`` where ``export_id`` is a logical\nrun_id slug.\n\nOn ``ConvertUnavailableError``: 503 with the install hint verbatim.\nOn non-.ork file: 422.\nNever returns a Python traceback (RG-9.4).\n\nSatisfies RG-2.1, AC-RG-2.1, AC-RG-2.2, REQ-01.1, REQ-02.1, REQ-03.1.",
+        "operationId": "post_convert_api_convert_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_convert_api_convert_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Post Convert Api Convert Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Post Convert",
+        "tags": [
+          "convert"
+        ]
+      }
+    },
+    "/api/elevation": {
+      "get": {
+        "description": "Look up ground elevation at the given coordinates.\n\nBest-effort: on failure returns 503 (AC-RG-2.9).  The UI must handle\nthis gracefully (show manual-entry fallback, never block simulate).\n\nSatisfies RG-2.7, AC-RG-2.9.",
+        "operationId": "get_elevation_api_elevation_get",
+        "parameters": [
+          {
+            "description": "WGS-84 latitude in decimal degrees",
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "description": "WGS-84 latitude in decimal degrees",
+              "title": "Lat",
+              "type": "number"
+            }
+          },
+          {
+            "description": "WGS-84 longitude in decimal degrees",
+            "in": "query",
+            "name": "lon",
+            "required": true,
+            "schema": {
+              "description": "WGS-84 longitude in decimal degrees",
+              "title": "Lon",
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Elevation Api Elevation Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Elevation",
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/history": {
+      "get": {
+        "description": "Return a paginated list of simulations in reverse-chronological order.\n\nEach item includes a denormalized rocket ``name`` fetched via\n``db.get_rocket`` (join-on-read \u2014 see module docstring for rationale).\n\nParameters\n----------\nlimit : int\n    Maximum number of records (default: 20, max: 100).\nbefore : datetime | None\n    Cursor \u2014 return only simulations created before this timestamp.\n\nSatisfies REQ-05.1, REQ-05.2, REQ-05.3.",
+        "operationId": "list_history_api_history_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List History Api History Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List History",
+        "tags": [
+          "history"
+        ]
+      }
+    },
+    "/api/results/{run_id}": {
+      "get": {
+        "description": "Return the result for a completed run in forward-compat job-status shape.\n\nResponse shape: ``{run_id, status: \"done\", result}``\n\nThe shape is designed for forward-compat with an async/polling upgrade\n(ADR-6): when simulate becomes async, this endpoint will return\n``{run_id, status: \"running\"|\"done\"|\"error\", progress?, result?}`` and\nthe client polls \u2014 no contract break.\n\nFetches ``{result_prefix}result.json`` via the Storage seam (REQ-02.4),\nwhere ``result_prefix`` comes from the resolved SimRecord (issue #45).\nReturns 404 if the run is absent or not owned by the caller's org.",
+        "operationId": "get_result_api_results__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Result Api Results  Run Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Result",
+        "tags": [
+          "results"
+        ]
+      }
+    },
+    "/api/results/{run_id}/plots/{name}.png": {
+      "get": {
+        "description": "Serve a plot PNG from Storage.\n\nFetches ``{result_prefix}{name}.png`` via the Storage seam (REQ-02.5),\nwhere ``result_prefix`` comes from the resolved SimRecord (issue #45).\nReturns 404 if the run is absent or not owned by the caller's org, or the\nplot blob itself is missing. PNGs are the artifacts most likely to be\nlinked or embedded directly, so this check applies here too, not just to\nthe JSON endpoints (issue #44).\n\nThe ``name`` segment is sanitised (``Path.name``) to prevent directory\ntraversal \u2014 same guard as the previous local-disk implementation.",
+        "operationId": "get_plot_api_results__run_id__plots__name__png_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Plot",
+        "tags": [
+          "results"
+        ]
+      }
+    },
+    "/api/results/{run_id}/series": {
+      "get": {
+        "description": "Return the resampled flight time-series for a completed run (issue #11).\n\nShape: ``{t, altitude, speed, mach, acceleration, path3d}`` \u2014 plain JSON\narrays sharing one ``t`` axis, written by ``serialize_flight`` at simulate\ntime. Powers the interactive 2D charts and the animated 3D trajectory.\n\nFetches ``{result_prefix}series.json`` via the Storage seam (REQ-02.6),\nwhere ``result_prefix`` comes from the resolved SimRecord (issue #45).\nReturns 404 if the run is absent, not owned by the caller's org, or the\nblob itself is missing (e.g. an old run predating this feature) \u2014 the\nclient then falls back to the static PNG plots. Additive endpoint.",
+        "operationId": "get_series_api_results__run_id__series_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Series Api Results  Run Id  Series Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Series",
+        "tags": [
+          "results"
+        ]
+      }
+    },
+    "/api/rockets": {
+      "get": {
+        "description": "Return a paginated list of saved rockets in reverse-chronological order.\n\nParameters\n----------\nlimit : int\n    Maximum number of records (default: 20, max: 100).\nbefore : datetime | None\n    Cursor \u2014 return only rockets created before this timestamp (ISO 8601).\n\nSatisfies REQ-04.1, REQ-04.2, REQ-04.3.",
+        "operationId": "list_rockets_api_rockets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "before",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date-time",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Before"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "title": "Response List Rockets Api Rockets Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Rockets",
+        "tags": [
+          "rockets"
+        ]
+      }
+    },
+    "/api/rockets/{rocket_id}": {
+      "get": {
+        "description": "Return the full rocket record including manifest and gcs_ref.\n\nThe ``manifest`` is the single source of truth in object storage\n(``parameters.json`` under the export prefix), NOT Firestore \u2014 it can\ncontain nested arrays that Firestore Native rejects (see\n``FirestoreDb.save_rocket``). It is loaded here from Storage and degrades to\n``{}`` if the blob is missing, so the endpoint never 500s on a stale record.\n\nReturns 404 if the rocket_id is not found OR not owned by the caller's org.\nSatisfies REQ-04.4.",
+        "operationId": "get_rocket_api_rockets__rocket_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rocket_id",
+            "required": true,
+            "schema": {
+              "title": "Rocket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Rocket Api Rockets  Rocket Id  Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Rocket",
+        "tags": [
+          "rockets"
+        ]
+      }
+    },
+    "/api/scenario/template": {
+      "get": {
+        "description": "Return a starter Scenario dict with DEFAULT_UNCERTAINTY and PRESETS.\n\nThe UI uses this as its initial form state \u2014 it never starts empty.\nSatisfies AC-RG-2.3, RG-2.2.",
+        "operationId": "get_scenario_template_api_scenario_template_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Get Scenario Template Api Scenario Template Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Scenario Template",
+        "tags": [
+          "scenario"
+        ]
+      }
+    },
+    "/api/scenario/validate": {
+      "post": {
+        "description": "Validate and normalize a scenario dict.\n\nOn success: returns the normalized Scenario dict (HTTP 200).\nOn failure: returns HTTP 422 with field-keyed error list.\nNever leaks a Python traceback (RG-9.4).\n\nSatisfies AC-RG-2.4, RG-2.3, AC-RG-3.9.",
+        "operationId": "validate_scenario_api_scenario_validate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "title": "Body",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Validate Scenario Api Scenario Validate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Validate Scenario",
+        "tags": [
+          "scenario"
+        ]
+      }
+    },
+    "/api/simulate": {
+      "post": {
+        "description": "Run a deterministic 6-DOF simulation and return serialized results.\n\nSatisfies REQ-01.3, REQ-02.2, REQ-02.3, REQ-03.2, REQ-07.1, REQ-07.3,\nRG-2.4, AC-RG-2.5, AC-RG-2.6, RG-9.2, ADR-6.",
+        "operationId": "run_simulate_api_simulate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SimulateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Run Simulate Api Simulate Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Simulate",
+        "tags": [
+          "simulate"
+        ]
+      }
+    }
+  }
+}

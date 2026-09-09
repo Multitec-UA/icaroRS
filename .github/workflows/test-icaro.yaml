@@ -160,6 +160,9 @@ jobs:
       - name: i18n catalog completeness
         run: npm run i18n:check
 
+      - name: API types drift check
+        run: npm run api:check
+
       - name: Typecheck
         run: npx tsc --noEmit
 
