@@ -9,7 +9,6 @@ Req: REQ-04.1 (reverse-chronological list)
 
 from __future__ import annotations
 
-import base64
 import json
 from datetime import datetime, timezone, timedelta
 from typing import Any
@@ -17,12 +16,20 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
 from icaro_api.services.db import InMemoryDb, RocketRecord
+
+_TEST_SESSION_COOKIE = "test-session-token"
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": "test-org"}
 
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 class _FakeStorage:
@@ -57,9 +64,8 @@ def _make_client(db: Any, storage: Any = None) -> TestClient:
     from icaro_api.runs import get_db, get_storage
 
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test"
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_storage] = lambda: storage or _FakeStorage()
     return TestClient(app, raise_server_exceptions=True)

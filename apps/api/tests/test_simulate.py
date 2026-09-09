@@ -16,7 +16,6 @@ simulate.py became async — deferred until then.
 
 from __future__ import annotations
 
-import base64
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
@@ -24,13 +23,21 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from fastapi.testclient import TestClient
 
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
 from icaro_api.services.db import InMemoryDb, SimRecord
 from icaro_api.services.storage import LocalFsStorage
 
+_TEST_SESSION_COOKIE = "test-session-token"
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": "test-org"}
+
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 def _fake_results(run_id: str = "fake-sim-001") -> dict:
@@ -48,9 +55,8 @@ def _make_client(storage, db):
     from icaro_api.runs import get_db, get_storage
 
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test"
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     app.dependency_overrides[get_storage] = lambda: storage
     app.dependency_overrides[get_db] = lambda: db
     return TestClient(app, raise_server_exceptions=True)
@@ -199,9 +205,8 @@ class TestSimulateStorageSeam:
         from icaro_api.runs import get_db, get_storage
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         client = TestClient(app, raise_server_exceptions=True)
@@ -274,9 +279,8 @@ class TestPersistenceFailureIsolation:
         db = InMemoryDb()
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         return TestClient(app, raise_server_exceptions=False), db
@@ -341,9 +345,8 @@ class TestPersistenceFailureIsolation:
         db.save_simulation.side_effect = RuntimeError("Firestore connection refused")
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         client = TestClient(app, raise_server_exceptions=False)
@@ -381,9 +384,8 @@ class TestErrorSimulationRecord:
         db = MagicMock(spec=InMemoryDb)
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         return TestClient(app, raise_server_exceptions=False), db, storage
@@ -487,9 +489,8 @@ class TestSimulateDbRecord:
         from icaro_api.runs import get_db, get_storage
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         client = TestClient(app, raise_server_exceptions=True)

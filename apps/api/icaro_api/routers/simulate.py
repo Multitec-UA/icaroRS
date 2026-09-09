@@ -28,12 +28,11 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPBasicCredentials
 from pydantic import BaseModel
 
 from icaro import simulate_from_export
 from icaro.scenario import Scenario
-from icaro_api.auth import require_auth
+from icaro_api.auth import Identity, require_auth
 from icaro_api.config import Settings, get_settings
 from icaro_api.runs import get_db, get_storage, make_run_id
 from icaro_api.serialize import serialize_flight
@@ -65,7 +64,7 @@ def run_simulate(
     settings: Settings = Depends(get_settings),
     storage: Storage = Depends(get_storage),
     db: Db = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(require_auth),
+    identity: Identity = Depends(require_auth),
 ) -> dict[str, Any]:
     """Run a deterministic 6-DOF simulation and return serialized results.
 
@@ -121,7 +120,7 @@ def run_simulate(
                 rocket_id=body.export_id,
                 scenario=body.scenario,
                 created_at=datetime.now(timezone.utc),
-                created_by=credentials.username,
+                created_by=identity.user_id,
                 status="error",
                 scalars={},
                 warnings=[str(sim_exc)],
@@ -169,7 +168,7 @@ def run_simulate(
         rocket_id=body.export_id,
         scenario=body.scenario,
         created_at=datetime.now(timezone.utc),
-        created_by=credentials.username,
+        created_by=identity.user_id,
         status="done",
         scalars=result.get("scalars", {}),
         warnings=result.get("warnings", []),
