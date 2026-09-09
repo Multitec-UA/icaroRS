@@ -31,6 +31,45 @@ export type { MessageKey } from "@/messages/keys";
 type Catalog = Record<string, unknown>;
 
 // ---------------------------------------------------------------------------
+// Locale resolution — shared by app/layout.tsx and any other server-rendered
+// boundary (e.g. app/not-found.tsx) that needs the same cookie → Accept-
+// Language → "en" precedence without duplicating the ranking logic.
+// ---------------------------------------------------------------------------
+
+const SUPPORTED_LOCALES = new Set<Locale>(["en", "es"]);
+
+/**
+ * Resolve the locale entirely from server-visible request data, so the first
+ * paint already has the right language:
+ *   1. NEXT_LOCALE cookie (explicit user choice) wins.
+ *   2. Otherwise, the highest-priority supported language in Accept-Language.
+ *   3. Hard default: "en".
+ */
+export function resolveLocale(
+  cookieValue: string | undefined,
+  acceptLanguage: string | null,
+): Locale {
+  if (cookieValue && SUPPORTED_LOCALES.has(cookieValue as Locale)) {
+    return cookieValue as Locale;
+  }
+  if (acceptLanguage) {
+    const ranked = acceptLanguage
+      .split(",")
+      .map((part) => {
+        const [tag, ...params] = part.trim().split(";");
+        const q = params.find((p) => p.trim().startsWith("q="));
+        const weight = q ? Number.parseFloat(q.trim().slice(2)) : 1;
+        return { primary: tag.trim().split("-")[0].toLowerCase(), weight };
+      })
+      .sort((a, b) => b.weight - a.weight);
+    for (const { primary } of ranked) {
+      if (SUPPORTED_LOCALES.has(primary as Locale)) return primary as Locale;
+    }
+  }
+  return "en";
+}
+
+// ---------------------------------------------------------------------------
 // Catalog registry — populated by LocaleProvider on startup
 // ---------------------------------------------------------------------------
 
