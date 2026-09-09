@@ -45,7 +45,7 @@ apps/{cli,api,web}  →  packages/icaro  →  packages/{rocketpy, rocketserializ
 | `packages/rocketserializer` | core lib | Convert OpenRocket `.ork` files into parameters. |
 | `packages/icaro` | domain | Use-cases that orchestrate the cores (e.g. `simulate_from_export`). The reusable heart. |
 | `apps/cli` | delivery | `icaro` command — first real surface. |
-| `apps/api` | delivery | FastAPI REST surface (`/api/*`) + a server-rendered Jinja2 wizard. Thin adapter over `icaro`. |
+| `apps/api` | delivery | FastAPI REST surface (`/api/*`). Thin adapter over `icaro`. |
 | `apps/web` | delivery | React/Next.js web UI. Consumes the frozen `/api` contract; **not** a uv member (Node project). |
 
 ## Why a domain layer (`icaro`)

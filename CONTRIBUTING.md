@@ -48,8 +48,8 @@ ICARO_BASIC_USER=icaro ICARO_BASIC_PASS=icaro \
   uv run uvicorn icaro_api.main:app --port 8000 --workers 1
 ```
 
-Wizard at <http://127.0.0.1:8000/>, JSON docs at `/docs`. Full env/endpoint
-reference: [`apps/api/README.md`](apps/api/README.md).
+JSON docs at `/docs`. Full env/endpoint reference:
+[`apps/api/README.md`](apps/api/README.md).
 
 ## Running the web app
 
