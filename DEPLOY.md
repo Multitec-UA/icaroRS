@@ -10,7 +10,8 @@ internals. The repo ships the two Dockerfiles; this doc is the runbook.
 > [Persistence (GCS + Firestore)](#persistence-gcs--firestore). It is **opt-in**:
 > if the persistence env vars are NOT set, run data stays **ephemeral** and is
 > lost on any restart/redeploy (the original MVP behavior, still the default).
-> Members/organizations (per-user auth) are still planned next.
+> Auth is Identity Platform-backed, multi-org — see
+> [Identity Platform (auth)](#identity-platform-auth).
 
 ---
 
@@ -22,9 +23,9 @@ internals. The repo ships the two Dockerfiles; this doc is the runbook.
                             ▼
                    ┌──────────────────┐        proxies /api/* (server-side)
    browser ───────▶│   web  (Next 16) │ ───────────────────────────────┐
-   (Basic creds    └──────────────────┘                                 │
-    typed in the     stateless, scales freely                           ▼
-    app's AuthGate)                                          ┌──────────────────────┐
+   (Identity        └──────────────────┘                                 │
+    Platform          stateless, scales freely                           ▼
+    session cookie)                                          ┌──────────────────────┐
                                                              │   api  (FastAPI)      │
                                                              │   JDK 21 + OpenRocket │
                                                              │   max-instances = 1   │
@@ -34,8 +35,8 @@ internals. The repo ships the two Dockerfiles; this doc is the runbook.
 
 - **web** is the public face. It serves the SPA and **proxies `/api/*`** to the
   API at `ICARO_API_ORIGIN` (server-side rewrite — to the browser everything is
-  same-origin, so no CORS). The incoming `Authorization` (HTTP Basic) header is
-  forwarded to the API, so app-level auth works through the proxy.
+  same-origin, so no CORS). The incoming httpOnly session cookie is forwarded
+  to the API like any other header, so app-level auth works through the proxy.
 - **api** does the simulation. It is **not horizontally scalable in this MVP**
   (see below) — pin it to a single instance.
 
@@ -166,7 +167,12 @@ organization in Identity Platform (#41's responsibility) — pass its id in.
 docker build -f apps/api/Dockerfile -t REGION-docker.pkg.dev/PROJECT/icaro/api:TAG .
 
 # Web — build context is apps/web (self-contained).
-docker build -f apps/web/Dockerfile -t REGION-docker.pkg.dev/PROJECT/icaro/web:TAG apps/web
+# NEXT_PUBLIC_FIREBASE_* are inlined at BUILD time — see Identity Platform above.
+docker build -f apps/web/Dockerfile \
+  --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=PROJECT.firebaseapp.com \
+  --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=PROJECT \
+  -t REGION-docker.pkg.dev/PROJECT/icaro/web:TAG apps/web
 
 docker push REGION-docker.pkg.dev/PROJECT/icaro/api:TAG
 docker push REGION-docker.pkg.dev/PROJECT/icaro/web:TAG
@@ -177,17 +183,36 @@ runs as a non-root user.
 
 ---
 
-## Secrets (Secret Manager — never bake them)
+## Identity Platform (auth)
 
-The API's HTTP Basic credentials are the only secrets. Create them once:
+Auth is GCP Identity Platform (Firebase Auth), not a secret the API holds —
+there is nothing to create in Secret Manager for it.
+
+**Provision once:**
 
 ```bash
-printf 'icaro'                | gcloud secrets create icaro-basic-user --data-file=-
-printf 'A-STRONG-PASSWORD'    | gcloud secrets create icaro-basic-pass --data-file=-
+# Enable Identity Platform on the project (Console: Identity Platform → Get started),
+# then enable the Email/Password sign-in provider.
 ```
 
-Grant the API's runtime service account `roles/secretmanager.secretAccessor` on
-both, then mount them as env vars (below).
+- **API side:** `firebase-admin` verifies session cookies via Application
+  Default Credentials — no key file, no env var. Grant the API's runtime
+  service account `roles/firebaseauth.admin` (or `roles/identitytoolkit.admin`)
+  so it can verify ID tokens and mint/revoke session cookies.
+- **Web side:** the browser signs in with the Firebase **client** SDK, which
+  needs the project's public web config — not a secret (see
+  `apps/web/lib/firebase.ts`). These are `NEXT_PUBLIC_*` vars, inlined into the
+  client bundle at **build time** (see [Build the images](#build-the-images)),
+  not a runtime env var:
+  - `NEXT_PUBLIC_FIREBASE_API_KEY`
+  - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+  - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+
+  Find these under Console → Project settings → General → Your apps (add a
+  Web app if none exists yet).
+- Every user needs an `org_id` custom claim (the tenancy boundary) set via
+  `firebase_admin.auth.set_custom_user_claims` — there is no self-serve
+  org signup yet. Provision users/orgs by hand until that lands.
 
 ---
 
@@ -202,10 +227,10 @@ gcloud run deploy icaro-api \
   --cpu 2 --memory 2Gi \
   --timeout 300 \
   --no-allow-unauthenticated \
-  --ingress internal \
-  --set-secrets ICARO_BASIC_USER=icaro-basic-user:latest,ICARO_BASIC_PASS=icaro-basic-pass:latest
+  --ingress internal
   # Optional:
   #   --set-env-vars ICARO_ALLOW_FORECAST=false   # skip live GFS fetches (faster, no egress)
+  #   --set-env-vars ICARO_SESSION_COOKIE_SECURE=false   # local HTTP dev only — never in prod
 ```
 
 - `--ingress internal` + `--no-allow-unauthenticated` keeps the API off the
@@ -219,15 +244,15 @@ gcloud run deploy icaro-api \
 ### web → api link (pick one)
 
 - **Simplest:** drop `--ingress internal`, make the API public
-  (`--allow-unauthenticated`). It's still gated by HTTP Basic + HTTPS. Fine for a
-  short-lived MVP.
+  (`--allow-unauthenticated`). It's still gated by the session cookie + HTTPS.
+  Fine for a short-lived MVP.
 - **Hardened (recommended):** keep the API `internal` and give the **web**
   service Direct VPC egress so its server-side proxy can reach the API privately.
   External users then cannot hit the API directly at all.
 
 > Note: IAM-authenticated invocation (`--no-allow-unauthenticated` reached via an
 > OIDC token) does **not** work transparently here — the Next proxy forwards the
-> user's Basic header, not a Google ID token. Use network-level isolation
+> user's session cookie, not a Google ID token. Use network-level isolation
 > (ingress/VPC), not per-request IAM, to lock the API down.
 
 ---
@@ -272,13 +297,13 @@ HTTPS Load Balancer + serverless NEG if you prefer a managed cert + WAF.)
 # Web is up and serving the SPA:
 curl -I https://icaro.multitecua.com/
 
-# API behind Basic auth (through the web proxy):
-curl -u "$ICARO_BASIC_USER:$ICARO_BASIC_PASS" \
-  https://icaro.multitecua.com/api/scenario/template
+# API is behind the session cookie — GET /api/scenario/template with no
+# cookie should 401 (there is no curl-friendly credential to pass anymore):
+curl -i https://icaro.multitecua.com/api/scenario/template
 ```
 
-Then open `https://icaro.multitecua.com/`, enter the Basic credentials in the
-app, and run a `.ork` → simulate end-to-end.
+Then open `https://icaro.multitecua.com/`, sign in with an Identity Platform
+account, and run a `.ork` → simulate end-to-end.
 
 ---
 
@@ -288,5 +313,5 @@ app, and run a `.ork` → simulate end-to-end.
 | --- | --- | --- |
 | Runs lost on restart/redeploy | tmpfs is ephemeral | ✅ **Fixed** when GCS + Firestore are configured — see [Persistence](#persistence-gcs--firestore) |
 | API can't scale past 1 instance | per-instance simulate lock (matplotlib global state) | GCS removes the disk constraint, but the per-instance lock remains — needs a cross-instance lock to lift the pin |
-| Shared Basic-auth credential | no user model yet | members/organizations + IAP/OAuth |
+| No self-serve org signup | `org_id` custom claim is set by hand | admin console / invite flow |
 | First `convert` is slow | JVM cold start | `min-instances ≥ 1` already mitigates |

@@ -26,10 +26,18 @@ Override the target with `ICARO_API_ORIGIN` (defaults to `http://127.0.0.1:8000`
 
 ## Auth
 
-The API protects every route with HTTP Basic. The SPA holds credentials in
-`sessionStorage` (set from a login screen) and `lib/api.ts` attaches an
-`Authorization: Basic` header to every request. A `401` clears the stored
-credentials and sends the user back to the login screen.
+The API protects every route with a GCP Identity Platform session cookie
+(httpOnly — unreadable from JS). `components/auth/AuthGate.tsx` signs in with
+the Firebase client SDK (`lib/firebase.ts`), exchanges the ID token for the
+cookie via `POST /api/auth/session`, and confirms it via `GET /api/auth/me`
+(the only way to check "am I signed in?", since the cookie itself can't be
+read). A `401` from any request sends the user back to the login screen.
+
+Client-side sign-in needs the Identity Platform project's public web config —
+not a secret — as `NEXT_PUBLIC_FIREBASE_API_KEY`, `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`,
+`NEXT_PUBLIC_FIREBASE_PROJECT_ID` (Console → Project settings → General → Your
+apps). These are inlined into the client bundle at **build** time, not read at
+runtime — see `Dockerfile` for the production build args.
 
 ## Layout
 
@@ -42,11 +50,12 @@ app/                             App Router pages
 ## Develop
 
 ```bash
-# 1) start the API (from repo root) — see apps/api
-ICARO_BASIC_USER=icaro ICARO_BASIC_PASS=icaro \
-  ICARO_ORK_JAR=packages/rocketserializer/OpenRocket-23.09.jar \
+# 1) start the API (from repo root) — see apps/api. Needs a real Identity
+#    Platform project (Application Default Credentials resolve it) to verify
+#    session cookies — see DEPLOY.md → Identity Platform (auth).
+ICARO_ORK_JAR=packages/rocketserializer/OpenRocket-23.09.jar \
   uv run uvicorn icaro_api.main:app --port 8000
 
-# 2) start the web app
+# 2) start the web app — needs NEXT_PUBLIC_FIREBASE_* in .env.local (see Auth above)
 cd apps/web && npm run dev   # http://localhost:3000
 ```

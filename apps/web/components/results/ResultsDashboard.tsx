@@ -8,8 +8,9 @@
  * Reads the result from the wizard if it's the run we just produced; otherwise
  * (deep link / refresh) fetches it from /api/results/{runId}.
  *
- * Plot PNGs sit behind Basic auth, so each is fetched with the auth header and
- * shown via an object URL (a bare <img src> couldn't carry the credentials).
+ * Plot PNGs sit behind the Identity Platform session cookie, which the
+ * browser attaches automatically to same-origin requests — including a
+ * bare <img src>, so no manual authenticated fetch is needed.
  */
 
 import { useEffect, useState } from "react";
@@ -17,7 +18,6 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   ApiError,
-  fetchImageObjectUrl,
   getResult,
   type SimulateResult,
 } from "@/lib/api";
@@ -216,27 +216,7 @@ export function ResultsDashboard({ runId }: { runId: string }) {
 }
 
 function PlotCard({ url, title, failedLabel }: { url: string; title: string; failedLabel: string }) {
-  const [src, setSrc] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    let active = true;
-    let objectUrl: string | null = null;
-    fetchImageObjectUrl(url)
-      .then((u) => {
-        if (active) {
-          objectUrl = u;
-          setSrc(u);
-        } else {
-          URL.revokeObjectURL(u);
-        }
-      })
-      .catch(() => active && setFailed(true));
-    return () => {
-      active = false;
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [url]);
 
   return (
     <Surface as="div" innerClassName="overflow-hidden">
@@ -247,12 +227,10 @@ function PlotCard({ url, title, failedLabel }: { url: string; title: string; fai
         <div className="flex min-h-48 items-center justify-center bg-white p-2">
           {failed ? (
             <span className="py-12 text-sm text-slate-400">{failedLabel}</span>
-          ) : src ? (
-            // Object URL from an authenticated fetch — next/image can't handle blob: URLs.
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={src} alt={title} className="w-full rounded-lg" />
           ) : (
-            <Spinner className="my-12 text-slate-400" />
+            // The session cookie is same-origin, so the browser attaches it here too.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={url} alt={title} className="w-full rounded-lg" onError={() => setFailed(true)} />
           )}
         </div>
       </figure>
