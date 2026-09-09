@@ -13,7 +13,7 @@ import { useSimulateMutation } from "@/lib/queries";
 import { toLaunchDate } from "@/lib/domain/scenario";
 import { useWizardDraft } from "./WizardProvider";
 import { Button, Callout, Eyebrow, Spinner } from "@/components/ui";
-import { cn } from "@/components/ui";
+import { cn } from "@/lib/styles";
 import { useT, useLocale } from "@/components/i18n/LocaleProvider";
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {

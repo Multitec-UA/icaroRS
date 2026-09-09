@@ -5,7 +5,7 @@
 
 import { useWizardNav } from "./WizardProvider";
 import { STEP_ORDER, type WizardStep } from "@/lib/domain/scenario";
-import { cn } from "@/components/ui";
+import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
 // Steps shown in the wizard shell (results is its own page).
