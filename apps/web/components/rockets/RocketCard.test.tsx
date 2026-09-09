@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
 import { ApiError } from "@/lib/api";
-import { RocketsList } from "./RocketsList";
+import { RocketCard } from "./RocketCard";
 
 const rocketSummary = {
   rocket_id: "rocket-1",
@@ -12,11 +12,8 @@ const rocketSummary = {
   created_by: "pilot@multitec.dev",
 };
 
-const getRocketsMock = vi.fn().mockResolvedValue([rocketSummary]);
 const getRocketMock = vi.fn();
 
-// Route-owning component for "/rockets" (app/rockets/page.tsx renders this
-// directly with no props).
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {
@@ -26,7 +23,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
       org_id: "o1",
       email: "pilot@multitec.dev",
     }),
-    getRockets: (...args: Parameters<typeof actual.getRockets>) => getRocketsMock(...args),
     getRocket: (...args: Parameters<typeof actual.getRocket>) => getRocketMock(...args),
   };
 });
@@ -35,21 +31,19 @@ afterEach(() => {
   getRocketMock.mockReset();
 });
 
-describe("RocketsList (route smoke test — /rockets)", () => {
-  it("mounts without crashing and shows the heading", async () => {
-    getRocketsMock.mockResolvedValueOnce([]);
+describe("RocketCard (issue #52 — client island in the server-rendered /rockets list)", () => {
+  it("renders the rocket's own data", async () => {
     render(
       <AppProviders>
-        <RocketsList />
+        <RocketCard rocket={rocketSummary} />
       </AppProviders>,
     );
 
-    expect(
-      await screen.findByRole("heading", { name: "Your rockets" }),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("acme-1")).toBeInTheDocument();
+    expect(screen.getByText("pilot@multitec.dev")).toBeInTheDocument();
   });
 
-  it("uses a rocket and navigates to the wizard on success", async () => {
+  it("uses the rocket and navigates to the wizard on success", async () => {
     getRocketMock.mockResolvedValueOnce({
       ...rocketSummary,
       manifest: { name: "acme-1" },
@@ -67,7 +61,7 @@ describe("RocketsList (route smoke test — /rockets)", () => {
 
     render(
       <AppProviders>
-        <RocketsList />
+        <RocketCard rocket={rocketSummary} />
       </AppProviders>,
     );
 
@@ -77,14 +71,14 @@ describe("RocketsList (route smoke test — /rockets)", () => {
     expect(getRocketMock).toHaveBeenCalledWith("rocket-1");
   });
 
-  it("shows an inline error when using a rocket fails (issue #50 — was silently a no-op)", async () => {
+  it("shows an inline error when using a rocket fails, without a loading/catch gap", async () => {
     getRocketMock.mockRejectedValueOnce(
       new ApiError(500, "boom", { code: "requestFailed" }),
     );
 
     render(
       <AppProviders>
-        <RocketsList />
+        <RocketCard rocket={rocketSummary} />
       </AppProviders>,
     );
 
