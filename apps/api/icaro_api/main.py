@@ -10,14 +10,9 @@ import matplotlib
 
 matplotlib.use("Agg")  # noqa: E402 — MUST precede any pyplot/rocketpy import
 
-from pathlib import Path  # noqa: E402
-
 from fastapi import FastAPI  # noqa: E402
-from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from icaro_api.routers import convert, discovery, results, rockets, history, scenario, simulate, ui  # noqa: E402
-
-_STATIC_DIR = Path(__file__).parent / "static"
+from icaro_api.routers import convert, discovery, results, rockets, history, scenario, simulate  # noqa: E402
 
 
 def create_app() -> FastAPI:
@@ -47,16 +42,6 @@ def create_app() -> FastAPI:
     app.include_router(rockets.router, prefix="/api")
     app.include_router(history.router, prefix="/api")
     app.include_router(discovery.router, prefix="/api")
-
-    # Phase 1-F: Jinja2 wizard UI routes (no prefix — routes at /, /step2, etc.)
-    # Auth is applied at router level in ui.py (same require_auth dependency).
-    # Browser Basic creds set once on the first /api 401 cover same-origin UI
-    # routes and XHR calls transparently.
-    app.include_router(ui.router)
-
-    # Static files for wizard.css and wizard.js
-    if _STATIC_DIR.exists():
-        app.mount("/static", StaticFiles(directory=str(_STATIC_DIR)), name="static")
 
     return app
 

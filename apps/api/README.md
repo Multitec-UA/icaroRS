@@ -1,8 +1,7 @@
 # icaro API
 
 A thin **FastAPI** delivery surface over the `icaro` domain. It exposes a JSON
-REST API under `/api/*` and also serves a minimal server-rendered (Jinja2)
-wizard so the tool is usable in a browser with no front-end build.
+REST API under `/api/*`, consumed by the `apps/web` Next.js UI.
 
 **Rule (non-negotiable):** no simulation logic here. If a use-case doesn't exist
 in `packages/icaro/` yet, add it there first, then expose it. The API depends on
@@ -20,8 +19,8 @@ ICARO_BASIC_USER=icaro ICARO_BASIC_PASS=icaro \
   uv run uvicorn icaro_api.main:app --host 127.0.0.1 --port 8000 --workers 1
 ```
 
-Then open <http://127.0.0.1:8000/> for the wizard, or call the JSON API directly.
-Interactive API docs are at `/docs`.
+Call the JSON API directly, or open <http://127.0.0.1:8000/docs> for the
+interactive API docs.
 
 > **Convert needs Java.** `POST /api/convert` drives the bundled OpenRocket
 > `.jar`, which needs **Java ≥ 21** and the `icaro[convert]` extra. Point
@@ -42,13 +41,11 @@ Interactive API docs are at `/docs`.
 | `GET` | `/api/results/{run_id}/series` | Resampled flight time-series `{t, altitude, speed, mach, acceleration, path3d}` for interactive charts (404 for runs predating the feature) |
 | `GET` | `/api/results/{run_id}/plots/{name}.png` | A rendered plot PNG |
 
-The server-rendered wizard lives at `/`, `/step2`, `/step3`, `/results/{run_id}`.
-
 ## Auth
 
 Every route is behind **HTTP Basic** (`ICARO_BASIC_USER` / `ICARO_BASIC_PASS`).
 The `apps/web` SPA sends the credentials via an `Authorization` header through
-its dev proxy; the Jinja wizard relies on the browser's native Basic prompt.
+its dev proxy.
 
 ## Configuration (env, prefix `ICARO_`)
 
