@@ -12,7 +12,7 @@ matplotlib.use("Agg")  # noqa: E402 — MUST precede any pyplot/rocketpy import
 
 from fastapi import FastAPI  # noqa: E402
 
-from icaro_api.routers import convert, discovery, results, rockets, history, scenario, simulate  # noqa: E402
+from icaro_api.routers import convert, discovery, results, rockets, history, scenario, session, simulate  # noqa: E402
 
 
 def create_app() -> FastAPI:
@@ -35,6 +35,9 @@ def create_app() -> FastAPI:
     # All routers mounted under /api.  Auth is applied at router-level via
     # ``dependencies=[Depends(require_auth)]`` in each router declaration
     # (satisfies RG-8.1, task 1.12 deferred to here).
+    # `session` mints/clears the Identity Platform cookie the rest verify —
+    # its own routes are unauthenticated (/session, /logout) or self-gated (/me).
+    app.include_router(session.router, prefix="/api")
     app.include_router(convert.router, prefix="/api")
     app.include_router(scenario.router, prefix="/api")
     app.include_router(simulate.router, prefix="/api")

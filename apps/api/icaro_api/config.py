@@ -31,10 +31,13 @@ class Settings(BaseSettings):
     elevation_url : str
         Base URL for the elevation DEM service.
         Default: open-elevation public instance.
-    basic_user : str
-        HTTP Basic username loaded from env (RG-8.2).
-    basic_pass : str
-        HTTP Basic password loaded from env (RG-8.2).
+    session_cookie_max_age_days : int
+        Lifetime of the Identity Platform session cookie minted by
+        ``POST /api/auth/session``. Firebase Auth caps this at 14 days.
+    session_cookie_secure : bool
+        Whether the session cookie carries the ``Secure`` attribute. Must be
+        ``True`` in any deployment served over HTTPS; set ``False`` only for
+        local HTTP development (browsers drop ``Secure`` cookies over HTTP).
     allow_forecast : bool
         Gate for outbound GFS forecast network requests.
         Set ``False`` to force standard_atmosphere without network calls.
@@ -54,8 +57,8 @@ class Settings(BaseSettings):
     results_dir: Path = Path(".icaro_runs")
     ork_jar: Path | None = None
     elevation_url: str = "https://api.open-elevation.com/api/v1/lookup"
-    basic_user: str = "icaro"
-    basic_pass: str = "changeme"
+    session_cookie_max_age_days: int = 5
+    session_cookie_secure: bool = True
     allow_forecast: bool = True
     gcs_bucket: str | None = None
     firestore_project: str | None = None
