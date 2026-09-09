@@ -134,8 +134,9 @@ jobs:
           -v
 
   # ---------------------------------------------------------------------------
-  # Web — typecheck + lint + production build. The build catches bundler/RSC
-  # failures (server/client boundary, dynamic imports) that tsc/eslint miss.
+  # Web — typecheck + lint + unit tests + production build. The build catches
+  # bundler/RSC failures (server/client boundary, dynamic imports) that
+  # tsc/eslint/vitest miss.
   # ---------------------------------------------------------------------------
   web:
     name: Web (apps/web)
@@ -164,6 +165,9 @@ jobs:
 
       - name: Lint
         run: npm run lint
+
+      - name: Unit tests (Vitest + React Testing Library)
+        run: npm test
 
       - name: Production build
         run: npm run build
