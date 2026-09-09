@@ -113,6 +113,49 @@ gcloud run services update icaro-api --region REGION \
 > moving simulate off the request path) — not done yet. Keep
 > `min-instances = max-instances = 1`.
 
+### Composite indexes (org_id + created_at)
+
+Once organizations land (issue #41/#43), `list_rockets`/`list_simulations`
+filter by `org_id` **and** order by `created_at DESC`. Firestore requires a
+composite index for that combination — declared in
+[`apps/api/firestore.indexes.json`](apps/api/firestore.indexes.json) — or the
+query fails at **runtime** (not at deploy). Create them once per project:
+
+```bash
+gcloud firestore indexes composite create \
+  --collection-group=rockets \
+  --field-config field-path=org_id,order=ascending \
+  --field-config field-path=created_at,order=descending \
+  --project=PROJECT
+
+gcloud firestore indexes composite create \
+  --collection-group=simulations \
+  --field-config field-path=org_id,order=ascending \
+  --field-config field-path=created_at,order=descending \
+  --project=PROJECT
+```
+
+Index builds are asynchronous — check status with
+`gcloud firestore indexes composite list --project=PROJECT` before relying on
+the filtered queries in production.
+
+### Backfill org_id on existing documents
+
+**Must run — and this PR must merge — before #43** (the `Db` protocol change
+that makes `org_id` a required filter). Without it, every pre-existing rocket
+and simulation becomes invisible the moment filtering is enabled — a silent
+"data loss" that is actually just an unstamped field.
+
+```bash
+ICARO_FIRESTORE_PROJECT=PROJECT ICARO_BACKFILL_ORG_ID=<the one org's id> \
+  uv run python -m icaro_api.scripts.backfill_org_id
+```
+
+It is idempotent and reports `scanned` / `updated` / `already_stamped` counts
+per collection — safe to re-run, including after a partial/interrupted run.
+Pass `--dry-run` to preview counts without writing. It does **not** create the
+organization in Identity Platform (#41's responsibility) — pass its id in.
+
 ---
 
 ## Build the images
