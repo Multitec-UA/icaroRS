@@ -75,6 +75,12 @@ its dev proxy; the Jinja wizard relies on the browser's native Basic prompt.
   with an async upgrade.
 - `matplotlib.use("Agg")` is set in `main.py` before any pyplot import.
 
+## Ops scripts
+
+- `icaro_api/scripts/backfill_org_id.py` — idempotent backfill that stamps
+  `org_id` onto pre-existing `rockets`/`simulations` Firestore documents. See
+  [`DEPLOY.md` → Backfill org_id](../../DEPLOY.md#backfill-org_id-on-existing-documents).
+
 ## Tests
 
 ```bash
