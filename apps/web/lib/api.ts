@@ -1,9 +1,34 @@
 /**
- * Typed client for the frozen icaro API contract (Phase 1).
+ * Typed client for the icaro API contract.
  *
- * Every type here is derived 1:1 from the Phase 1 response shapes
- * (apps/api/icaro_api/routers/*.py + the icaro Scenario domain model).
- * Phase 2 is presentation only — it does NOT add or change endpoints.
+ * Types come from two places (issue #51):
+ *
+ * 1. GENERATED — `lib/api/schema.d.ts` is produced by `openapi-typescript`
+ *    from the committed OpenAPI snapshot (`openapi/schema.json`, refreshed
+ *    via `npm run api:schema` + `npm run api:types` — see those scripts for
+ *    the committed-snapshot-vs-live-API decision). `npm run api:check`
+ *    fails CI if the committed types drift from a fresh generation. Any
+ *    response/request shape FastAPI actually declares with a Pydantic
+ *    model — e.g. `Identity` below, from `IdentityResponse` — is imported
+ *    from there, never hand-transcribed again.
+ *
+ * 2. HAND-WRITTEN — everything below the "Domain types" divider is still
+ *    written by hand, because the corresponding `apps/api` routers return
+ *    a bare `dict[str, Any]` / `list[dict[str, Any]]` (no `response_model`),
+ *    so `app.openapi()` cannot see field-level shape for them yet — the
+ *    generated type for e.g. `GET /api/scenario/template` is just
+ *    `{ [key: string]: unknown }`. Using that directly here would be a
+ *    silent type-safety regression, not an improvement, so these shapes
+ *    stay hand-maintained (mirroring apps/api/icaro_api/routers/*.py + the
+ *    icaro Scenario domain model) until those routers gain typed responses.
+ *    Tracked in issue #70 — closing it lets these move to the generated
+ *    column too.
+ *
+ * The `request` wrapper, `ApiError`, the stable `ErrorCode` union, and every
+ * endpoint function are hand-written on purpose and are NOT meant to be
+ * generated away — they carry request/response glue, retry-free error
+ * mapping, and the i18n-facing error taxonomy that a generated client would
+ * not produce.
  *
  * Auth: the API protects every route with an Identity Platform session
  * cookie (httpOnly — unreadable from JS). The browser signs in with the
@@ -15,8 +40,11 @@
  * stays scoped to the web origin (see apps/api routers/session.py).
  */
 
+import type { components } from "./api/schema";
+
 // ---------------------------------------------------------------------------
 // Domain types — mirror packages/icaro/icaro/scenario.py
+// (hand-written — see header comment for why these aren't generated yet)
 // ---------------------------------------------------------------------------
 
 export type DispersionKind = "relative" | "absolute";
@@ -68,7 +96,7 @@ export interface Scenario {
 }
 
 // ---------------------------------------------------------------------------
-// Endpoint response shapes
+// Endpoint response shapes (hand-written — see header comment)
 // ---------------------------------------------------------------------------
 
 /** GET /api/scenario/template — a starter Scenario plus the named presets. */
@@ -76,7 +104,15 @@ export interface ScenarioTemplate extends Scenario {
   uncertainty_presets: Record<string, Record<string, Dispersion>>;
 }
 
-/** One field-level validation error from POST /api/scenario/validate (422). */
+/**
+ * One field-level validation error from POST /api/scenario/validate (422).
+ *
+ * NOT the same as the generated `components["schemas"]["ValidationError"]`
+ * (FastAPI's generic pydantic-error shape, `{loc, msg, type, ...}`) — these
+ * routes build a custom `{loc, field, message}` list by hand in the router
+ * (see icaro_api/routers/scenario.py::_humanize_error) before raising
+ * HTTPException, so it never round-trips through response_model either.
+ */
 export interface FieldError {
   loc: (string | number)[];
   field: string;
@@ -165,24 +201,27 @@ export interface FlightSeries {
 
 // ---------------------------------------------------------------------------
 // Session — Identity Platform, via the httpOnly cookie minted by the API
+//
+// GENERATED — icaro_api/routers/session.py declares `response_model=
+// IdentityResponse` (and a `SessionRequest` body model), so these round-trip
+// through the OpenAPI schema with real field-level shape. This is exactly
+// the drift the issue's motivating example hit in M1 (org_id + Identity
+// hand-duplicated across languages) — it can't happen here anymore.
 // ---------------------------------------------------------------------------
 
 /** The caller's identity, as returned by GET /api/auth/me. */
-export interface Identity {
-  user_id: string;
-  org_id: string;
-  email: string | null;
-}
+export type Identity = components["schemas"]["IdentityResponse"];
 
 /**
  * Exchange a freshly-minted Firebase ID token for our httpOnly session
  * cookie. Call right after a successful `signInWithPassword`.
  */
 export function createSession(idToken: string): Promise<void> {
+  const body: components["schemas"]["SessionRequest"] = { id_token: idToken };
   return request<void>("/api/auth/session", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id_token: idToken }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -353,10 +392,14 @@ export function simulate(
   exportId: string,
   scenario: unknown,
 ): Promise<SimulateResult> {
+  const body: components["schemas"]["SimulateRequest"] = {
+    export_id: exportId,
+    scenario: scenario as Record<string, unknown>,
+  };
   return request<SimulateResult>("/api/simulate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ export_id: exportId, scenario }),
+    body: JSON.stringify(body),
   });
 }
 
@@ -405,4 +448,3 @@ export function getHistory(
   if (before) q.set("before", before);
   return request<SimulationSummary[]>(`/api/history?${q}`);
 }
-
