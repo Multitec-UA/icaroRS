@@ -15,7 +15,7 @@ from pathlib import Path  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 
-from icaro_api.routers import convert, discovery, results, rockets, history, scenario, simulate, ui  # noqa: E402
+from icaro_api.routers import convert, discovery, results, rockets, history, scenario, session, simulate, ui  # noqa: E402
 
 _STATIC_DIR = Path(__file__).parent / "static"
 
@@ -40,6 +40,9 @@ def create_app() -> FastAPI:
     # All routers mounted under /api.  Auth is applied at router-level via
     # ``dependencies=[Depends(require_auth)]`` in each router declaration
     # (satisfies RG-8.1, task 1.12 deferred to here).
+    # `session` mints/clears the Identity Platform cookie the rest verify —
+    # its own routes are unauthenticated (/session, /logout) or self-gated (/me).
+    app.include_router(session.router, prefix="/api")
     app.include_router(convert.router, prefix="/api")
     app.include_router(scenario.router, prefix="/api")
     app.include_router(simulate.router, prefix="/api")
@@ -50,8 +53,9 @@ def create_app() -> FastAPI:
 
     # Phase 1-F: Jinja2 wizard UI routes (no prefix — routes at /, /step2, etc.)
     # Auth is applied at router level in ui.py (same require_auth dependency).
-    # Browser Basic creds set once on the first /api 401 cover same-origin UI
-    # routes and XHR calls transparently.
+    # NOTE: require_auth now verifies an Identity Platform session cookie, and
+    # this surface has no login form of its own (it relied on the browser's
+    # native Basic dialog) — it is unreachable until issue #46 retires it.
     app.include_router(ui.router)
 
     # Static files for wizard.css and wizard.js

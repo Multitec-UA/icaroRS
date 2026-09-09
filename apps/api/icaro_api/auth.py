@@ -1,13 +1,15 @@
-"""HTTP Basic authentication dependency for icaroRS API.
+"""Session-cookie authentication dependency for icaroRS API.
 
-A single shared credential pair protects all ``/api/*`` routes (RG-8.1–8.4).
-Credentials are loaded from env vars via the ``Settings`` object — never
-hardcoded (RG-8.2).
+Callers authenticate through GCP Identity Platform (Firebase Auth); this
+module verifies the resulting httpOnly session cookie (RG-8.1-8.4) and
+resolves it to an :class:`Identity` — the caller's user id plus the
+organization id carried as a custom claim on the token, the tenancy boundary
+for the rest of M1.
 
-Timing-safe comparison (``secrets.compare_digest``) prevents timing attacks
-on the credential check.
-
-This is documented as MVP-only — not for public deployment (RG-8.5).
+Verification is delegated to an injectable ``get_identity_verifier``
+dependency (see ``icaro_api.services.firebase`` for the real Identity
+Platform-backed implementation) so tests can supply a fake verifier instead
+of standing up a real Identity Platform project.
 
 Usage
 -----
@@ -15,73 +17,88 @@ Apply to a router at declaration time::
 
     router = APIRouter(dependencies=[Depends(require_auth)])
 
-Or to a single endpoint::
+Or wherever the identity itself is needed (e.g. to stamp ``created_by``)::
 
-    @app.get("/ping")
-    def ping(creds=Depends(require_auth)):
+    @app.post("/thing")
+    def create_thing(identity: Identity = Depends(require_auth)):
         ...
 """
 
 from __future__ import annotations
 
-import secrets
+from dataclasses import dataclass
+from typing import Callable
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import Depends, HTTPException, Request, status
 
-from icaro_api.config import Settings, get_settings
+from icaro_api.services import firebase
 
-_security = HTTPBasic()
+SESSION_COOKIE_NAME = "icaro_session"
+
+IdentityVerifier = Callable[[str], dict]
+
+
+@dataclass(frozen=True)
+class Identity:
+    """Authenticated caller, decoded from a verified session cookie.
+
+    ``org_id`` is the tenancy boundary — persisted verbatim wherever
+    ``created_by``/ownership is recorded (this is part of the domain
+    contract: callers must not synthesize an ``Identity`` themselves).
+    """
+
+    user_id: str
+    org_id: str
+    email: str | None = None
+
+
+def get_identity_verifier() -> IdentityVerifier:
+    """Return the callable that turns a raw session cookie into claims.
+
+    Isolated behind a dependency so tests can override it
+    (``app.dependency_overrides[get_identity_verifier]``) instead of
+    requiring a real Identity Platform project.
+    """
+    return firebase.verify_session_cookie
 
 
 def require_auth(
-    credentials: HTTPBasicCredentials = Depends(_security),
-    settings: Settings = Depends(get_settings),
-) -> HTTPBasicCredentials:
-    """FastAPI dependency that enforces HTTP Basic auth.
-
-    Compares the submitted username and password against ``Settings.basic_user``
-    and ``Settings.basic_pass`` using :func:`secrets.compare_digest` to prevent
-    timing attacks.
-
-    Parameters
-    ----------
-    credentials : HTTPBasicCredentials
-        Parsed from the ``Authorization`` header by FastAPI's HTTPBasic security
-        scheme.  Absent header → FastAPI raises 401 automatically before this
-        dependency body runs.
-    settings : Settings
-        Application settings injected via ``get_settings``.
-
-    Returns
-    -------
-    HTTPBasicCredentials
-        The validated credentials (useful for logging if needed).
+    request: Request,
+    verify: IdentityVerifier = Depends(get_identity_verifier),
+) -> Identity:
+    """FastAPI dependency that verifies the Identity Platform session cookie.
 
     Raises
     ------
     HTTPException
-        401 with ``WWW-Authenticate: Basic`` on credential mismatch.
+        401 when the cookie is missing, invalid, expired, or revoked.
+        403 when the token carries no ``org_id`` claim (account not yet
+        assigned to an organization).
     """
-    correct_user = settings.basic_user
-    correct_pass = settings.basic_pass
-
-    # Use constant-time comparison for both fields to prevent oracle attacks.
-    # encode() keeps bytes comparison safe regardless of string content.
-    user_ok = secrets.compare_digest(
-        credentials.username.encode("utf-8"),
-        correct_user.encode("utf-8"),
-    )
-    pass_ok = secrets.compare_digest(
-        credentials.password.encode("utf-8"),
-        correct_pass.encode("utf-8"),
-    )
-
-    if not (user_ok and pass_ok):
+    cookie = request.cookies.get(SESSION_COOKIE_NAME)
+    if not cookie:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials.",
-            headers={"WWW-Authenticate": "Basic"},
+            detail="Missing session cookie.",
         )
 
-    return credentials
+    try:
+        claims = verify(cookie)
+    except Exception as exc:  # noqa: BLE001 — any verification failure is 401
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired session.",
+        ) from exc
+
+    org_id = claims.get("org_id")
+    if not org_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not assigned to an organization.",
+        )
+
+    return Identity(
+        user_id=claims["uid"],
+        org_id=org_id,
+        email=claims.get("email"),
+    )

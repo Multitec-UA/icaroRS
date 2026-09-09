@@ -32,6 +32,7 @@ convert = [
 gcp = [
     "google-cloud-storage>=2.14",
     "google-cloud-firestore>=2.16",
+    "firebase-admin>=6.5",
 ]
 
 [build-system]
