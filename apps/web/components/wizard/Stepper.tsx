@@ -3,15 +3,19 @@
 /** Horizontal step indicator for the wizard. Reflects (and allows jumping to
  * already-reached) steps from WizardProvider. */
 
-import { useWizard, STEP_ORDER, type WizardStep } from "./WizardProvider";
-import { cn } from "@/components/ui";
+import { useWizardNav } from "./WizardProvider";
+import { STEP_ORDER, type WizardStep } from "@/lib/domain/scenario";
+import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
 // Steps shown in the wizard shell (results is its own page).
 const VISIBLE: WizardStep[] = ["rocket", "basics", "advanced", "review"];
 
 export function Stepper() {
-  const { step, goto, state } = useWizard();
+  // Nav-only (issue #50): this must NOT re-render when a draft field (e.g. an
+  // AdvancedStep input) changes, so it reads from useWizardNav, not the
+  // combined useWizard.
+  const { step, goto, exportId } = useWizardNav();
   const t = useT();
   const currentIndex = STEP_ORDER.indexOf(step);
 
@@ -22,7 +26,7 @@ export function Stepper() {
         const isCurrent = s === step;
         const isDone = idx < currentIndex;
         // Allow jumping back to any reached step; never skip ahead.
-        const reachable = idx <= currentIndex && state.exportId !== null;
+        const reachable = idx <= currentIndex && exportId !== null;
         return (
           <li key={s} className="flex items-center gap-2">
             <button

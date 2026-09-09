@@ -10,8 +10,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, type FieldError } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
-import { useWizard, toLaunchDate } from "./WizardProvider";
-import { Button, Callout, Eyebrow, Spinner, cn } from "@/components/ui";
+import { toLaunchDate } from "@/lib/domain/scenario";
+import { useWizardDraft } from "./WizardProvider";
+import { Button, Callout, Eyebrow, Spinner } from "@/components/ui";
+import { cn } from "@/lib/styles";
 import { useT, useLocale } from "@/components/i18n/LocaleProvider";
 
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
@@ -26,7 +28,7 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
 }
 
 export function ReviewStep() {
-  const { state, setResult, scenarioBody } = useWizard();
+  const { state, setResult, scenarioBody } = useWizardDraft();
   const router = useRouter();
   const t = useT();
   const { locale } = useLocale();
