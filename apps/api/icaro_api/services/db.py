@@ -162,6 +162,10 @@ class Db(Protocol):
         """Persist a simulation record (upsert by simulation_id), owned by org_id."""
         ...
 
+    def get_simulation(self, simulation_id: str, org_id: str) -> SimRecord | None:
+        """Return the simulation record, or ``None`` if not found OR not owned by org_id."""
+        ...
+
     def list_simulations(
         self, org_id: str, limit: int = 20, before: datetime | None = None
     ) -> list[SimRecord]:
@@ -245,6 +249,13 @@ class InMemoryDb:
                 f"SimRecord.org_id ({rec.org_id!r}) does not match org_id ({org_id!r})."
             )
         self._simulations[rec.simulation_id] = rec
+
+    def get_simulation(self, simulation_id: str, org_id: str) -> SimRecord | None:
+        """Return the simulation record, or ``None`` if absent or owned by another org."""
+        rec = self._simulations.get(simulation_id)
+        if rec is None or rec.org_id != org_id:
+            return None
+        return rec
 
     def list_simulations(
         self, org_id: str, limit: int = 20, before: datetime | None = None
@@ -388,6 +399,30 @@ class FirestoreDb:
         doc = asdict(rec)
         doc["created_at"] = rec.created_at
         self._db.collection("simulations").document(rec.simulation_id).set(doc)
+
+    def get_simulation(self, simulation_id: str, org_id: str) -> SimRecord | None:
+        """Fetch a single simulation document, or ``None`` if absent or owned by another org."""
+        snap = self._db.collection("simulations").document(simulation_id).get()
+        if not snap.exists:
+            return None
+        d = snap.to_dict()
+        if d.get("org_id") != org_id:
+            return None
+        return SimRecord(
+            simulation_id=simulation_id,
+            rocket_id=d.get("rocket_id", ""),
+            scenario=d.get("scenario", {}),
+            created_at=d.get("created_at", datetime.now(timezone.utc)),
+            created_by=d.get("created_by", ""),
+            org_id=d.get("org_id", ""),
+            status=d.get("status", "done"),
+            scalars=d.get("scalars", {}),
+            warnings=d.get("warnings", []),
+            result_prefix=d.get("result_prefix", ""),
+            plot_names=d.get("plot_names", []),
+            has_series=d.get("has_series", False),
+            artifact_refs=d.get("artifact_refs", {}),
+        )
 
     def list_simulations(
         self, org_id: str, limit: int = 20, before: datetime | None = None
