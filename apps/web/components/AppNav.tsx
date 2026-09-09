@@ -25,7 +25,7 @@ import { useAuth } from "@/components/auth/AuthGate";
 import { useWizardNav } from "@/components/wizard/WizardProvider";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useT } from "@/components/i18n/LocaleProvider";
-import { cn } from "@/lib/styles";
+import { cn } from "@/components/ui";
 
 interface NavItem {
   key: "simulate" | "rockets" | "history";
