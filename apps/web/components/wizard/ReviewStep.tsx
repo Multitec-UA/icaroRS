@@ -8,9 +8,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError, simulate, type FieldError } from "@/lib/api";
+import { ApiError, type FieldError } from "@/lib/api";
+import { useSimulateMutation } from "@/lib/queries";
 import { useWizard, toLaunchDate } from "./WizardProvider";
-import { useAuth } from "@/components/auth/AuthGate";
 import { Button, Callout, Eyebrow, Spinner, cn } from "@/components/ui";
 import { useT, useLocale } from "@/components/i18n/LocaleProvider";
 
@@ -27,32 +27,34 @@ function Row({ label, value, mono }: { label: string; value: string; mono?: bool
 
 export function ReviewStep() {
   const { state, setResult, scenarioBody } = useWizard();
-  const { logout } = useAuth();
   const router = useRouter();
   const t = useT();
   const { locale } = useLocale();
-  const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
+  const simulateMutation = useSimulateMutation();
+  const busy = simulateMutation.isPending;
 
   async function run() {
     if (!state.exportId) return;
-    setBusy(true);
     setErrors([]);
     setFatal(null);
     try {
-      const result = await simulate(state.exportId, scenarioBody());
+      const result = await simulateMutation.mutateAsync({
+        exportId: state.exportId,
+        scenario: scenarioBody(),
+      });
       setResult(result);
       router.push(`/results/${encodeURIComponent(result.run_id)}`);
     } catch (err) {
-      if (err instanceof ApiError && err.isUnauthorized) return logout();
+      // A 401 is handled globally (lib/query-client.ts).
+      if (err instanceof ApiError && err.isUnauthorized) return;
       if (err instanceof ApiError && err.isValidation) setErrors(err.fieldErrors ?? []);
       else if (err instanceof ApiError)
         // If the server sent a hint (503 service note), show it verbatim per RG-6 / design.
         // Otherwise map the stable code to a catalog key.
         setFatal(err.hint ?? t(`errors.${err.code}`, { status: err.status }));
       else setFatal(t("review.errorGeneric"));
-      setBusy(false);
     }
   }
 

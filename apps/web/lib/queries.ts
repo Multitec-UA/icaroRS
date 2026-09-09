@@ -3,27 +3,26 @@
 /**
  * One query key + hook per API endpoint (issue #48). Every read that used to
  * be a hand-rolled `useEffect` + `active` flag + loading/error/data triple is
- * a `useQuery` call defined here.
- *
- * The two write flows (the wizard's "Run simulation" and history's "Re-run")
- * still call `simulate()` directly for now — they move to a shared
- * `useSimulateMutation` in a follow-up (kept out of this PR to stay within
- * the review budget; see the PR description).
+ * a `useQuery` call defined here; the two write flows that share the same
+ * underlying endpoint (the wizard's "Run simulation" and history's "Re-run")
+ * share the one `useSimulateMutation`.
  *
  * 401 handling is NOT done here — see lib/query-client.ts. Every hook below
  * throws through the shared QueryClient, so a 401 from any of them logs the
  * user out in one place instead of each consumer repeating the check.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   getHistory,
   getRockets,
   getResult,
   getSeries,
   getScenarioTemplate,
+  simulate,
   type ResultEnvelope,
   type ScenarioTemplate,
+  type SimulateResult,
   type SimulationSummary,
   type RocketSummary,
   type FlightSeries,
@@ -76,5 +75,12 @@ export function useScenarioTemplateQuery() {
   return useQuery<ScenarioTemplate>({
     queryKey: queryKeys.scenarioTemplate,
     queryFn: getScenarioTemplate,
+  });
+}
+
+/** POST /api/simulate — shared by the wizard's initial run and history's re-run. */
+export function useSimulateMutation() {
+  return useMutation<SimulateResult, unknown, { exportId: string; scenario: unknown }>({
+    mutationFn: ({ exportId, scenario }) => simulate(exportId, scenario),
   });
 }
