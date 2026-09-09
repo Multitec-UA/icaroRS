@@ -14,7 +14,6 @@ filesystem or GCS dependency.  The results router must call
 
 from __future__ import annotations
 
-import base64
 import json
 from typing import Any
 from unittest.mock import MagicMock
@@ -22,7 +21,16 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
 from icaro_api.services.storage import LocalFsStorage
+
+_TEST_SESSION_COOKIE = "test-session-token"
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": "test-org"}
 
 # Minimal 1x1 white PNG bytes
 _TINY_PNG: bytes = (
@@ -35,8 +43,7 @@ _TINY_PNG: bytes = (
 
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 class _BlobStorage:
@@ -70,9 +77,8 @@ def _make_client(storage: Any) -> TestClient:
     from icaro_api.runs import get_storage
 
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test"
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     app.dependency_overrides[get_storage] = lambda: storage
     return TestClient(app, raise_server_exceptions=True)
 

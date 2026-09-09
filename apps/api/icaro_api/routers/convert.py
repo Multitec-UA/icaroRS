@@ -21,9 +21,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.security import HTTPBasicCredentials
 
-from icaro_api.auth import require_auth
+from icaro_api.auth import Identity, require_auth
 from icaro_api.config import Settings, get_settings
 from icaro_api.runs import get_db, get_storage, make_run_id
 from icaro_api.services.convert import run_convert
@@ -44,7 +43,7 @@ async def post_convert(
     settings: Settings = Depends(get_settings),
     storage: Storage = Depends(get_storage),
     db: Db = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(require_auth),
+    identity: Identity = Depends(require_auth),
 ) -> dict[str, Any]:
     """Convert a .ork file to an export directory and persist artifacts.
 
@@ -130,7 +129,7 @@ async def post_convert(
             rocket_id=run_id,
             name=rocket_name,
             created_at=datetime.now(timezone.utc),
-            created_by=credentials.username,
+            created_by=identity.user_id,
             export_prefix=export_prefix,
             manifest=manifest,
             gcs_ref=export_prefix,
