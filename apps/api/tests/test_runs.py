@@ -116,14 +116,15 @@ class TestGetDbSingleton:
             name="Test Rocket",
             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             created_by="test",
+            org_id="org-test",
             export_prefix="exports/test-rocket-singleton/",
             gcs_ref="exports/test-rocket-singleton/",
         )
-        db_write.save_rocket(rec)
+        db_write.save_rocket(rec, org_id="org-test")
 
         # Simulate a /api/rockets request: retrieve via a separate get_db() call.
         db_read = get_db(settings)
-        result = db_read.get_rocket("test-rocket-singleton")
+        result = db_read.get_rocket("test-rocket-singleton", org_id="org-test")
         assert result is not None, (
             "Record saved via one get_db() call was invisible to a subsequent "
             "get_db() call — singleton not working"

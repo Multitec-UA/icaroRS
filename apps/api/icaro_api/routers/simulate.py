@@ -121,6 +121,7 @@ def run_simulate(
                 scenario=body.scenario,
                 created_at=datetime.now(timezone.utc),
                 created_by=identity.user_id,
+                org_id=identity.org_id,
                 status="error",
                 scalars={},
                 warnings=[str(sim_exc)],
@@ -130,7 +131,7 @@ def run_simulate(
                 artifact_refs={},
             )
             try:
-                db.save_simulation(error_rec)
+                db.save_simulation(error_rec, org_id=identity.org_id)
             except Exception:  # noqa: BLE001
                 logger.error(
                     "Failed to save error SimRecord for run_id=%s",
@@ -169,6 +170,7 @@ def run_simulate(
         scenario=body.scenario,
         created_at=datetime.now(timezone.utc),
         created_by=identity.user_id,
+        org_id=identity.org_id,
         status="done",
         scalars=result.get("scalars", {}),
         warnings=result.get("warnings", []),
@@ -178,7 +180,7 @@ def run_simulate(
         artifact_refs=artifact_refs,
     )
     try:
-        db.save_simulation(sim_rec)
+        db.save_simulation(sim_rec, org_id=identity.org_id)
     except Exception:  # noqa: BLE001 — db failure must not block response (REQ-07.4)
         logger.error(
             "Failed to save simulation record for run_id=%s",

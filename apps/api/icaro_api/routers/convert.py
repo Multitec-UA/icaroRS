@@ -130,13 +130,14 @@ async def post_convert(
             name=rocket_name,
             created_at=datetime.now(timezone.utc),
             created_by=identity.user_id,
+            org_id=identity.org_id,
             export_prefix=export_prefix,
             manifest=manifest,
             gcs_ref=export_prefix,
             ork_filename=filename or None,
             has_source_ork=False,  # .ork upload to GCS deferred (REQ-02.8)
         )
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=identity.org_id)
 
         # Return the logical id — NEVER a filesystem path (REQ-01.1).
         return {

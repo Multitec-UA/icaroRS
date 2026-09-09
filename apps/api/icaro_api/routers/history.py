@@ -27,7 +27,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from icaro_api.auth import require_auth
+from icaro_api.auth import Identity, require_auth
 from icaro_api.runs import get_db
 from icaro_api.services.db import Db
 
@@ -45,6 +45,7 @@ def list_history(
     limit: int = _DEFAULT_LIMIT,
     before: datetime | None = None,
     db: Db = Depends(get_db),
+    identity: Identity = Depends(require_auth),
 ) -> list[dict[str, Any]]:
     """Return a paginated list of simulations in reverse-chronological order.
 
@@ -61,13 +62,13 @@ def list_history(
     Satisfies REQ-05.1, REQ-05.2, REQ-05.3.
     """
     effective_limit = min(max(1, limit), _MAX_LIMIT)
-    records = db.list_simulations(limit=effective_limit, before=before)
+    records = db.list_simulations(org_id=identity.org_id, limit=effective_limit, before=before)
 
     result = []
     for sim in records:
         # Denormalize rocket name — O(1) dict get in InMemoryDb, one Firestore
         # doc get in production.  Acceptable for list sizes ≤ 100.
-        rocket = db.get_rocket(sim.rocket_id)
+        rocket = db.get_rocket(sim.rocket_id, org_id=identity.org_id)
         rocket_name = rocket.name if rocket is not None else ""
 
         # Extract apogee from scalars — expose at top level per REQ-05.2.
