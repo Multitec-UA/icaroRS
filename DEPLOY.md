@@ -167,8 +167,15 @@ organization in Identity Platform (#41's responsibility) — pass its id in.
 docker build -f apps/api/Dockerfile -t REGION-docker.pkg.dev/PROJECT/icaro/api:TAG .
 
 # Web — build context is apps/web (self-contained).
-# NEXT_PUBLIC_FIREBASE_* are inlined at BUILD time — see Identity Platform above.
+# EVERY web setting below is baked at BUILD time. None of them can be changed
+# with a runtime env var on the Cloud Run service — changing any one of them
+# means rebuilding and redeploying the image.
+#   - NEXT_PUBLIC_FIREBASE_* : Next inlines NEXT_PUBLIC_* into the client bundle.
+#   - ICARO_API_ORIGIN       : `rewrites()` is evaluated during `next build` and
+#                              the resolved destination is written into
+#                              .next/routes-manifest.json (see next.config.ts).
 docker build -f apps/web/Dockerfile \
+  --build-arg ICARO_API_ORIGIN=https://icaro-api-XXXX.REGION.run.app \
   --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=... \
   --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=PROJECT.firebaseapp.com \
   --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=PROJECT \
@@ -266,13 +273,28 @@ gcloud run deploy icaro-web \
   --min-instances 1 --max-instances 4 \
   --concurrency 80 \
   --cpu 1 --memory 512Mi \
-  --allow-unauthenticated \
-  --set-env-vars ICARO_API_ORIGIN=https://icaro-api-XXXX.REGION.run.app
+  --allow-unauthenticated
 ```
 
-- `ICARO_API_ORIGIN` is read at **server boot** (in `next.config.ts` rewrites),
-  so it's a normal runtime env — set it to the API service URL. No rebuild needed
-  to change it.
+> **`ICARO_API_ORIGIN` is NOT a runtime env var — do not pass it here.** It is
+> baked into the image at build time (see [Build the images](#build-the-images)).
+> Setting it on the Cloud Run service has **no effect**: `rewrites()` runs during
+> `next build` and the resolved proxy destination is written into
+> `.next/routes-manifest.json`; `output: "standalone"` emits no `next.config.js`,
+> so nothing re-reads the variable at boot.
+>
+> Verified on Next 16.2.6: an image built with `ICARO_API_ORIGIN=`
+> `http://build-time-canary:1111` and started with
+> `ICARO_API_ORIGIN=http://run-time-canary:2222` still tried to reach
+> `build-time-canary`.
+>
+> To point the web at a different API, **rebuild** with
+> `--build-arg ICARO_API_ORIGIN=...` and redeploy the new image.
+>
+> Note the `ARG ICARO_API_ORIGIN` default in `apps/web/Dockerfile` is a specific
+> project's API URL. Build without the flag and you silently ship that default —
+> always pass it explicitly.
+
 - The web is stateless; scale it freely.
 
 ---
