@@ -12,11 +12,10 @@
  * wizard root — NO .ork re-upload.
  */
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ApiError, getRockets, type RocketSummary } from "@/lib/api";
+import { ApiError, type RocketSummary } from "@/lib/api";
+import { useRocketsQuery } from "@/lib/queries";
 import { useWizard } from "@/components/wizard/WizardProvider";
-import { useAuth } from "@/components/auth/AuthGate";
 import { Button, Callout, Card, Eyebrow, Spinner } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { useT } from "@/components/i18n/LocaleProvider";
@@ -25,27 +24,13 @@ export function RocketsList() {
   const t = useT();
   const router = useRouter();
   const { setExport, goto } = useWizard();
-  const { logout } = useAuth();
 
-  const [rockets, setRockets] = useState<RocketSummary[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: rockets, isLoading: loading, error: queryError } = useRocketsQuery();
 
-  useEffect(() => {
-    let active = true;
-    getRockets()
-      .then((data) => active && setRockets(data))
-      .catch((err) => {
-        if (!active) return;
-        if (err instanceof ApiError && err.isUnauthorized) return logout();
-        setError(t("rockets.errorLoad"));
-      })
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // A 401 is handled globally (lib/query-client.ts); any other error shows a
+  // generic load-failure message, same as before.
+  const isUnauthorizedError = queryError instanceof ApiError && queryError.isUnauthorized;
+  const error = queryError && !isUnauthorizedError ? t("rockets.errorLoad") : null;
 
   function handleUseRocket(rocket: RocketSummary) {
     // Re-launch flow B: set export_id + manifest in wizard without re-uploading.

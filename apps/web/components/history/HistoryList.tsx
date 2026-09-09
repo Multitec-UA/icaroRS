@@ -10,16 +10,16 @@
  * "Re-run" triggers re-launch flow A: submits the stored (rocket_id, scenario)
  * verbatim to /api/simulate and navigates to the new result page — the
  * original simulation document is NOT mutated.
+ *
+ * The list itself is a useQuery (issue #48); "Re-run" stays a plain imperative
+ * call for now — it moves to a shared useSimulateMutation in a follow-up PR
+ * (see the PR description for why this one stops here).
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ApiError,
-  getHistory,
-  simulate,
-  type SimulationSummary,
-} from "@/lib/api";
+import { ApiError, simulate, type SimulationSummary } from "@/lib/api";
+import { useHistoryQuery } from "@/lib/queries";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Button, Callout, Card, Eyebrow, Spinner, cn } from "@/components/ui";
 import { CountUp, Reveal } from "@/components/motion";
@@ -30,29 +30,17 @@ export function HistoryList() {
   const router = useRouter();
   const { logout } = useAuth();
 
-  const [items, setItems] = useState<SimulationSummary[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: items, isLoading: loading, error: queryError } = useHistoryQuery();
+
+  // A 401 is also handled globally (lib/query-client.ts); any other error
+  // shows a generic load-failure message, same as before.
+  const isUnauthorizedError = queryError instanceof ApiError && queryError.isUnauthorized;
+  const error = queryError && !isUnauthorizedError ? t("history.errorLoad") : null;
+
   /** Map of simulation_id → run state for in-progress re-runs. */
   const [rerunState, setRerunState] = useState<
     Record<string, { status: "running" } | { status: "error"; httpStatus: number }>
   >({});
-
-  useEffect(() => {
-    let active = true;
-    getHistory()
-      .then((data) => active && setItems(data))
-      .catch((err) => {
-        if (!active) return;
-        if (err instanceof ApiError && err.isUnauthorized) return logout();
-        setError(t("history.errorLoad"));
-      })
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   async function handleReRun(item: SimulationSummary) {
     setRerunState((prev) => ({ ...prev, [item.simulation_id]: { status: "running" } }));

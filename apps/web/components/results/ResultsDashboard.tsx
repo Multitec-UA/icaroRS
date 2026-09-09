@@ -13,16 +13,12 @@
  * bare <img src>, so no manual authenticated fetch is needed.
  */
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import {
-  ApiError,
-  getResult,
-  type SimulateResult,
-} from "@/lib/api";
+import { ApiError } from "@/lib/api";
+import { useResultQuery } from "@/lib/queries";
 import { useWizard } from "@/components/wizard/WizardProvider";
-import { useAuth } from "@/components/auth/AuthGate";
 import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
 import { Accordion, Button, Callout, Eyebrow, InfoTip, Spinner, Surface } from "@/components/ui";
 import { CountUp, Reveal } from "@/components/motion";
@@ -38,37 +34,32 @@ const InteractiveResults = dynamic(
 
 export function ResultsDashboard({ runId }: { runId: string }) {
   const { state, goto, reset } = useWizard();
-  const { logout } = useAuth();
   const router = useRouter();
   const t = useT();
   const { locale } = useLocale();
 
+  // Already have it from the wizard (just-produced run) → skip the fetch
+  // entirely. Otherwise (deep link / refresh), useResultQuery fetches it.
   const fromWizard = state.result?.run_id === runId ? state.result : null;
-  const [result, setResult] = useState<SimulateResult | null>(fromWizard);
-  const [loading, setLoading] = useState<boolean>(!fromWizard);
-  const [error, setError] = useState<string | null>(null);
+  const { data, isLoading, error: queryError } = useResultQuery(runId, {
+    enabled: !fromWizard,
+  });
+  const result = fromWizard ?? data?.result ?? null;
+  const loading = !fromWizard && isLoading;
 
-  useEffect(() => {
-    if (fromWizard) return;
-    let active = true;
-    // `loading` already starts true when not served from the wizard, so no
-    // synchronous setState is needed here.
-    getResult(runId)
-      .then((env) => active && setResult(env.result))
-      .catch((err) => {
-        if (!active) return;
-        if (err instanceof ApiError && err.isUnauthorized) return logout();
-        if (err instanceof ApiError)
-          // Prefer server hint verbatim (503 service note) per design; otherwise map code to catalog key.
-          setError(err.hint ?? t(`errors.${err.code}`, { status: err.status }));
-        else setError(t("results.resultsNotFound"));
-      })
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId]);
+  // Derived at render time (not captured in a closure), so switching language
+  // after a failed fetch re-renders with the message in the NEW language
+  // instead of the stale one the effect-based version used to capture.
+  // A 401 is handled globally (lib/query-client.ts) and unmounts this
+  // component via the login screen, so it's deliberately not rendered here.
+  const isUnauthorizedError = queryError instanceof ApiError && queryError.isUnauthorized;
+  const error =
+    queryError && !isUnauthorizedError
+      ? queryError instanceof ApiError
+        ? // Prefer server hint verbatim (503 service note) per design; otherwise map code to catalog key.
+          (queryError.hint ?? t(`errors.${queryError.code}`, { status: queryError.status }))
+        : t("results.resultsNotFound")
+      : null;
 
   if (loading) {
     return (
