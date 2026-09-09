@@ -7,12 +7,21 @@ Coverage: AC-RG-2.7, AC-RG-2.8, AC-RG-2.9.
 
 from __future__ import annotations
 
-import base64
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
+
+_TEST_SESSION_COOKIE = "test-session-token"
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": "test-org"}
 
 
 def _make_client() -> TestClient:
@@ -21,16 +30,13 @@ def _make_client() -> TestClient:
 
     app = create_app()
 
-    def override_settings():
-        return Settings(basic_user="test", basic_pass="test")
-
-    app.dependency_overrides[get_settings] = override_settings
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     return TestClient(app, raise_server_exceptions=True)
 
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 @pytest.fixture

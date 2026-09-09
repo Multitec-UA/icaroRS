@@ -17,7 +17,7 @@ class TestStorageAdapterSelection:
         from icaro_api.runs import get_storage
         from icaro_api.services.storage import LocalFsStorage
 
-        s = Settings(basic_user="u", basic_pass="p", gcs_bucket=None)
+        s = Settings(gcs_bucket=None)
         storage = get_storage(s)
         assert isinstance(storage, LocalFsStorage)
 
@@ -28,7 +28,7 @@ class TestStorageAdapterSelection:
         from icaro_api.runs import get_storage
         from icaro_api.services.storage import GcsStorage
 
-        s = Settings(basic_user="u", basic_pass="p", gcs_bucket="my-bucket")
+        s = Settings(gcs_bucket="my-bucket")
         with patch("icaro_api.services.storage.GcsStorage.__init__", return_value=None):
             storage = get_storage(s)
         assert isinstance(storage, GcsStorage)
@@ -38,7 +38,7 @@ class TestStorageAdapterSelection:
         from icaro_api.runs import get_db
         from icaro_api.services.db import InMemoryDb
 
-        s = Settings(basic_user="u", basic_pass="p", firestore_project=None)
+        s = Settings(firestore_project=None)
         db = get_db(s)
         assert isinstance(db, InMemoryDb)
 
@@ -49,7 +49,7 @@ class TestStorageAdapterSelection:
         from icaro_api.runs import get_db
         from icaro_api.services.db import FirestoreDb
 
-        s = Settings(basic_user="u", basic_pass="p", firestore_project="my-gcp-project")
+        s = Settings(firestore_project="my-gcp-project")
         with patch("icaro_api.services.db.FirestoreDb.__init__", return_value=None):
             db = get_db(s)
         assert isinstance(db, FirestoreDb)
@@ -59,7 +59,7 @@ class TestStorageAdapterSelection:
         from icaro_api.runs import get_storage
         from icaro_api.services.storage import LocalFsStorage
 
-        s = Settings(basic_user="u", basic_pass="p", gcs_bucket=None, results_dir=tmp_path)
+        s = Settings(gcs_bucket=None, results_dir=tmp_path)
         storage = get_storage(s)
         assert isinstance(storage, LocalFsStorage)
         # The root must be inside results_dir (blobs live under it)
@@ -76,6 +76,6 @@ class TestStorageAdapterSelection:
         from icaro_api.services.db import InMemoryDb
         from icaro_api.services.storage import LocalFsStorage
 
-        s = Settings(basic_user="u", basic_pass="p")  # gcs_bucket=None, firestore_project=None
+        s = Settings()  # gcs_bucket=None, firestore_project=None
         assert isinstance(get_storage(s), LocalFsStorage)
         assert isinstance(get_db(s), InMemoryDb)

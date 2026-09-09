@@ -10,10 +10,18 @@ Two adapters:
 The ``Storage`` Protocol is the ONLY surface the routers touch; swapping
 adapters is purely a ``get_storage()`` concern.
 
-GCS object key scheme (REQ-02.7)
----------------------------------
-* Export artifacts:   ``exports/{rocket_id}/{filename}``
-* Simulation results: ``results/{simulation_id}/{filename}``
+GCS object key scheme (REQ-02.7, org-scoped since issue #45)
+--------------------------------------------------------------
+* Export artifacts:   ``orgs/{org_id}/exports/{rocket_id}/{filename}``
+* Simulation results: ``orgs/{org_id}/results/{simulation_id}/{filename}``
+
+Callers never reconstruct these keys from ``rocket_id``/``simulation_id``
+alone — the prefix is always read from the record's stored
+``export_prefix``/``result_prefix`` (``routers/convert.py``,
+``routers/simulate.py``, ``routers/results.py``). This is what lets the
+pre-#45 flat scheme (``exports/{rocket_id}/...``,
+``results/{simulation_id}/...``) coexist with the org-scoped one on
+existing records without a migration flag day.
 
 This scheme is documented here; ``get_storage()`` in ``runs.py`` is the
 single call site that resolves which adapter to use.

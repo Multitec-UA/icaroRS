@@ -16,21 +16,47 @@ simulate.py became async — deferred until then.
 
 from __future__ import annotations
 
-import base64
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, call, patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from icaro_api.services.db import InMemoryDb, SimRecord
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
+from icaro_api.services.db import InMemoryDb, RocketRecord, SimRecord
 from icaro_api.services.storage import LocalFsStorage
+
+_TEST_SESSION_COOKIE = "test-session-token"
+_ORG = "test-org"  # matches _fake_verify_identity's org_id claim below
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": _ORG}
+
+
+def _seed_rocket(db: InMemoryDb, export_id: str) -> None:
+    """POST /api/simulate now resolves export_id to its RocketRecord (#45) —
+    only needed against a real InMemoryDb (a MagicMock stub's get_rocket
+    returns a truthy MagicMock by default, so it doesn't need seeding)."""
+    db.save_rocket(
+        RocketRecord(
+            rocket_id=export_id,
+            name="TestRocket",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_by="test",
+            org_id=_ORG,
+            export_prefix=f"exports/{export_id}/",
+        ),
+        org_id=_ORG,
+    )
 
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 def _fake_results(run_id: str = "fake-sim-001") -> dict:
@@ -48,9 +74,8 @@ def _make_client(storage, db):
     from icaro_api.runs import get_db, get_storage
 
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test"
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     app.dependency_overrides[get_storage] = lambda: storage
     app.dependency_overrides[get_db] = lambda: db
     return TestClient(app, raise_server_exceptions=True)
@@ -76,6 +101,7 @@ class TestSimulateStorageSeam:
         client = _make_client(storage, db)
 
         export_id = "20260605T120000Z-abcd1234"
+        _seed_rocket(db, export_id)
 
         from tests.fakes import FakeFlight
 
@@ -106,6 +132,7 @@ class TestSimulateStorageSeam:
         client = _make_client(storage, db)
 
         export_id = "20260605T120000Z-abcd1234"
+        _seed_rocket(db, export_id)
         run_id = "fake-sim-001"
 
         from tests.fakes import FakeFlight
@@ -124,8 +151,12 @@ class TestSimulateStorageSeam:
         storage.upload_dir.assert_called_once()
         call_args = storage.upload_dir.call_args
         prefix = call_args[0][0] if call_args[0] else call_args[1].get("prefix", "")
-        assert prefix.startswith("results/"), (
-            f"upload_dir prefix must start with 'results/': {prefix!r}"
+        # Issue #45: org-scoped key. The actual run_id is the router's own
+        # make_run_id() output (unpredictable), not the mocked `run_id` above
+        # (that's only serialize_flight's fake return value) — so match the
+        # prefix shape, not an exact value.
+        assert prefix.startswith(f"orgs/{_ORG}/results/") and prefix.endswith("/"), (
+            f"upload_dir prefix must be org-scoped: {prefix!r}"
         )
 
     def test_upload_dir_called_after_lock_released(self, tmp_path):
@@ -154,6 +185,7 @@ class TestSimulateStorageSeam:
 
         client = _make_client(storage, db)
         export_id = "20260605T120000Z-abcd5678"
+        _seed_rocket(db, export_id)
 
         from tests.fakes import FakeFlight
 
@@ -189,7 +221,7 @@ class TestSimulateStorageSeam:
 
         db = MagicMock(spec=InMemoryDb)
 
-        def recording_save_sim(rec):
+        def recording_save_sim(rec, org_id):
             lock_state_at_db_save.append(_SIMULATE_LOCK.locked())
 
         db.save_simulation.side_effect = recording_save_sim
@@ -199,9 +231,8 @@ class TestSimulateStorageSeam:
         from icaro_api.runs import get_db, get_storage
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         client = TestClient(app, raise_server_exceptions=True)
@@ -241,6 +272,7 @@ class TestSimulateStorageSeam:
 
         # This id has no corresponding local directory.
         export_id = "20260605T120000Z-nonexistent"
+        _seed_rocket(db, export_id)
 
         from tests.fakes import FakeFlight
 
@@ -274,9 +306,8 @@ class TestPersistenceFailureIsolation:
         db = InMemoryDb()
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         return TestClient(app, raise_server_exceptions=False), db
@@ -287,6 +318,7 @@ class TestPersistenceFailureIsolation:
 
         client, db = self._client_with_failing_upload()
         export_id = "20260605T120000Z-failupload"
+        _seed_rocket(db, export_id)
 
         with (
             patch("icaro_api.routers.simulate.simulate_from_export", return_value=FakeFlight()),
@@ -308,6 +340,7 @@ class TestPersistenceFailureIsolation:
 
         client, db = self._client_with_failing_upload()
         export_id = "20260605T120000Z-payloadcheck"
+        _seed_rocket(db, export_id)
         fake_res = _fake_results()
         fake_res["scalars"] = {"apogee_m": 5000.0}
 
@@ -341,9 +374,8 @@ class TestPersistenceFailureIsolation:
         db.save_simulation.side_effect = RuntimeError("Firestore connection refused")
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         client = TestClient(app, raise_server_exceptions=False)
@@ -381,9 +413,8 @@ class TestErrorSimulationRecord:
         db = MagicMock(spec=InMemoryDb)
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         return TestClient(app, raise_server_exceptions=False), db, storage
@@ -487,9 +518,8 @@ class TestSimulateDbRecord:
         from icaro_api.runs import get_db, get_storage
 
         app = create_app()
-        app.dependency_overrides[get_settings] = lambda: Settings(
-            basic_user="test", basic_pass="test"
-        )
+        app.dependency_overrides[get_settings] = lambda: Settings()
+        app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
         app.dependency_overrides[get_storage] = lambda: storage
         app.dependency_overrides[get_db] = lambda: db
         client = TestClient(app, raise_server_exceptions=True)

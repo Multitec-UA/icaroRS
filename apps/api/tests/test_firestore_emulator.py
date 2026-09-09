@@ -51,6 +51,7 @@ if not _EMULATOR_HOST:
 # ---------------------------------------------------------------------------
 
 _PROJECT = "icaro-emulator-test"
+_ORG = "test-org"
 _BASE = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
 
 
@@ -87,12 +88,14 @@ def _rocket(
     rocket_id: str = "r-test",
     dt: datetime | None = None,
     manifest: dict | None = None,
+    org_id: str = _ORG,
 ) -> RocketRecord:
     return RocketRecord(
         rocket_id=rocket_id,
         name="TestRocket",
         created_at=dt or _BASE,
         created_by="ci",
+        org_id=org_id,
         export_prefix=f"exports/{rocket_id}/",
         manifest=manifest if manifest is not None else {"name": "TestRocket"},
         gcs_ref=f"exports/{rocket_id}/",
@@ -106,6 +109,7 @@ def _sim(
     rocket_id: str = "r-test",
     dt: datetime | None = None,
     scenario: dict | None = None,
+    org_id: str = _ORG,
 ) -> SimRecord:
     return SimRecord(
         simulation_id=sim_id,
@@ -113,6 +117,7 @@ def _sim(
         scenario=scenario if scenario is not None else {"site": "launch_pad", "wind_speed": 5.0},
         created_at=dt or _BASE,
         created_by="ci",
+        org_id=org_id,
         status="done",
         scalars={"apogee_m": 3000.0, "max_speed_mps": 340.0},
         warnings=[],
@@ -165,7 +170,7 @@ class TestPR28NestedArrayRegression:
         rec = _rocket("r-pr28", manifest=manifest_with_nested_arrays)
 
         # Must not raise 400 InvalidArgument
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=_ORG)
 
     def test_raw_firestore_doc_has_no_manifest_field(
         self, db: FirestoreDb
@@ -185,7 +190,7 @@ class TestPR28NestedArrayRegression:
                 ],
             },
         )
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=_ORG)
 
         snap = db._db.collection("rockets").document("r-pr28-raw").get()
         assert snap.exists, "Document was not written to Firestore"
@@ -208,7 +213,7 @@ class TestPR28NestedArrayRegression:
             "r-pr28-meta",
             manifest={"name": "FreeformRocket", "freeform_fins": [{"shape_points": [[0.0, 0.0]]}]},
         )
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=_ORG)
 
         snap = db._db.collection("rockets").document("r-pr28-meta").get()
         raw = snap.to_dict()
@@ -229,9 +234,9 @@ class TestGetRocket:
     def test_get_rocket_returns_saved_record(self, db: FirestoreDb) -> None:
         """save_rocket then get_rocket returns a matching RocketRecord."""
         rec = _rocket("r-get")
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=_ORG)
 
-        got = db.get_rocket("r-get")
+        got = db.get_rocket("r-get", org_id=_ORG)
 
         assert got is not None
         assert got.rocket_id == "r-get"
@@ -246,7 +251,7 @@ class TestGetRocket:
         self, db: FirestoreDb
     ) -> None:
         """get_rocket returns None when no document exists for the given id."""
-        result = db.get_rocket("does-not-exist-xyz")
+        result = db.get_rocket("does-not-exist-xyz", org_id=_ORG)
         assert result is None
 
     def test_get_rocket_manifest_defaults_to_empty_dict(
@@ -258,9 +263,9 @@ class TestGetRocket:
         so the returned record has an empty manifest — correct behaviour.
         """
         rec = _rocket("r-get-manifest", manifest={"name": "Rocket", "version": "1"})
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=_ORG)
 
-        got = db.get_rocket("r-get-manifest")
+        got = db.get_rocket("r-get-manifest", org_id=_ORG)
         assert got is not None
         assert got.manifest == {}, (
             "manifest must be empty dict after round-trip (not stored in Firestore)"
@@ -279,11 +284,11 @@ class TestListRockets:
         t2 = _BASE + timedelta(hours=1)
         t3 = _BASE + timedelta(hours=2)
 
-        db.save_rocket(_rocket("r-list-a", dt=t1))
-        db.save_rocket(_rocket("r-list-b", dt=t2))
-        db.save_rocket(_rocket("r-list-c", dt=t3))
+        db.save_rocket(_rocket("r-list-a", dt=t1), org_id=_ORG)
+        db.save_rocket(_rocket("r-list-b", dt=t2), org_id=_ORG)
+        db.save_rocket(_rocket("r-list-c", dt=t3), org_id=_ORG)
 
-        records = db.list_rockets(limit=10)
+        records = db.list_rockets(org_id=_ORG, limit=10)
         ids = [r.rocket_id for r in records]
 
         assert ids == ["r-list-c", "r-list-b", "r-list-a"], (
@@ -294,9 +299,9 @@ class TestListRockets:
         """list_rockets respects the ``limit`` parameter."""
         for i in range(5):
             dt = _BASE + timedelta(hours=i)
-            db.save_rocket(_rocket(f"r-lim-{i}", dt=dt))
+            db.save_rocket(_rocket(f"r-lim-{i}", dt=dt), org_id=_ORG)
 
-        records = db.list_rockets(limit=3)
+        records = db.list_rockets(org_id=_ORG, limit=3)
         assert len(records) == 3
 
     def test_list_rockets_cursor_excludes_records_at_or_after(
@@ -307,12 +312,12 @@ class TestListRockets:
         t2 = _BASE + timedelta(hours=1)
         t3 = _BASE + timedelta(hours=2)
 
-        db.save_rocket(_rocket("r-cur-a", dt=t1))
-        db.save_rocket(_rocket("r-cur-b", dt=t2))
-        db.save_rocket(_rocket("r-cur-c", dt=t3))
+        db.save_rocket(_rocket("r-cur-a", dt=t1), org_id=_ORG)
+        db.save_rocket(_rocket("r-cur-b", dt=t2), org_id=_ORG)
+        db.save_rocket(_rocket("r-cur-c", dt=t3), org_id=_ORG)
 
         # before=t3 should exclude r-cur-c
-        records = db.list_rockets(limit=10, before=t3)
+        records = db.list_rockets(org_id=_ORG, limit=10, before=t3)
         ids = [r.rocket_id for r in records]
 
         assert "r-cur-c" not in ids, f"Cursor should exclude the newest; got: {ids}"
@@ -331,9 +336,9 @@ class TestSaveAndListSimulations:
     ) -> None:
         """save_simulation + list_simulations basic round-trip."""
         rec = _sim("s-basic")
-        db.save_simulation(rec)
+        db.save_simulation(rec, org_id=_ORG)
 
-        results = db.list_simulations(limit=10)
+        results = db.list_simulations(org_id=_ORG, limit=10)
         ids = [r.simulation_id for r in results]
 
         assert "s-basic" in ids
@@ -346,11 +351,11 @@ class TestSaveAndListSimulations:
         t2 = _BASE + timedelta(hours=1)
         t3 = _BASE + timedelta(hours=2)
 
-        db.save_simulation(_sim("s-list-a", dt=t1))
-        db.save_simulation(_sim("s-list-b", dt=t2))
-        db.save_simulation(_sim("s-list-c", dt=t3))
+        db.save_simulation(_sim("s-list-a", dt=t1), org_id=_ORG)
+        db.save_simulation(_sim("s-list-b", dt=t2), org_id=_ORG)
+        db.save_simulation(_sim("s-list-c", dt=t3), org_id=_ORG)
 
-        records = db.list_simulations(limit=10)
+        records = db.list_simulations(org_id=_ORG, limit=10)
         ids = [r.simulation_id for r in records]
 
         assert ids == ["s-list-c", "s-list-b", "s-list-a"], (
@@ -363,18 +368,18 @@ class TestSaveAndListSimulations:
         t2 = _BASE + timedelta(hours=1)
         t3 = _BASE + timedelta(hours=2)
 
-        db.save_simulation(_sim("s-page-a", dt=t1))
-        db.save_simulation(_sim("s-page-b", dt=t2))
-        db.save_simulation(_sim("s-page-c", dt=t3))
+        db.save_simulation(_sim("s-page-a", dt=t1), org_id=_ORG)
+        db.save_simulation(_sim("s-page-b", dt=t2), org_id=_ORG)
+        db.save_simulation(_sim("s-page-c", dt=t3), org_id=_ORG)
 
         # Page 1: limit=2 gets [s-page-c, s-page-b]
-        page1 = db.list_simulations(limit=2)
+        page1 = db.list_simulations(org_id=_ORG, limit=2)
         assert len(page1) == 2
         assert page1[0].simulation_id == "s-page-c"
         assert page1[1].simulation_id == "s-page-b"
 
         # Page 2: before=t2 (the oldest record on page 1)
-        page2 = db.list_simulations(limit=2, before=t2)
+        page2 = db.list_simulations(org_id=_ORG, limit=2, before=t2)
         ids2 = [r.simulation_id for r in page2]
         assert "s-page-a" in ids2
         assert "s-page-b" not in ids2
@@ -384,9 +389,9 @@ class TestSaveAndListSimulations:
         """``limit`` parameter caps the number of returned simulations."""
         for i in range(5):
             dt = _BASE + timedelta(hours=i)
-            db.save_simulation(_sim(f"s-lim-{i}", dt=dt))
+            db.save_simulation(_sim(f"s-lim-{i}", dt=dt), org_id=_ORG)
 
-        records = db.list_simulations(limit=3)
+        records = db.list_simulations(org_id=_ORG, limit=3)
         assert len(records) == 3
 
 
@@ -418,9 +423,9 @@ class TestScenarioRoundTrip:
             "atm": {"model": "ISA"},
         }
         rec = _sim("s-scenario-rt", scenario=original_scenario)
-        db.save_simulation(rec)
+        db.save_simulation(rec, org_id=_ORG)
 
-        results = db.list_simulations(limit=1)
+        results = db.list_simulations(org_id=_ORG, limit=1)
         assert len(results) == 1
 
         retrieved = results[0]
@@ -441,9 +446,9 @@ class TestScenarioRoundTrip:
             "nested": {"key": "value", "num": 1.23},
         }
         rec = _sim("s-types-rt", scenario=scenario)
-        db.save_simulation(rec)
+        db.save_simulation(rec, org_id=_ORG)
 
-        results = db.list_simulations(limit=1)
+        results = db.list_simulations(org_id=_ORG, limit=1)
         got = results[0].scenario
 
         assert got["wind_speed_ms"] == pytest.approx(5.0)

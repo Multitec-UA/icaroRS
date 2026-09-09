@@ -9,6 +9,10 @@ The approach bypasses __init__ and injects a mock _db client directly.
 Collections tested:
   ``rockets``     — save_rocket, get_rocket, list_rockets
   ``simulations`` — save_simulation, list_simulations
+
+org_id (issue #43): every method takes org_id as a required parameter. Reads
+are scoped with a ``.where("org_id", "==", org_id)`` clause (backed by the
+composite index from issue #42); writes assert rec.org_id matches.
 """
 
 from __future__ import annotations
@@ -19,6 +23,9 @@ from unittest.mock import MagicMock, call
 import pytest
 
 from icaro_api.services.db import FirestoreDb, RocketRecord, SimRecord
+
+_ORG = "org-ci"
+_OTHER_ORG = "org-other"
 
 
 # ---------------------------------------------------------------------------
@@ -32,12 +39,13 @@ _T2 = _BASE + timedelta(days=30)
 _T3 = _BASE + timedelta(days=60)
 
 
-def _make_rocket(rocket_id: str = "r1", dt: datetime | None = None) -> RocketRecord:
+def _make_rocket(rocket_id: str = "r1", dt: datetime | None = None, org_id: str = _ORG) -> RocketRecord:
     return RocketRecord(
         rocket_id=rocket_id,
         name="TestRocket",
         created_at=dt or _T1,
         created_by="ci",
+        org_id=org_id,
         export_prefix=f"exports/{rocket_id}/",
         manifest={"name": "TestRocket", "version": "1"},
         gcs_ref=f"exports/{rocket_id}/",
@@ -51,6 +59,7 @@ def _make_sim(
     rocket_id: str = "r1",
     dt: datetime | None = None,
     status: str = "done",
+    org_id: str = _ORG,
 ) -> SimRecord:
     return SimRecord(
         simulation_id=sim_id,
@@ -58,6 +67,7 @@ def _make_sim(
         scenario={"site": "launch_pad"},
         created_at=dt or _T1,
         created_by="ci",
+        org_id=org_id,
         status=status,
         scalars={"apogee_m": 3000.0},
         warnings=[],
@@ -91,7 +101,7 @@ class TestFirestoreDbSaveRocket:
     def test_writes_to_rockets_collection(self, fs, mock_db_client):
         """save_rocket must call .collection('rockets').document(rocket_id).set(...)."""
         rec = _make_rocket("r-save")
-        fs.save_rocket(rec)
+        fs.save_rocket(rec, org_id=_ORG)
 
         mock_db_client.collection.assert_called_once_with("rockets")
         collection = mock_db_client.collection.return_value
@@ -100,9 +110,9 @@ class TestFirestoreDbSaveRocket:
         assert doc_ref.set.called
 
     def test_set_contains_expected_fields(self, fs, mock_db_client):
-        """The dict passed to .set() must include name, created_at, gcs_ref."""
+        """The dict passed to .set() must include name, created_at, gcs_ref, org_id."""
         rec = _make_rocket("r-fields")
-        fs.save_rocket(rec)
+        fs.save_rocket(rec, org_id=_ORG)
 
         doc_ref = (
             mock_db_client.collection.return_value.document.return_value
@@ -112,6 +122,7 @@ class TestFirestoreDbSaveRocket:
         assert set_kwargs["name"] == "TestRocket"
         assert set_kwargs["created_at"] == rec.created_at
         assert set_kwargs["gcs_ref"] == "exports/r-fields/"
+        assert set_kwargs["org_id"] == _ORG
 
     def test_set_excludes_manifest(self, fs, mock_db_client):
         """Regression: the manifest must NOT be written to Firestore.
@@ -128,7 +139,7 @@ class TestFirestoreDbSaveRocket:
                 {"shape_points": [[0.0, 0.0], [0.1, 0.05], [0.2, 0.0]]}
             ],
         }
-        fs.save_rocket(rec)
+        fs.save_rocket(rec, org_id=_ORG)
 
         set_kwargs = (
             mock_db_client.collection.return_value.document.return_value
@@ -143,12 +154,19 @@ class TestFirestoreDbSaveRocket:
     def test_set_preserves_datetime_object(self, fs, mock_db_client):
         """created_at must remain a datetime object (Firestore serialises it natively)."""
         rec = _make_rocket("r-dt")
-        fs.save_rocket(rec)
+        fs.save_rocket(rec, org_id=_ORG)
 
         doc_ref = mock_db_client.collection.return_value.document.return_value
         doc_data = doc_ref.set.call_args[0][0]
 
         assert isinstance(doc_data["created_at"], datetime)
+
+    def test_rejects_mismatched_org_id(self, fs, mock_db_client):
+        """save_rocket raises when rec.org_id disagrees with the org_id argument."""
+        rec = _make_rocket("r-mismatch", org_id=_ORG)
+        with pytest.raises(ValueError):
+            fs.save_rocket(rec, org_id=_OTHER_ORG)
+        mock_db_client.collection.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +185,7 @@ class TestFirestoreDbGetRocket:
             "name": rec.name,
             "created_at": rec.created_at,
             "created_by": rec.created_by,
+            "org_id": rec.org_id,
             "export_prefix": rec.export_prefix,
             "manifest": rec.manifest,
             "gcs_ref": rec.gcs_ref,
@@ -179,7 +198,7 @@ class TestFirestoreDbGetRocket:
             .get.return_value
         ) = snap
 
-        result = fs.get_rocket("r-get")
+        result = fs.get_rocket("r-get", org_id=_ORG)
 
         assert result is not None
         assert result.rocket_id == "r-get"
@@ -195,7 +214,28 @@ class TestFirestoreDbGetRocket:
             .get.return_value
         ) = snap
 
-        result = fs.get_rocket("r-missing")
+        result = fs.get_rocket("r-missing", org_id=_ORG)
+
+        assert result is None
+
+    def test_returns_none_for_another_org(self, fs, mock_db_client):
+        """get_rocket returns None when the document belongs to a different org."""
+        snap = MagicMock()
+        snap.exists = True
+        snap.to_dict.return_value = {
+            "name": "Theirs",
+            "created_at": _T1,
+            "created_by": "ci",
+            "org_id": _OTHER_ORG,
+            "export_prefix": "exports/r-theirs/",
+        }
+        (
+            mock_db_client.collection.return_value
+            .document.return_value
+            .get.return_value
+        ) = snap
+
+        result = fs.get_rocket("r-theirs", org_id=_ORG)
 
         assert result is None
 
@@ -209,7 +249,7 @@ class TestFirestoreDbGetRocket:
             .get.return_value
         ) = snap
 
-        fs.get_rocket("r-query-id")
+        fs.get_rocket("r-query-id", org_id=_ORG)
 
         mock_db_client.collection.assert_called_with("rockets")
         mock_db_client.collection.return_value.document.assert_called_with(
@@ -229,15 +269,29 @@ class TestFirestoreDbListRockets:
         snap.to_dict.return_value = data
         return snap
 
-    def test_queries_rockets_collection_with_order_desc(self, fs, mock_db_client):
-        """list_rockets must query 'rockets' ordered by created_at DESCENDING."""
-        # Chain: collection(...).order_by(...).limit(...).[start_after(...).]stream()
+    def _chained_query(self, mock_db_client):
         q = mock_db_client.collection.return_value
+        q.where.return_value = q
         q.order_by.return_value = q
         q.limit.return_value = q
+        q.start_after.return_value = q
+        return q
+
+    def test_filters_by_org_id(self, fs, mock_db_client):
+        """list_rockets must query with .where('org_id', '==', org_id)."""
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_rockets(limit=10)
+        fs.list_rockets(org_id=_ORG, limit=10)
+
+        q.where.assert_called_once_with("org_id", "==", _ORG)
+
+    def test_queries_rockets_collection_with_order_desc(self, fs, mock_db_client):
+        """list_rockets must query 'rockets' ordered by created_at DESCENDING."""
+        q = self._chained_query(mock_db_client)
+        q.stream.return_value = []
+
+        fs.list_rockets(org_id=_ORG, limit=10)
 
         mock_db_client.collection.assert_called_with("rockets")
         q.order_by.assert_called_once()
@@ -252,35 +306,28 @@ class TestFirestoreDbListRockets:
 
     def test_applies_limit(self, fs, mock_db_client):
         """list_rockets must call .limit(n) with the requested limit."""
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_rockets(limit=5)
+        fs.list_rockets(org_id=_ORG, limit=5)
 
         q.limit.assert_called_once_with(5)
 
     def test_applies_cursor_when_before_given(self, fs, mock_db_client):
         """list_rockets must call .start_after({'created_at': before}) when before is set."""
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
-        q.start_after.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_rockets(limit=20, before=_T2)
+        fs.list_rockets(org_id=_ORG, limit=20, before=_T2)
 
         q.start_after.assert_called_once_with({"created_at": _T2})
 
     def test_no_start_after_when_before_is_none(self, fs, mock_db_client):
         """list_rockets must NOT call start_after when before is None."""
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_rockets(limit=20, before=None)
+        fs.list_rockets(org_id=_ORG, limit=20, before=None)
 
         q.start_after.assert_not_called()
 
@@ -292,6 +339,7 @@ class TestFirestoreDbListRockets:
                 "name": "Listed",
                 "created_at": _T1,
                 "created_by": "ci",
+                "org_id": _ORG,
                 "export_prefix": "exports/r-listed/",
                 "manifest": {},
                 "gcs_ref": "exports/r-listed/",
@@ -299,16 +347,15 @@ class TestFirestoreDbListRockets:
                 "has_source_ork": False,
             },
         )
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = [snap]
 
-        result = fs.list_rockets()
+        result = fs.list_rockets(org_id=_ORG)
 
         assert len(result) == 1
         assert result[0].rocket_id == "r-listed"
         assert result[0].name == "Listed"
+        assert result[0].org_id == _ORG
 
 
 # ---------------------------------------------------------------------------
@@ -320,7 +367,7 @@ class TestFirestoreDbSaveSimulation:
     def test_writes_to_simulations_collection(self, fs, mock_db_client):
         """save_simulation must call .collection('simulations').document(sim_id).set(...)."""
         rec = _make_sim("s-save")
-        fs.save_simulation(rec)
+        fs.save_simulation(rec, org_id=_ORG)
 
         mock_db_client.collection.assert_called_once_with("simulations")
         collection = mock_db_client.collection.return_value
@@ -329,9 +376,9 @@ class TestFirestoreDbSaveSimulation:
         assert doc_ref.set.called
 
     def test_set_contains_expected_fields(self, fs, mock_db_client):
-        """The dict passed to .set() must include rocket_id, status, scalars, artifact_refs."""
+        """The dict passed to .set() must include rocket_id, status, scalars, artifact_refs, org_id."""
         rec = _make_sim("s-fields")
-        fs.save_simulation(rec)
+        fs.save_simulation(rec, org_id=_ORG)
 
         doc_ref = (
             mock_db_client.collection.return_value.document.return_value
@@ -342,16 +389,24 @@ class TestFirestoreDbSaveSimulation:
         assert set_kwargs["status"] == "done"
         assert set_kwargs["scalars"] == {"apogee_m": 3000.0}
         assert "result_json" in set_kwargs["artifact_refs"]
+        assert set_kwargs["org_id"] == _ORG
 
     def test_set_preserves_datetime_object(self, fs, mock_db_client):
         """created_at must remain a datetime object for Firestore serialisation."""
         rec = _make_sim("s-dt")
-        fs.save_simulation(rec)
+        fs.save_simulation(rec, org_id=_ORG)
 
         doc_ref = mock_db_client.collection.return_value.document.return_value
         doc_data = doc_ref.set.call_args[0][0]
 
         assert isinstance(doc_data["created_at"], datetime)
+
+    def test_rejects_mismatched_org_id(self, fs, mock_db_client):
+        """save_simulation raises when rec.org_id disagrees with the org_id argument."""
+        rec = _make_sim("s-mismatch", org_id=_ORG)
+        with pytest.raises(ValueError):
+            fs.save_simulation(rec, org_id=_OTHER_ORG)
+        mock_db_client.collection.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -366,14 +421,29 @@ class TestFirestoreDbListSimulations:
         snap.to_dict.return_value = data
         return snap
 
-    def test_queries_simulations_collection_ordered_desc(self, fs, mock_db_client):
-        """list_simulations queries 'simulations' with order_by created_at DESCENDING."""
+    def _chained_query(self, mock_db_client):
         q = mock_db_client.collection.return_value
+        q.where.return_value = q
         q.order_by.return_value = q
         q.limit.return_value = q
+        q.start_after.return_value = q
+        return q
+
+    def test_filters_by_org_id(self, fs, mock_db_client):
+        """list_simulations must query with .where('org_id', '==', org_id)."""
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_simulations(limit=10)
+        fs.list_simulations(org_id=_ORG, limit=10)
+
+        q.where.assert_called_once_with("org_id", "==", _ORG)
+
+    def test_queries_simulations_collection_ordered_desc(self, fs, mock_db_client):
+        """list_simulations queries 'simulations' with order_by created_at DESCENDING."""
+        q = self._chained_query(mock_db_client)
+        q.stream.return_value = []
+
+        fs.list_simulations(org_id=_ORG, limit=10)
 
         mock_db_client.collection.assert_called_with("simulations")
         q.order_by.assert_called_once()
@@ -387,35 +457,28 @@ class TestFirestoreDbListSimulations:
 
     def test_applies_limit(self, fs, mock_db_client):
         """list_simulations must call .limit(n)."""
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_simulations(limit=7)
+        fs.list_simulations(org_id=_ORG, limit=7)
 
         q.limit.assert_called_once_with(7)
 
     def test_applies_cursor_when_before_given(self, fs, mock_db_client):
         """list_simulations must call .start_after({'created_at': before})."""
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
-        q.start_after.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_simulations(limit=20, before=_T2)
+        fs.list_simulations(org_id=_ORG, limit=20, before=_T2)
 
         q.start_after.assert_called_once_with({"created_at": _T2})
 
     def test_no_start_after_when_before_none(self, fs, mock_db_client):
         """list_simulations must NOT call start_after when before is None."""
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = []
 
-        fs.list_simulations(limit=20, before=None)
+        fs.list_simulations(org_id=_ORG, limit=20, before=None)
 
         q.start_after.assert_not_called()
 
@@ -428,6 +491,7 @@ class TestFirestoreDbListSimulations:
                 "scenario": {"site": "field"},
                 "created_at": _T1,
                 "created_by": "ci",
+                "org_id": _ORG,
                 "status": "done",
                 "scalars": {"apogee_m": 2500.0},
                 "warnings": [],
@@ -437,13 +501,12 @@ class TestFirestoreDbListSimulations:
                 "artifact_refs": {},
             },
         )
-        q = mock_db_client.collection.return_value
-        q.order_by.return_value = q
-        q.limit.return_value = q
+        q = self._chained_query(mock_db_client)
         q.stream.return_value = [snap]
 
-        result = fs.list_simulations()
+        result = fs.list_simulations(org_id=_ORG)
 
         assert len(result) == 1
         assert result[0].simulation_id == "s-listed"
         assert result[0].scalars == {"apogee_m": 2500.0}
+        assert result[0].org_id == _ORG

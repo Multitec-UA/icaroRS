@@ -7,31 +7,57 @@ Coverage: AC-RG-9.2 (concurrent simulate requests both succeed, second waits for
 
 from __future__ import annotations
 
-import base64
 import threading
 import time
+from datetime import datetime, timezone
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
+from icaro_api.services.db import InMemoryDb, RocketRecord
 
-def _make_client() -> TestClient:
+_TEST_SESSION_COOKIE = "test-session-token"
+_ORG = "test-org"  # matches _fake_verify_identity's org_id claim below
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": _ORG}
+
+
+def _make_client(db: InMemoryDb | None = None) -> TestClient:
     from icaro_api.main import create_app
     from icaro_api.config import Settings, get_settings
+    from icaro_api.runs import get_db
 
     app = create_app()
 
-    def override_settings():
-        return Settings(basic_user="test", basic_pass="test")
-
-    app.dependency_overrides[get_settings] = override_settings
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
+    app.dependency_overrides[get_db] = lambda: db if db is not None else InMemoryDb()
     return TestClient(app, raise_server_exceptions=True)
 
 
+def _seed_rocket(db: InMemoryDb, export_id: str) -> None:
+    """POST /api/simulate now resolves export_id to its RocketRecord (#45)."""
+    db.save_rocket(
+        RocketRecord(
+            rocket_id=export_id,
+            name="TestRocket",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_by="test",
+            org_id=_ORG,
+            export_prefix=f"exports/{export_id}/",
+        ),
+        org_id=_ORG,
+    )
+
+
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 # ---------------------------------------------------------------------------
@@ -106,10 +132,13 @@ class TestSimulateConcurrency:
             results: list = []
             errors: list = []
 
-            client = _make_client()
+            db = InMemoryDb()
+            export_id = str(tmp_path)
+            _seed_rocket(db, export_id)
+            client = _make_client(db)
 
             valid_body = {
-                "export_id": str(tmp_path),
+                "export_id": export_id,
                 "scenario": {
                     "site": {"latitude": 0.0, "longitude": 0.0},
                     "atmosphere": {"model": "standard_atmosphere"},
@@ -168,9 +197,12 @@ class TestSimulateEndpoint:
                 "warnings": [],
             }
 
-            client = _make_client()
+            db = InMemoryDb()
+            export_id = str(tmp_path)
+            _seed_rocket(db, export_id)
+            client = _make_client(db)
             body = {
-                "export_id": str(tmp_path),
+                "export_id": export_id,
                 "scenario": {
                     "site": {"latitude": 0.0, "longitude": 0.0},
                     "atmosphere": {"model": "standard_atmosphere"},
@@ -207,9 +239,12 @@ class TestSimulateEndpoint:
                 "warnings": [],
             }
 
-            client = _make_client()
+            db = InMemoryDb()
+            export_id = str(tmp_path)
+            _seed_rocket(db, export_id)
+            client = _make_client(db)
             body = {
-                "export_id": str(tmp_path),
+                "export_id": export_id,
                 "scenario": {
                     "site": {"latitude": 0.0, "longitude": 0.0},
                     "atmosphere": {"model": "standard_atmosphere"},

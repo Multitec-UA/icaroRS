@@ -16,7 +16,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from icaro_api.auth import require_auth
+from icaro_api.auth import Identity, require_auth
 from icaro_api.runs import get_db, get_storage
 from icaro_api.services.db import Db
 from icaro_api.services.storage import Storage
@@ -35,6 +35,7 @@ def list_rockets(
     limit: int = _DEFAULT_LIMIT,
     before: datetime | None = None,
     db: Db = Depends(get_db),
+    identity: Identity = Depends(require_auth),
 ) -> list[dict[str, Any]]:
     """Return a paginated list of saved rockets in reverse-chronological order.
 
@@ -48,7 +49,7 @@ def list_rockets(
     Satisfies REQ-04.1, REQ-04.2, REQ-04.3.
     """
     effective_limit = min(max(1, limit), _MAX_LIMIT)
-    records = db.list_rockets(limit=effective_limit, before=before)
+    records = db.list_rockets(org_id=identity.org_id, limit=effective_limit, before=before)
 
     return [
         {
@@ -70,6 +71,7 @@ def get_rocket(
     rocket_id: str,
     db: Db = Depends(get_db),
     storage: Storage = Depends(get_storage),
+    identity: Identity = Depends(require_auth),
 ) -> dict[str, Any]:
     """Return the full rocket record including manifest and gcs_ref.
 
@@ -79,10 +81,10 @@ def get_rocket(
     ``FirestoreDb.save_rocket``). It is loaded here from Storage and degrades to
     ``{}`` if the blob is missing, so the endpoint never 500s on a stale record.
 
-    Returns 404 if the rocket_id is not found.
+    Returns 404 if the rocket_id is not found OR not owned by the caller's org.
     Satisfies REQ-04.4.
     """
-    record = db.get_rocket(rocket_id)
+    record = db.get_rocket(rocket_id, org_id=identity.org_id)
     if record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

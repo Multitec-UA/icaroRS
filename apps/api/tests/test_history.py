@@ -8,7 +8,6 @@ Req: REQ-05.1 (reverse-chronological list)
 
 from __future__ import annotations
 
-import base64
 from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import urlencode
@@ -16,12 +15,20 @@ from urllib.parse import urlencode
 import pytest
 from fastapi.testclient import TestClient
 
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
 from icaro_api.services.db import InMemoryDb, RocketRecord, SimRecord
+
+_TEST_SESSION_COOKIE = "test-session-token"
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": "test-org"}
 
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 def _make_client(db: Any) -> TestClient:
@@ -30,19 +37,23 @@ def _make_client(db: Any) -> TestClient:
     from icaro_api.runs import get_db
 
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test"
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     app.dependency_overrides[get_db] = lambda: db
     return TestClient(app, raise_server_exceptions=True)
 
 
-def _rocket(rocket_id: str, name: str) -> RocketRecord:
+_ORG = "test-org"  # matches _fake_verify_identity's org_id claim above
+_OTHER_ORG = "other-org"
+
+
+def _rocket(rocket_id: str, name: str, org_id: str = _ORG) -> RocketRecord:
     return RocketRecord(
         rocket_id=rocket_id,
         name=name,
         created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         created_by="test",
+        org_id=org_id,
         export_prefix=f"exports/{rocket_id}/",
     )
 
@@ -53,6 +64,7 @@ def _sim(
     created_at: datetime,
     status: str = "done",
     apogee: float = 3000.0,
+    org_id: str = _ORG,
 ) -> SimRecord:
     return SimRecord(
         simulation_id=sim_id,
@@ -60,6 +72,7 @@ def _sim(
         scenario={},
         created_at=created_at,
         created_by="test",
+        org_id=org_id,
         status=status,
         scalars={"apogee_m": apogee},
         warnings=[],
@@ -89,10 +102,10 @@ class TestHistoryList:
         """REQ-05.1: list must be newest-first."""
         db = InMemoryDb()
         rocket_id = "r-chrono"
-        db.save_rocket(_rocket(rocket_id, "Chrono"))
-        db.save_simulation(_sim("s1", rocket_id, _T1))
-        db.save_simulation(_sim("s2", rocket_id, _T2))
-        db.save_simulation(_sim("s3", rocket_id, _T3))
+        db.save_rocket(_rocket(rocket_id, "Chrono"), org_id=_ORG)
+        db.save_simulation(_sim("s1", rocket_id, _T1), org_id=_ORG)
+        db.save_simulation(_sim("s2", rocket_id, _T2), org_id=_ORG)
+        db.save_simulation(_sim("s3", rocket_id, _T3), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history", headers=_auth())
@@ -109,8 +122,8 @@ class TestHistoryList:
         created_at, status, and scalars.apogee."""
         db = InMemoryDb()
         rocket_id = "r-fields"
-        db.save_rocket(_rocket(rocket_id, "FieldsRocket"))
-        db.save_simulation(_sim("s-fields", rocket_id, _T1, apogee=3200.0))
+        db.save_rocket(_rocket(rocket_id, "FieldsRocket"), org_id=_ORG)
+        db.save_simulation(_sim("s-fields", rocket_id, _T1, apogee=3200.0), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history", headers=_auth())
@@ -135,8 +148,8 @@ class TestHistoryList:
         """REQ-05.2: 'name' must be the rocket name (not empty)."""
         db = InMemoryDb()
         rocket_id = "r-denom"
-        db.save_rocket(_rocket(rocket_id, "MyFancyRocket"))
-        db.save_simulation(_sim("s-denom", rocket_id, _T1))
+        db.save_rocket(_rocket(rocket_id, "MyFancyRocket"), org_id=_ORG)
+        db.save_simulation(_sim("s-denom", rocket_id, _T1), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history", headers=_auth())
@@ -151,10 +164,10 @@ class TestHistoryList:
         """REQ-05.3: default limit must be 20."""
         db = InMemoryDb()
         rocket_id = "r-lim"
-        db.save_rocket(_rocket(rocket_id, "LimRocket"))
+        db.save_rocket(_rocket(rocket_id, "LimRocket"), org_id=_ORG)
         for i in range(25):
             dt = datetime(2026, 1, i + 1, tzinfo=timezone.utc)
-            db.save_simulation(_sim(f"s-lim-{i}", rocket_id, dt))
+            db.save_simulation(_sim(f"s-lim-{i}", rocket_id, dt), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history", headers=_auth())
@@ -167,10 +180,10 @@ class TestHistoryList:
         """REQ-05.3: ?limit=5 must return at most 5 items."""
         db = InMemoryDb()
         rocket_id = "r-lim5"
-        db.save_rocket(_rocket(rocket_id, "Lim5Rocket"))
+        db.save_rocket(_rocket(rocket_id, "Lim5Rocket"), org_id=_ORG)
         for i in range(10):
             dt = datetime(2026, 1, i + 1, tzinfo=timezone.utc)
-            db.save_simulation(_sim(f"s-l5-{i}", rocket_id, dt))
+            db.save_simulation(_sim(f"s-l5-{i}", rocket_id, dt), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history?limit=5", headers=_auth())
@@ -197,8 +210,8 @@ class TestHistoryList:
         """Simulations with status='error' must appear in history."""
         db = InMemoryDb()
         rocket_id = "r-err"
-        db.save_rocket(_rocket(rocket_id, "ErrorRocket"))
-        db.save_simulation(_sim("s-err", rocket_id, _T1, status="error"))
+        db.save_rocket(_rocket(rocket_id, "ErrorRocket"), org_id=_ORG)
+        db.save_simulation(_sim("s-err", rocket_id, _T1, status="error"), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history", headers=_auth())
@@ -212,10 +225,10 @@ class TestHistoryList:
         """REQ-05.3: ?before= cursor returns only older simulations."""
         db = InMemoryDb()
         rocket_id = "r-cursor"
-        db.save_rocket(_rocket(rocket_id, "CursorRocket"))
-        db.save_simulation(_sim("s-old", rocket_id, _T1))
-        db.save_simulation(_sim("s-mid", rocket_id, _T2))
-        db.save_simulation(_sim("s-new", rocket_id, _T3))
+        db.save_rocket(_rocket(rocket_id, "CursorRocket"), org_id=_ORG)
+        db.save_simulation(_sim("s-old", rocket_id, _T1), org_id=_ORG)
+        db.save_simulation(_sim("s-mid", rocket_id, _T2), org_id=_ORG)
+        db.save_simulation(_sim("s-new", rocket_id, _T3), org_id=_ORG)
         client = _make_client(db)
 
         qs = urlencode({"before": _T3.isoformat()})
@@ -227,6 +240,21 @@ class TestHistoryList:
         assert "s-new" not in ids, (
             f"'before' cursor failed: s-new (T3) should be excluded; got {ids}"
         )
+
+    def test_excludes_simulations_owned_by_another_org(self):
+        """Issue #43: a simulation owned by another organization must never appear."""
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-mine", "Mine", org_id=_ORG), org_id=_ORG)
+        db.save_rocket(_rocket("r-theirs", "Theirs", org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        db.save_simulation(_sim("s-mine", "r-mine", _T1, org_id=_ORG), org_id=_ORG)
+        db.save_simulation(_sim("s-theirs", "r-theirs", _T2, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(db)
+
+        resp = client.get("/api/history", headers=_auth())
+
+        assert resp.status_code == 200
+        ids = [item["simulation_id"] for item in resp.json()]
+        assert ids == ["s-mine"], f"Cross-org simulation leaked into history: {ids}"
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +274,7 @@ class TestHistoryScenarioField:
         """
         db = InMemoryDb()
         rocket_id = "r-scenario"
-        db.save_rocket(_rocket(rocket_id, "ScenarioRocket"))
+        db.save_rocket(_rocket(rocket_id, "ScenarioRocket"), org_id=_ORG)
 
         scenario_payload = {
             "site": {"latitude": 1.0, "longitude": 2.0, "elevation": 100.0},
@@ -258,10 +286,11 @@ class TestHistoryScenarioField:
             scenario=scenario_payload,
             created_at=_T1,
             created_by="test",
+            org_id=_ORG,
             status="done",
             scalars={"apogee_m": 1000.0},
         )
-        db.save_simulation(sim)
+        db.save_simulation(sim, org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/history", headers=_auth())
@@ -293,7 +322,7 @@ class TestHistoryScenarioField:
 
         db = InMemoryDb()
         rocket_id = "r-replay"
-        db.save_rocket(_rocket(rocket_id, "ReplayRocket"))
+        db.save_rocket(_rocket(rocket_id, "ReplayRocket"), org_id=_ORG)
 
         # Minimal valid scenario that icaro.scenario.Scenario accepts.
         scenario_payload: dict = {
@@ -307,9 +336,11 @@ class TestHistoryScenarioField:
                 scenario=scenario_payload,
                 created_at=_T1,
                 created_by="test",
+                org_id=_ORG,
                 status="done",
                 scalars={"apogee_m": 2500.0},
-            )
+            ),
+            org_id=_ORG,
         )
         client = _make_client(db)
 

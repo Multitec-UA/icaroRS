@@ -14,7 +14,6 @@ filesystem or GCS dependency.  The results router must call
 
 from __future__ import annotations
 
-import base64
 import json
 from typing import Any
 from unittest.mock import MagicMock
@@ -22,7 +21,36 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
+from datetime import datetime, timezone
+
+from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
+from icaro_api.services.db import Db, InMemoryDb, SimRecord
 from icaro_api.services.storage import LocalFsStorage
+
+_TEST_SESSION_COOKIE = "test-session-token"
+_ORG = "test-org"  # matches _fake_verify_identity's org_id claim below
+_OTHER_ORG = "other-org"
+
+
+def _fake_verify_identity(cookie: str) -> dict:
+    if cookie != _TEST_SESSION_COOKIE:
+        raise ValueError("invalid session cookie")
+    return {"uid": "test", "org_id": _ORG}
+
+
+def _sim(run_id: str, org_id: str = _ORG) -> SimRecord:
+    """A SimRecord matching the blob layout these tests seed in Storage —
+    result_prefix (issue #45) is what routers/results.py derives keys from."""
+    return SimRecord(
+        simulation_id=run_id,
+        rocket_id="r-any",
+        scenario={},
+        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        created_by="test",
+        org_id=org_id,
+        status="done",
+        result_prefix=f"results/{run_id}/",
+    )
 
 # Minimal 1x1 white PNG bytes
 _TINY_PNG: bytes = (
@@ -35,8 +63,7 @@ _TINY_PNG: bytes = (
 
 
 def _auth() -> dict:
-    token = base64.b64encode(b"test:test").decode()
-    return {"Authorization": f"Basic {token}"}
+    return {"Cookie": f"{SESSION_COOKIE_NAME}={_TEST_SESSION_COOKIE}"}
 
 
 class _BlobStorage:
@@ -64,16 +91,18 @@ class _BlobStorage:
         return any(k.startswith(prefix) for k in self._blobs)
 
 
-def _make_client(storage: Any) -> TestClient:
+def _make_client(storage: Any, db: Db | None = None) -> TestClient:
+    """*db* defaults to an empty InMemoryDb — a run with no matching SimRecord
+    404s on the ownership check (issue #44) regardless of what's in Storage."""
     from icaro_api.config import Settings, get_settings
     from icaro_api.main import create_app
-    from icaro_api.runs import get_storage
+    from icaro_api.runs import get_db, get_storage
 
     app = create_app()
-    app.dependency_overrides[get_settings] = lambda: Settings(
-        basic_user="test", basic_pass="test"
-    )
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
     app.dependency_overrides[get_storage] = lambda: storage
+    app.dependency_overrides[get_db] = lambda: db if db is not None else InMemoryDb()
     return TestClient(app, raise_server_exceptions=True)
 
 
@@ -93,7 +122,9 @@ class TestResultsViaStorage:
             "warnings": [],
         }
         blobs = {f"results/{run_id}/result.json": json.dumps(payload).encode()}
-        client = _make_client(_BlobStorage(blobs))
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(_BlobStorage(blobs), db=db)
 
         resp = client.get(f"/api/results/{run_id}", headers=_auth())
 
@@ -110,16 +141,64 @@ class TestResultsViaStorage:
         storage = MagicMock(spec=LocalFsStorage)
         storage.open_blob.return_value = json.dumps(payload).encode()
 
-        client = _make_client(storage)
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(storage, db=db)
         resp = client.get(f"/api/results/{run_id}", headers=_auth())
 
         assert resp.status_code == 200
         storage.open_blob.assert_called_once_with(f"results/{run_id}/result.json")
 
+    def test_open_blob_key_derives_from_org_scoped_prefix(self):
+        """Issue #45: the key is read from the record's result_prefix, not
+        reconstructed — so an org-scoped SimRecord resolves through its own
+        orgs/{org_id}/... prefix, coexisting with the flat legacy layout
+        (test_open_blob_called_with_correct_key, above) with no migration."""
+        run_id = "20260605T120000Z-orgscoped"
+        payload = {"run_id": run_id, "scalars": {}, "plot_urls": [], "warnings": []}
+        storage = MagicMock(spec=LocalFsStorage)
+        storage.open_blob.return_value = json.dumps(payload).encode()
+
+        org_scoped_prefix = f"orgs/{_ORG}/results/{run_id}/"
+        db = InMemoryDb()
+        db.save_simulation(
+            SimRecord(
+                simulation_id=run_id,
+                rocket_id="r-any",
+                scenario={},
+                created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                created_by="test",
+                org_id=_ORG,
+                status="done",
+                result_prefix=org_scoped_prefix,
+            ),
+            org_id=_ORG,
+        )
+        client = _make_client(storage, db=db)
+        resp = client.get(f"/api/results/{run_id}", headers=_auth())
+
+        assert resp.status_code == 200
+        storage.open_blob.assert_called_once_with(f"{org_scoped_prefix}result.json")
+
     def test_returns_404_when_blob_absent(self):
-        """REQ-02.4: missing result.json → 404."""
+        """REQ-02.4: owned run, but missing result.json → 404."""
         run_id = "20260605T120000Z-missing1"
-        client = _make_client(_BlobStorage())  # empty storage
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(_BlobStorage(), db=db)  # empty storage
+
+        resp = client.get(f"/api/results/{run_id}", headers=_auth())
+
+        assert resp.status_code == 404
+
+    def test_returns_404_for_another_orgs_run(self):
+        """Issue #44: a run owned by another org must 404, not 200."""
+        run_id = "20260605T120000Z-theirs001"
+        payload = {"run_id": run_id, "scalars": {}, "plot_urls": [], "warnings": []}
+        blobs = {f"results/{run_id}/result.json": json.dumps(payload).encode()}
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(_BlobStorage(blobs), db=db)
 
         resp = client.get(f"/api/results/{run_id}", headers=_auth())
 
@@ -149,7 +228,9 @@ class TestSeriesViaStorage:
             "path3d": [[0.0, 0.0, 0.0], [1.5, 2.0, 30.0]],
         }
         blobs = {f"results/{run_id}/series.json": json.dumps(series_payload).encode()}
-        client = _make_client(_BlobStorage(blobs))
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(_BlobStorage(blobs), db=db)
 
         resp = client.get(f"/api/results/{run_id}/series", headers=_auth())
 
@@ -159,9 +240,23 @@ class TestSeriesViaStorage:
         assert data["path3d"][1] == [1.5, 2.0, 30.0]
 
     def test_returns_404_when_series_blob_absent(self):
-        """REQ-02.6: missing series.json → 404."""
+        """REQ-02.6: owned run, but missing series.json → 404."""
         run_id = "20260605T120000Z-noseries"
-        client = _make_client(_BlobStorage())
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(_BlobStorage(), db=db)
+
+        resp = client.get(f"/api/results/{run_id}/series", headers=_auth())
+
+        assert resp.status_code == 404
+
+    def test_returns_404_for_another_orgs_series(self):
+        """Issue #44: series owned by another org must 404, not 200."""
+        run_id = "20260605T120000Z-theirseries"
+        blobs = {f"results/{run_id}/series.json": json.dumps({"t": [0.0]}).encode()}
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(_BlobStorage(blobs), db=db)
 
         resp = client.get(f"/api/results/{run_id}/series", headers=_auth())
 
@@ -179,7 +274,9 @@ class TestPlotsViaStorage:
         run_id = "20260605T120000Z-plottest"
         plot_name = "trajectory_3d"
         blobs = {f"results/{run_id}/{plot_name}.png": _TINY_PNG}
-        client = _make_client(_BlobStorage(blobs))
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(_BlobStorage(blobs), db=db)
 
         resp = client.get(f"/api/results/{run_id}/plots/{plot_name}.png", headers=_auth())
 
@@ -194,27 +291,46 @@ class TestPlotsViaStorage:
         storage = MagicMock(spec=LocalFsStorage)
         storage.open_blob.return_value = _TINY_PNG
 
-        client = _make_client(storage)
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(storage, db=db)
         resp = client.get(f"/api/results/{run_id}/plots/{plot_name}.png", headers=_auth())
 
         assert resp.status_code == 200
         storage.open_blob.assert_called_once_with(f"results/{run_id}/{plot_name}.png")
 
     def test_returns_404_when_plot_blob_absent(self):
-        """REQ-02.5: missing PNG → 404."""
+        """REQ-02.5: owned run, but missing PNG → 404."""
         run_id = "20260605T120000Z-nopng123"
-        client = _make_client(_BlobStorage())
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
+        client = _make_client(_BlobStorage(), db=db)
 
         resp = client.get(f"/api/results/{run_id}/plots/nonexistent.png", headers=_auth())
+
+        assert resp.status_code == 404
+
+    def test_returns_404_for_another_orgs_plot(self):
+        """Issue #44: PNGs get the same ownership check as the JSON endpoints."""
+        run_id = "20260605T120000Z-theirspng"
+        plot_name = "trajectory_3d"
+        blobs = {f"results/{run_id}/{plot_name}.png": _TINY_PNG}
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(_BlobStorage(blobs), db=db)
+
+        resp = client.get(f"/api/results/{run_id}/plots/{plot_name}.png", headers=_auth())
 
         assert resp.status_code == 404
 
     def test_path_traversal_blocked(self):
         """Directory traversal in plot name must be sanitized."""
         run_id = "20260605T120000Z-traverse"
+        db = InMemoryDb()
+        db.save_simulation(_sim(run_id), org_id=_ORG)
         # Even if the blob existed, the key must not contain '..'
         blobs = {"results/../secret.png": _TINY_PNG}
-        client = _make_client(_BlobStorage(blobs))
+        client = _make_client(_BlobStorage(blobs), db=db)
 
         resp = client.get(f"/api/results/{run_id}/plots/../secret.png", headers=_auth())
 

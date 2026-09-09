@@ -29,6 +29,16 @@ ENV NEXT_TELEMETRY_DISABLED=1
 #   docker build --build-arg ICARO_API_ORIGIN=https://your-api ...
 ARG ICARO_API_ORIGIN="https://mt-icaro-api-g4ch7vklma-ew.a.run.app"
 ENV ICARO_API_ORIGIN=$ICARO_API_ORIGIN
+# NEXT_PUBLIC_* vars are inlined into the client bundle at BUILD time (Next
+# convention) — a runtime env var set on the Cloud Run service has no effect.
+# These identify the Identity Platform project; they are not secrets (see
+# apps/web/lib/firebase.ts).
+ARG NEXT_PUBLIC_FIREBASE_API_KEY
+ARG NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+ARG NEXT_PUBLIC_FIREBASE_PROJECT_ID
+ENV NEXT_PUBLIC_FIREBASE_API_KEY=$NEXT_PUBLIC_FIREBASE_API_KEY \
+    NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=$NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN \
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID=$NEXT_PUBLIC_FIREBASE_PROJECT_ID
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build

@@ -21,9 +21,8 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.security import HTTPBasicCredentials
 
-from icaro_api.auth import require_auth
+from icaro_api.auth import Identity, require_auth
 from icaro_api.config import Settings, get_settings
 from icaro_api.runs import get_db, get_storage, make_run_id
 from icaro_api.services.convert import run_convert
@@ -44,13 +43,14 @@ async def post_convert(
     settings: Settings = Depends(get_settings),
     storage: Storage = Depends(get_storage),
     db: Db = Depends(get_db),
-    credentials: HTTPBasicCredentials = Depends(require_auth),
+    identity: Identity = Depends(require_auth),
 ) -> dict[str, Any]:
     """Convert a .ork file to an export directory and persist artifacts.
 
     Multipart upload → ``convert_ork`` → upload export dir to Storage
-    under ``exports/{run_id}/`` → save RocketRecord to Db → returns
-    ``{export_id, manifest}`` where ``export_id`` is a logical run_id slug.
+    under ``orgs/{org_id}/exports/{run_id}/`` → save RocketRecord to Db →
+    returns ``{export_id, manifest}`` where ``export_id`` is a logical
+    run_id slug.
 
     On ``ConvertUnavailableError``: 503 with the install hint verbatim.
     On non-.ork file: 422.
@@ -120,8 +120,11 @@ async def post_convert(
             except Exception:  # noqa: BLE001
                 manifest = {}
 
-        # Upload export artifacts to Storage under exports/{run_id}/ (REQ-02.1).
-        export_prefix = f"exports/{run_id}/"
+        # Upload export artifacts to Storage under orgs/{org_id}/exports/{run_id}/
+        # (REQ-02.1; issue #45 — org-scoped keys are defense in depth under the
+        # ownership check in routers/results.py). export_prefix is persisted on
+        # the record and is the only thing any reader ever derives a key from.
+        export_prefix = f"orgs/{identity.org_id}/exports/{run_id}/"
         storage.upload_dir(export_prefix, export_dir)
 
         # Persist rocket metadata to Db (REQ-03.1).
@@ -130,14 +133,15 @@ async def post_convert(
             rocket_id=run_id,
             name=rocket_name,
             created_at=datetime.now(timezone.utc),
-            created_by=credentials.username,
+            created_by=identity.user_id,
+            org_id=identity.org_id,
             export_prefix=export_prefix,
             manifest=manifest,
             gcs_ref=export_prefix,
             ork_filename=filename or None,
             has_source_ork=False,  # .ork upload to GCS deferred (REQ-02.8)
         )
-        db.save_rocket(rec)
+        db.save_rocket(rec, org_id=identity.org_id)
 
         # Return the logical id — NEVER a filesystem path (REQ-01.1).
         return {

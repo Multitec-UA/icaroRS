@@ -5,10 +5,14 @@
  * (apps/api/icaro_api/routers/*.py + the icaro Scenario domain model).
  * Phase 2 is presentation only — it does NOT add or change endpoints.
  *
- * Auth: the API protects every route with HTTP Basic. The browser SPA holds
- * the credentials in sessionStorage (set via a login screen) and attaches an
- * `Authorization: Basic` header to every request. All calls go through the
- * Next rewrite proxy (/api/* → API origin), so requests are same-origin.
+ * Auth: the API protects every route with an Identity Platform session
+ * cookie (httpOnly — unreadable from JS). The browser signs in with the
+ * Firebase client SDK (see lib/firebase.ts), then exchanges the resulting ID
+ * token for that cookie via `createSession`. Every later request just needs
+ * `credentials: "same-origin"` (the browser default) to send it — there is
+ * no header for this layer to attach. All calls go through the Next rewrite
+ * proxy (/api/* → API origin), so requests are same-origin and the cookie
+ * stays scoped to the web origin (see apps/api routers/session.py).
  */
 
 // ---------------------------------------------------------------------------
@@ -160,29 +164,40 @@ export interface FlightSeries {
 }
 
 // ---------------------------------------------------------------------------
-// Credentials store (HTTP Basic) — sessionStorage, client-only
+// Session — Identity Platform, via the httpOnly cookie minted by the API
 // ---------------------------------------------------------------------------
 
-const CREDS_KEY = "icaro.basic";
-
-/** Store base64(user:pass) for the session. Call from the login screen. */
-export function setCredentials(user: string, pass: string): void {
-  const token = btoa(`${user}:${pass}`);
-  sessionStorage.setItem(CREDS_KEY, token);
+/** The caller's identity, as returned by GET /api/auth/me. */
+export interface Identity {
+  user_id: string;
+  org_id: string;
+  email: string | null;
 }
 
-export function clearCredentials(): void {
-  sessionStorage.removeItem(CREDS_KEY);
+/**
+ * Exchange a freshly-minted Firebase ID token for our httpOnly session
+ * cookie. Call right after a successful `signInWithPassword`.
+ */
+export function createSession(idToken: string): Promise<void> {
+  return request<void>("/api/auth/session", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id_token: idToken }),
+  });
 }
 
-export function hasCredentials(): boolean {
-  return typeof window !== "undefined" && !!sessionStorage.getItem(CREDS_KEY);
+/** Clear the session cookie. Always resolves, even if there was no session. */
+export function logout(): Promise<void> {
+  return request<void>("/api/auth/logout", { method: "POST" });
 }
 
-function authHeader(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  const token = sessionStorage.getItem(CREDS_KEY);
-  return token ? { Authorization: `Basic ${token}` } : {};
+/**
+ * The only way to check "am I signed in?" — the session cookie is httpOnly
+ * and unreadable from JS. Throws ApiError(401) when there is no valid
+ * session.
+ */
+export function getIdentity(): Promise<Identity> {
+  return request<Identity>("/api/auth/me");
 }
 
 // ---------------------------------------------------------------------------
@@ -246,12 +261,9 @@ export class ApiError extends Error {
 // ---------------------------------------------------------------------------
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const headers = new Headers(init.headers);
-  for (const [k, v] of Object.entries(authHeader())) headers.set(k, v);
-
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers });
+    res = await fetch(path, { ...init });
   } catch {
     throw new ApiError(0, "Could not reach the icaro API. Is the server running?", {
       code: "network",
@@ -394,24 +406,3 @@ export function getHistory(
   return request<SimulationSummary[]>(`/api/history?${q}`);
 }
 
-/**
- * Fetch an authenticated binary asset (e.g. a plot PNG) and return an object
- * URL. A plain `<img src>` cannot carry our sessionStorage Basic header, so
- * plots — which sit behind auth — must be fetched this way. Callers MUST
- * `URL.revokeObjectURL` the result when the image unmounts.
- */
-export async function fetchImageObjectUrl(path: string): Promise<string> {
-  const headers = new Headers(authHeader());
-  let res: Response;
-  try {
-    res = await fetch(path, { headers });
-  } catch {
-    throw new ApiError(0, "Could not reach the icaro API.", { code: "network" });
-  }
-  if (!res.ok)
-    throw new ApiError(res.status, `Failed to load image (${res.status}).`, {
-      code: "imageFailed",
-    });
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
-}
