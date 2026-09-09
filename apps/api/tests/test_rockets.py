@@ -71,18 +71,24 @@ def _make_client(db: Any, storage: Any = None) -> TestClient:
     return TestClient(app, raise_server_exceptions=True)
 
 
+_ORG = "test-org"  # matches _fake_verify_identity's org_id claim above
+_OTHER_ORG = "other-org"
+
+
 def _rocket(
     rocket_id: str,
     name: str,
     created_at: datetime,
     manifest: dict | None = None,
     gcs_ref: str = "",
+    org_id: str = _ORG,
 ) -> RocketRecord:
     return RocketRecord(
         rocket_id=rocket_id,
         name=name,
         created_at=created_at,
         created_by="test-user",
+        org_id=org_id,
         export_prefix=f"exports/{rocket_id}/",
         manifest=manifest or {"name": name},
         gcs_ref=gcs_ref or f"exports/{rocket_id}/",
@@ -110,9 +116,9 @@ class TestRocketsList:
     def test_returns_reverse_chronological_order(self):
         """REQ-04.1: list must be newest-first."""
         db = InMemoryDb()
-        db.save_rocket(_rocket("r1", "Alpha", _T1))
-        db.save_rocket(_rocket("r2", "Beta", _T2))
-        db.save_rocket(_rocket("r3", "Gamma", _T3))
+        db.save_rocket(_rocket("r1", "Alpha", _T1), org_id=_ORG)
+        db.save_rocket(_rocket("r2", "Beta", _T2), org_id=_ORG)
+        db.save_rocket(_rocket("r3", "Gamma", _T3), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/rockets", headers=_auth())
@@ -127,7 +133,7 @@ class TestRocketsList:
     def test_list_items_have_required_fields(self):
         """REQ-04.2: each item must include rocket_id, name, created_at, created_by."""
         db = InMemoryDb()
-        db.save_rocket(_rocket("r-fields", "TestRocket", _T1))
+        db.save_rocket(_rocket("r-fields", "TestRocket", _T1), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/rockets", headers=_auth())
@@ -146,7 +152,7 @@ class TestRocketsList:
         db = InMemoryDb()
         for i in range(25):
             dt = datetime(2026, 1, i + 1, tzinfo=timezone.utc)
-            db.save_rocket(_rocket(f"r-{i}", f"Rocket {i}", dt))
+            db.save_rocket(_rocket(f"r-{i}", f"Rocket {i}", dt), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/rockets", headers=_auth())
@@ -162,7 +168,7 @@ class TestRocketsList:
         db = InMemoryDb()
         for i in range(10):
             dt = datetime(2026, 1, i + 1, tzinfo=timezone.utc)
-            db.save_rocket(_rocket(f"r-lim-{i}", f"Rocket {i}", dt))
+            db.save_rocket(_rocket(f"r-lim-{i}", f"Rocket {i}", dt), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/rockets?limit=5", headers=_auth())
@@ -190,9 +196,9 @@ class TestRocketsList:
         from urllib.parse import urlencode
 
         db = InMemoryDb()
-        db.save_rocket(_rocket("r-old", "OldRocket", _T1))
-        db.save_rocket(_rocket("r-mid", "MidRocket", _T2))
-        db.save_rocket(_rocket("r-new", "NewRocket", _T3))
+        db.save_rocket(_rocket("r-old", "OldRocket", _T1), org_id=_ORG)
+        db.save_rocket(_rocket("r-mid", "MidRocket", _T2), org_id=_ORG)
+        db.save_rocket(_rocket("r-new", "NewRocket", _T3), org_id=_ORG)
         client = _make_client(db)
 
         # URL-encode the ISO timestamp so that '+' (in '+00:00') is safe
@@ -207,6 +213,19 @@ class TestRocketsList:
             f"'before' cursor failed: NewRocket (T3) should be excluded; got {names}"
         )
         assert "MidRocket" in names or "OldRocket" in names
+
+    def test_excludes_rockets_owned_by_another_org(self):
+        """Issue #43: a rocket owned by another organization must never appear."""
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-mine", "Mine", _T1, org_id=_ORG), org_id=_ORG)
+        db.save_rocket(_rocket("r-theirs", "Theirs", _T2, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(db)
+
+        resp = client.get("/api/rockets", headers=_auth())
+
+        assert resp.status_code == 200
+        names = [item["name"] for item in resp.json()]
+        assert names == ["Mine"], f"Cross-org rocket leaked into the list: {names}"
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +242,7 @@ class TestRocketDetail:
         """
         db = InMemoryDb()
         manifest = {"name": "Prometheus", "mass": 12.5, "diameter": 0.08}
-        db.save_rocket(_rocket("r-detail", "Prometheus", _T1, manifest=manifest, gcs_ref="exports/r-detail/"))
+        db.save_rocket(_rocket("r-detail", "Prometheus", _T1, manifest=manifest, gcs_ref="exports/r-detail/"), org_id=_ORG)
         storage = _FakeStorage(
             {"exports/r-detail/parameters.json": json.dumps(manifest).encode()}
         )
@@ -248,7 +267,7 @@ class TestRocketDetail:
                 {"shape_points": [[0.0, 0.0], [0.1, 0.05], [0.2, 0.0]]}
             ],
         }
-        db.save_rocket(_rocket("r-ff", "Freeform", _T1))
+        db.save_rocket(_rocket("r-ff", "Freeform", _T1), org_id=_ORG)
         storage = _FakeStorage(
             {"exports/r-ff/parameters.json": json.dumps(manifest).encode()}
         )
@@ -263,7 +282,7 @@ class TestRocketDetail:
         """If parameters.json is missing, the detail endpoint serves manifest={}
         rather than 500ing."""
         db = InMemoryDb()
-        db.save_rocket(_rocket("r-nomani", "NoManifest", _T1))
+        db.save_rocket(_rocket("r-nomani", "NoManifest", _T1), org_id=_ORG)
         client = _make_client(db)  # default empty storage
 
         resp = client.get("/api/rockets/r-nomani", headers=_auth())
@@ -274,7 +293,7 @@ class TestRocketDetail:
     def test_returns_all_required_fields(self):
         """REQ-04.4: detail must include rocket_id, name, created_at, created_by, manifest, gcs_ref."""
         db = InMemoryDb()
-        db.save_rocket(_rocket("r-fields2", "FieldsRocket", _T2))
+        db.save_rocket(_rocket("r-fields2", "FieldsRocket", _T2), org_id=_ORG)
         client = _make_client(db)
 
         resp = client.get("/api/rockets/r-fields2", headers=_auth())
@@ -289,6 +308,18 @@ class TestRocketDetail:
         db = InMemoryDb()
         client = _make_client(db)
         resp = client.get("/api/rockets/does-not-exist", headers=_auth())
+        assert resp.status_code == 404
+
+    def test_returns_404_for_another_orgs_rocket(self):
+        """Issue #43: a rocket owned by another organization must 404, not 200.
+
+        This is the ownership-enforcement case — the id is valid and the
+        record exists, it just isn't the caller's.
+        """
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-theirs", "Theirs", _T1, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(db)
+        resp = client.get("/api/rockets/r-theirs", headers=_auth())
         assert resp.status_code == 404
 
     def test_returns_401_without_auth(self):

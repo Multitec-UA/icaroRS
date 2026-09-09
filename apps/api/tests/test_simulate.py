@@ -195,7 +195,7 @@ class TestSimulateStorageSeam:
 
         db = MagicMock(spec=InMemoryDb)
 
-        def recording_save_sim(rec):
+        def recording_save_sim(rec, org_id):
             lock_state_at_db_save.append(_SIMULATE_LOCK.locked())
 
         db.save_simulation.side_effect = recording_save_sim
