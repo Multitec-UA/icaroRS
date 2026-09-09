@@ -208,7 +208,18 @@
     "validation": "La solicitud no es válida.",
     "unavailable": "El servicio no está disponible.",
     "requestFailed": "La solicitud falló (código {status}).",
-    "imageFailed": "No se pudo cargar la imagen (código {status})."
+    "imageFailed": "No se pudo cargar la imagen (código {status}).",
+    "boundaryTitle": "Se produjo un error",
+    "boundaryMessage": "Ocurrió un error inesperado. Puedes intentarlo de nuevo.",
+    "resultsBoundaryMessage": "No pudimos mostrar los resultados de este vuelo.",
+    "globalMessage": "Se produjo un error crítico y la aplicación no pudo recuperarse. Recargar puede ayudar.",
+    "tryAgain": "Intentar de nuevo"
+  },
+
+  "notFound": {
+    "title": "Página no encontrada",
+    "message": "No pudimos encontrar lo que buscabas. Puede que se haya movido o que el enlace sea incorrecto.",
+    "backHome": "← Volver al inicio"
   },
 
   "rockets": {

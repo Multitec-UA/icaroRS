@@ -208,7 +208,18 @@
     "validation": "The request is not valid.",
     "unavailable": "The service is not available.",
     "requestFailed": "The request failed (code {status}).",
-    "imageFailed": "Could not load the image (code {status})."
+    "imageFailed": "Could not load the image (code {status}).",
+    "boundaryTitle": "Something went wrong",
+    "boundaryMessage": "An unexpected error occurred. You can try again.",
+    "resultsBoundaryMessage": "We couldn't display this flight's results.",
+    "globalMessage": "A critical error occurred and the application could not recover. Reloading may help.",
+    "tryAgain": "Try again"
+  },
+
+  "notFound": {
+    "title": "Page not found",
+    "message": "We couldn't find what you were looking for. It may have been moved, or the link might be incorrect.",
+    "backHome": "← Back home"
   },
 
   "rockets": {
