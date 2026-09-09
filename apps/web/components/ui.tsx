@@ -11,13 +11,14 @@
  * "use client" is required because InfoTip uses useT() (a React context hook)
  * to resolve glossary definitions from the active locale catalog.
  * All callers of this module are already client components.
+ *
+ * `cn` and `selectClass` live in lib/styles.ts (issue #50), not here — they're
+ * plain string helpers, not components, and importing this module shouldn't
+ * be the only way to reach them.
  */
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-
-export function cn(...parts: (string | false | null | undefined)[]): string {
-  return parts.filter(Boolean).join(" ");
-}
+import { cn, inputBase } from "@/lib/styles";
 
 // ---------------------------------------------------------------------------
 // Surface — the Double-Bezel (Doppelrand): a glass plate sitting in a machined
@@ -217,15 +218,9 @@ export function Field({
   );
 }
 
-const inputBase =
-  "h-12 w-full rounded-xl bg-white/[0.03] px-4 text-sm text-foreground outline-none ring-1 ring-inset ring-white/10 transition-all duration-300 ease-[var(--ease-spring)] placeholder:text-white/25 focus:bg-white/[0.05] focus:ring-2 focus:ring-cyan-400/40";
-
 export function TextInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(inputBase, className)} {...props} />;
 }
-
-/** Shared class for native <select> elements so they match TextInput. */
-export const selectClass = cn(inputBase, "cursor-pointer appearance-none");
 
 // ---------------------------------------------------------------------------
 // Callout — info / warning / error / success banner (tinted glass)

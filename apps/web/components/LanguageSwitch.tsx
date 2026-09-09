@@ -12,7 +12,7 @@
  */
 
 import { useLocale } from "@/components/i18n/LocaleProvider";
-import { cn } from "@/components/ui";
+import { cn } from "@/lib/styles";
 
 const LOCALES = [
   { value: "es", label: "ES" },

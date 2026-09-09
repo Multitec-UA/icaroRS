@@ -16,11 +16,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   getHistory,
   getRockets,
+  getRocket,
   getResult,
   getSeries,
   getScenarioTemplate,
   simulate,
   type ResultEnvelope,
+  type RocketDetail,
   type ScenarioTemplate,
   type SimulateResult,
   type SimulationSummary,
@@ -82,5 +84,18 @@ export function useScenarioTemplateQuery() {
 export function useSimulateMutation() {
   return useMutation<SimulateResult, unknown, { exportId: string; scenario: unknown }>({
     mutationFn: ({ exportId, scenario }) => simulate(exportId, scenario),
+  });
+}
+
+/**
+ * GET /api/rockets/{rocketId} — fetches the manifest for "Use this rocket"
+ * (issue #50). Previously an inline `import("@/lib/api").then(...)` with no
+ * `.catch()` and no loading state, so a failing request did nothing visible
+ * at all; going through useMutation gives both for free, plus the shared
+ * 401 handling every other call in this file already gets.
+ */
+export function useRocketDetailMutation() {
+  return useMutation<RocketDetail, unknown, string>({
+    mutationFn: (rocketId) => getRocket(rocketId),
   });
 }

@@ -12,7 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as echarts from "echarts";
 import type { FlightSeries } from "@/lib/api";
-import { cn } from "@/components/ui";
+import { cn } from "@/lib/styles";
 
 type MetricKey = "altitude" | "speed" | "mach" | "acceleration";
 

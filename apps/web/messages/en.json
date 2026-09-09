@@ -218,6 +218,7 @@
     "loading": "Loading rockets…",
     "empty": "No rockets saved yet. Upload an .ork file to get started.",
     "errorLoad": "Could not load the rockets list.",
+    "errorUseFailed": "Could not use this rocket. Please try again.",
     "colName": "Name",
     "colDate": "Saved on",
     "colBy": "By",

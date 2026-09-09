@@ -15,7 +15,8 @@
 import { useRouter } from "next/navigation";
 import { ApiError, type SimulationSummary } from "@/lib/api";
 import { useHistoryQuery, useSimulateMutation } from "@/lib/queries";
-import { Button, Callout, Card, Eyebrow, Spinner, cn } from "@/components/ui";
+import { Button, Callout, Card, Eyebrow, Spinner } from "@/components/ui";
+import { cn } from "@/lib/styles";
 import { CountUp, Reveal } from "@/components/motion";
 import { useT } from "@/components/i18n/LocaleProvider";
 

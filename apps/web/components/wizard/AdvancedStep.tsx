@@ -23,7 +23,8 @@ import {
 import { useScenarioTemplateQuery } from "@/lib/queries";
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
-import { Button, Callout, Eyebrow, Field, Spinner, TextInput, cn, selectClass } from "@/components/ui";
+import { Button, Callout, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { cn, selectClass } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
 type Presets = Record<string, Record<string, Dispersion>>;
