@@ -1,32 +1,29 @@
 "use client";
 
 /**
- * AuthGate — the HTTP Basic login boundary for the whole app.
+ * AuthGate — the Identity Platform login boundary for the whole app.
  *
- * The API protects every route with Basic auth. We don't have a session
- * endpoint, so "logging in" means: store the credentials, then make one real
- * call (GET /api/scenario/template) to verify them. Wrong credentials come
- * back as 401 → we clear them and show the error.
+ * "Logging in" means: sign in against Identity Platform with the Firebase
+ * client SDK, exchange the resulting ID token for our own httpOnly session
+ * cookie (POST /api/auth/session), then confirm it with GET /api/auth/me.
+ * The cookie is httpOnly, so — unlike the old sessionStorage credential —
+ * the client can never read it directly; `getIdentity()` is the only way to
+ * ask "am I signed in?".
  *
- * Children may call `useAuth().logout()` (e.g. when a later request 401s) to
- * drop back to the login screen without a full reload.
+ * Children may call `useAuth().logout()` (e.g. when a later request 401s)
+ * to drop back to the login screen without a full reload.
  */
 
 import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
-import {
-  ApiError,
-  clearCredentials,
-  getScenarioTemplate,
-  hasCredentials,
-  setCredentials,
-} from "@/lib/api";
+import { ApiError, createSession, getIdentity, logout as apiLogout, type Identity } from "@/lib/api";
+import { signInWithPassword, signOut as firebaseSignOut } from "@/lib/firebase";
 import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -34,6 +31,7 @@ import { useT } from "@/components/i18n/LocaleProvider";
 import { AppNav } from "@/components/AppNav";
 
 interface AuthContextValue {
+  identity: Identity;
   logout: () => void;
 }
 
@@ -45,52 +43,62 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
-/** Credentials live in sessionStorage (client-only). We expose them to React as
- * an external store so reads are SSR-safe: `getServerSnapshot` returns false so
- * the server and first client paint agree (no hydration mismatch), then React
- * re-reads the real value. login/logout call `notifyAuthChange` to re-sync. */
-const AUTH_EVENT = "icaro-auth-change";
-
-function subscribeAuth(onChange: () => void): () => void {
-  window.addEventListener(AUTH_EVENT, onChange);
-  window.addEventListener("storage", onChange);
-  return () => {
-    window.removeEventListener(AUTH_EVENT, onChange);
-    window.removeEventListener("storage", onChange);
-  };
-}
-
-function notifyAuthChange(): void {
-  window.dispatchEvent(new Event(AUTH_EVENT));
-}
+type Status = "checking" | "authed" | "anonymous";
 
 export function AuthGate({ children }: { children: ReactNode }) {
-  const authed = useSyncExternalStore(
-    subscribeAuth,
-    hasCredentials,
-    () => false,
-  );
+  const [status, setStatus] = useState<Status>("checking");
+  const [identity, setIdentity] = useState<Identity | null>(null);
 
-  const logout = useCallback(() => {
-    clearCredentials();
-    notifyAuthChange();
+  useEffect(() => {
+    let active = true;
+    getIdentity()
+      .then((id) => {
+        if (active) {
+          setIdentity(id);
+          setStatus("authed");
+        }
+      })
+      .catch(() => active && setStatus("anonymous"));
+    return () => {
+      active = false;
+    };
   }, []);
 
-  if (!authed) {
-    return <LoginScreen onSuccess={notifyAuthChange} />;
+  const onSignedIn = useCallback((id: Identity) => {
+    setIdentity(id);
+    setStatus("authed");
+  }, []);
+
+  const logout = useCallback(() => {
+    setStatus("anonymous");
+    setIdentity(null);
+    void apiLogout();
+    void firebaseSignOut();
+  }, []);
+
+  if (status === "checking") {
+    return (
+      <div className="flex min-h-[100dvh] flex-1 items-center justify-center">
+        <Spinner className="text-slate-400" />
+      </div>
+    );
+  }
+
+  if (status === "anonymous" || !identity) {
+    return <LoginScreen onSuccess={onSignedIn} />;
   }
 
   return (
-    <AuthContext.Provider value={{ logout }}>
+    <AuthContext.Provider value={{ identity, logout }}>
       <AppNav />
       {children}
     </AuthContext.Provider>
   );
 }
 
-function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
+function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void }) {
   const t = useT();
-  const [user, setUser] = useState("");
+  const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,16 +107,19 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    setCredentials(user, pass);
     try {
-      await getScenarioTemplate(); // real call to verify the credentials
-      onSuccess();
+      const idToken = await signInWithPassword(email, pass);
+      await createSession(idToken);
+      const identity = await getIdentity();
+      onSuccess(identity);
     } catch (err) {
-      clearCredentials();
-      if (err instanceof ApiError && err.isUnauthorized) {
+      void firebaseSignOut();
+      if (err instanceof ApiError && (err.isUnauthorized || err.status === 403)) {
         setError(t("auth.errorWrongCredentials"));
       } else if (err instanceof ApiError && err.status === 0) {
         setError(t("auth.errorUnreachable"));
+      } else if (isFirebaseAuthError(err)) {
+        setError(t("auth.errorWrongCredentials"));
       } else {
         setError(t("auth.errorGeneric"));
       }
@@ -134,12 +145,13 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
         </div>
         <Card innerClassName="p-6 sm:p-6">
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label={t("auth.username")} htmlFor="user">
+            <Field label={t("auth.username")} htmlFor="email">
               <TextInput
-                id="user"
+                id="email"
+                type="email"
                 autoComplete="username"
-                value={user}
-                onChange={(e) => setUser(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </Field>
@@ -163,4 +175,10 @@ function LoginScreen({ onSuccess }: { onSuccess: () => void }) {
       </Reveal>
     </div>
   );
+}
+
+function isFirebaseAuthError(err: unknown): boolean {
+  return typeof err === "object" && err !== null && "code" in err
+    && typeof (err as { code: unknown }).code === "string"
+    && (err as { code: string }).code.startsWith("auth/");
 }
