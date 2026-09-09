@@ -169,12 +169,13 @@ class TestConvertStorageAndDbSideEffects:
         assert resp.status_code == 200
         export_id = resp.json()["export_id"]
 
-        # storage.upload_dir must have been called with prefix "exports/{run_id}/"
+        # storage.upload_dir must have been called with prefix
+        # "orgs/{org_id}/exports/{run_id}/" (issue #45 — org-scoped keys)
         storage.upload_dir.assert_called_once()
         call_args = storage.upload_dir.call_args
         prefix = call_args[0][0] if call_args[0] else call_args[1].get("prefix", "")
-        assert prefix == f"exports/{export_id}/", (
-            f"Expected prefix 'exports/{export_id}/', got: {prefix!r}"
+        assert prefix == f"orgs/test-org/exports/{export_id}/", (
+            f"Expected prefix 'orgs/test-org/exports/{export_id}/', got: {prefix!r}"
         )
 
     def test_db_save_rocket_called(self, tmp_path):

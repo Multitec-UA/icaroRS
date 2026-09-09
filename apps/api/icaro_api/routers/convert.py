@@ -48,8 +48,9 @@ async def post_convert(
     """Convert a .ork file to an export directory and persist artifacts.
 
     Multipart upload → ``convert_ork`` → upload export dir to Storage
-    under ``exports/{run_id}/`` → save RocketRecord to Db → returns
-    ``{export_id, manifest}`` where ``export_id`` is a logical run_id slug.
+    under ``orgs/{org_id}/exports/{run_id}/`` → save RocketRecord to Db →
+    returns ``{export_id, manifest}`` where ``export_id`` is a logical
+    run_id slug.
 
     On ``ConvertUnavailableError``: 503 with the install hint verbatim.
     On non-.ork file: 422.
@@ -119,8 +120,11 @@ async def post_convert(
             except Exception:  # noqa: BLE001
                 manifest = {}
 
-        # Upload export artifacts to Storage under exports/{run_id}/ (REQ-02.1).
-        export_prefix = f"exports/{run_id}/"
+        # Upload export artifacts to Storage under orgs/{org_id}/exports/{run_id}/
+        # (REQ-02.1; issue #45 — org-scoped keys are defense in depth under the
+        # ownership check in routers/results.py). export_prefix is persisted on
+        # the record and is the only thing any reader ever derives a key from.
+        export_prefix = f"orgs/{identity.org_id}/exports/{run_id}/"
         storage.upload_dir(export_prefix, export_dir)
 
         # Persist rocket metadata to Db (REQ-03.1).

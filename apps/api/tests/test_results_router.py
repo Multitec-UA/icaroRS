@@ -34,7 +34,8 @@ def _fake_verify_identity(cookie: str) -> dict:
 
 
 def _sim(run_id: str, org_id: str = _ORG) -> SimRecord:
-    """A minimal SimRecord — only run_id/org_id matter for the ownership check."""
+    """A SimRecord matching the blob layout these tests seed in Storage —
+    result_prefix (issue #45) is what routers/results.py derives keys from."""
     return SimRecord(
         simulation_id=run_id,
         rocket_id="r-any",
@@ -43,6 +44,7 @@ def _sim(run_id: str, org_id: str = _ORG) -> SimRecord:
         created_by="test",
         org_id=org_id,
         status="done",
+        result_prefix=f"results/{run_id}/",
     )
 
 

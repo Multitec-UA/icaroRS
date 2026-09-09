@@ -39,7 +39,8 @@ def _fake_verify_identity(cookie: str) -> dict:
 
 
 def _sim(run_id: str, org_id: str = _ORG) -> SimRecord:
-    """A minimal SimRecord — only run_id/org_id matter for the ownership check."""
+    """A SimRecord matching the blob layout these tests seed in Storage —
+    result_prefix (issue #45) is what routers/results.py derives keys from."""
     return SimRecord(
         simulation_id=run_id,
         rocket_id="r-any",
@@ -48,6 +49,7 @@ def _sim(run_id: str, org_id: str = _ORG) -> SimRecord:
         created_by="test",
         org_id=org_id,
         status="done",
+        result_prefix=f"results/{run_id}/",
     )
 
 # Minimal 1x1 white PNG bytes
@@ -146,6 +148,37 @@ class TestResultsViaStorage:
 
         assert resp.status_code == 200
         storage.open_blob.assert_called_once_with(f"results/{run_id}/result.json")
+
+    def test_open_blob_key_derives_from_org_scoped_prefix(self):
+        """Issue #45: the key is read from the record's result_prefix, not
+        reconstructed — so an org-scoped SimRecord resolves through its own
+        orgs/{org_id}/... prefix, coexisting with the flat legacy layout
+        (test_open_blob_called_with_correct_key, above) with no migration."""
+        run_id = "20260605T120000Z-orgscoped"
+        payload = {"run_id": run_id, "scalars": {}, "plot_urls": [], "warnings": []}
+        storage = MagicMock(spec=LocalFsStorage)
+        storage.open_blob.return_value = json.dumps(payload).encode()
+
+        org_scoped_prefix = f"orgs/{_ORG}/results/{run_id}/"
+        db = InMemoryDb()
+        db.save_simulation(
+            SimRecord(
+                simulation_id=run_id,
+                rocket_id="r-any",
+                scenario={},
+                created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+                created_by="test",
+                org_id=_ORG,
+                status="done",
+                result_prefix=org_scoped_prefix,
+            ),
+            org_id=_ORG,
+        )
+        client = _make_client(storage, db=db)
+        resp = client.get(f"/api/results/{run_id}", headers=_auth())
+
+        assert resp.status_code == 200
+        storage.open_blob.assert_called_once_with(f"{org_scoped_prefix}result.json")
 
     def test_returns_404_when_blob_absent(self):
         """REQ-02.4: owned run, but missing result.json → 404."""

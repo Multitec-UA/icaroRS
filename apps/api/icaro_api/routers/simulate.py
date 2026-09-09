@@ -6,7 +6,9 @@ SimRecord to Db — all after _SIMULATE_LOCK is released.
 
 Workflow:
 1. Validate the scenario dict → 422 on failure.
-2. Resolve export_id via Storage.download_dir into a temp dir (pre-lock).
+2. Resolve export_id to its RocketRecord (org-owned, 404 otherwise) and
+   download its export_prefix via Storage.download_dir into a temp dir
+   (pre-lock).
 3. Acquire _SIMULATE_LOCK.
 4. Run simulate_from_export + serialize_flight under lock.
 5. Release lock.
@@ -92,8 +94,20 @@ def run_simulate(
 
     # --- 2. Resolve export artifacts via Storage seam (pre-lock) ---
     # REQ-01.3: NO Path(export_id).exists() — the storage seam is authoritative.
+    # Issue #45: export_prefix is NEVER reconstructed — it is read from the
+    # RocketRecord, which is the only source of truth for where an export
+    # actually lives (old flat layout or new org-scoped layout). This also
+    # gives export resolution the same cross-org 404 as results.py (#44):
+    # an export_id that exists but belongs to another org is indistinguishable
+    # from one that doesn't exist at all.
     run_id = make_run_id()
-    export_prefix = f"exports/{body.export_id}/"
+    rocket = db.get_rocket(body.export_id, org_id=identity.org_id)
+    if rocket is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rocket '{body.export_id}' not found.",
+        )
+    export_prefix = rocket.export_prefix
 
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp_export = Path(tmp_str) / "export"
@@ -125,7 +139,7 @@ def run_simulate(
                 status="error",
                 scalars={},
                 warnings=[str(sim_exc)],
-                result_prefix=f"results/{run_id}/",
+                result_prefix=f"orgs/{identity.org_id}/results/{run_id}/",
                 plot_names=[],
                 has_series=False,
                 artifact_refs={},
@@ -142,7 +156,9 @@ def run_simulate(
         # --- 5. Lock released here ---
 
     # --- 6. Upload simulation results AFTER lock release (REQ-07.1) ---
-    result_prefix = f"results/{run_id}/"
+    # Org-scoped key (issue #45) — result_prefix is persisted on the record
+    # and is the only thing any reader (routers/results.py) derives a key from.
+    result_prefix = f"orgs/{identity.org_id}/results/{run_id}/"
     result_dir = settings.results_dir / run_id
     try:
         storage.upload_dir(result_prefix, result_dir)
