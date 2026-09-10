@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { makeT, plural, registerCatalog } from "./i18n";
+import { makeT, plural, registerCatalog, resolveLocale } from "./i18n";
 
 // Fixture catalog registered before each test — keeps the module-level
 // `catalogs` registry (see registerCatalog in i18n.ts) deterministic and
@@ -93,5 +93,31 @@ describe("plural", () => {
     expect(plural("en", 2, "results.valuesBadge")).toBe("results.valuesBadge.other");
 
     warn.mockRestore();
+  });
+});
+
+describe("resolveLocale", () => {
+  it("prefers a supported cookie value over Accept-Language", () => {
+    expect(resolveLocale("es", "en-US,en;q=0.9")).toBe("es");
+  });
+
+  it("ignores an unsupported cookie value and falls back to Accept-Language", () => {
+    expect(resolveLocale("fr", "es-ES,es;q=0.9,en;q=0.8")).toBe("es");
+  });
+
+  it("ranks Accept-Language entries by q weight", () => {
+    expect(resolveLocale(undefined, "fr;q=0.9,es;q=0.95")).toBe("es");
+  });
+
+  it("matches a language's primary subtag (e.g. en-GB -> en)", () => {
+    expect(resolveLocale(undefined, "en-GB,en;q=0.9")).toBe("en");
+  });
+
+  it('defaults to "en" when neither the cookie nor Accept-Language is supported', () => {
+    expect(resolveLocale(undefined, "fr-FR,de;q=0.8")).toBe("en");
+  });
+
+  it('defaults to "en" when there is no cookie and no Accept-Language header', () => {
+    expect(resolveLocale(undefined, null)).toBe("en");
   });
 });

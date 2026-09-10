@@ -7,7 +7,7 @@ import { WizardProvider } from "@/components/wizard/WizardProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
-import type { Locale } from "@/lib/i18n";
+import { resolveLocale } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,39 +23,6 @@ export const metadata: Metadata = {
   title: "icaro · rocket simulation",
   description: "Run a rocket flight simulation from your OpenRocket design.",
 };
-
-const SUPPORTED_LOCALES = new Set<string>(["en", "es"]);
-
-/**
- * Resolve the initial locale entirely on the server so the first paint already
- * has the right language — no client flash, no setState-in-effect:
- *   1. NEXT_LOCALE cookie (explicit user choice) wins.
- *   2. Otherwise, the highest-priority supported language in Accept-Language.
- *   3. Hard default: "en".
- */
-function resolveLocale(
-  cookieValue: string | undefined,
-  acceptLanguage: string | null,
-): Locale {
-  if (cookieValue && SUPPORTED_LOCALES.has(cookieValue)) {
-    return cookieValue as Locale;
-  }
-  if (acceptLanguage) {
-    const ranked = acceptLanguage
-      .split(",")
-      .map((part) => {
-        const [tag, ...params] = part.trim().split(";");
-        const q = params.find((p) => p.trim().startsWith("q="));
-        const weight = q ? Number.parseFloat(q.trim().slice(2)) : 1;
-        return { primary: tag.trim().split("-")[0].toLowerCase(), weight };
-      })
-      .sort((a, b) => b.weight - a.weight);
-    for (const { primary } of ranked) {
-      if (SUPPORTED_LOCALES.has(primary)) return primary as Locale;
-    }
-  }
-  return "en";
-}
 
 export default async function RootLayout({
   children,
