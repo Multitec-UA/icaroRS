@@ -82,6 +82,8 @@ def _rocket(
     manifest: dict | None = None,
     gcs_ref: str = "",
     org_id: str = _ORG,
+    ork_filename: str | None = None,
+    has_source_ork: bool = False,
 ) -> RocketRecord:
     return RocketRecord(
         rocket_id=rocket_id,
@@ -92,6 +94,8 @@ def _rocket(
         export_prefix=f"exports/{rocket_id}/",
         manifest=manifest or {"name": name},
         gcs_ref=gcs_ref or f"exports/{rocket_id}/",
+        ork_filename=ork_filename,
+        has_source_ork=has_source_ork,
     )
 
 
@@ -131,9 +135,25 @@ class TestRocketsList:
         )
 
     def test_list_items_have_required_fields(self):
-        """REQ-04.2: each item must include rocket_id, name, created_at, created_by."""
+        """REQ-04.2: each item must include rocket_id, name, created_at, created_by.
+
+        Also asserts the drift fields called out in issue #70 — export_prefix,
+        gcs_ref, ork_filename, has_source_ork — survive response_model with
+        their correct values and types (a regression test for silent field
+        drops / type coercion, e.g. gcs_ref becoming None instead of "").
+        """
         db = InMemoryDb()
-        db.save_rocket(_rocket("r-fields", "TestRocket", _T1), org_id=_ORG)
+        db.save_rocket(
+            _rocket(
+                "r-fields",
+                "TestRocket",
+                _T1,
+                gcs_ref="exports/r-fields/",
+                ork_filename="rocket.ork",
+                has_source_ork=True,
+            ),
+            org_id=_ORG,
+        )
         client = _make_client(db)
 
         resp = client.get("/api/rockets", headers=_auth())
@@ -142,10 +162,43 @@ class TestRocketsList:
         items = resp.json()
         assert len(items) == 1
         item = items[0]
-        assert "rocket_id" in item, f"Missing rocket_id: {item}"
-        assert "name" in item, f"Missing name: {item}"
-        assert "created_at" in item, f"Missing created_at: {item}"
-        assert "created_by" in item, f"Missing created_by: {item}"
+        assert set(item.keys()) == {
+            "rocket_id",
+            "name",
+            "created_at",
+            "created_by",
+            "export_prefix",
+            "gcs_ref",
+            "ork_filename",
+            "has_source_ork",
+        }, f"Unexpected field set in list item: {sorted(item.keys())}"
+        assert item["rocket_id"] == "r-fields"
+        assert item["name"] == "TestRocket"
+        assert item["created_at"] == _T1.isoformat()
+        assert item["created_by"] == "test-user"
+        assert item["export_prefix"] == "exports/r-fields/"
+        assert item["gcs_ref"] == "exports/r-fields/"
+        assert item["ork_filename"] == "rocket.ork"
+        assert item["has_source_ork"] is True
+
+    def test_list_item_defaults_gcs_ref_and_ork_fields(self):
+        """A rocket saved without an explicit ork/gcs_ref must still round-trip
+        the declared defaults (empty-string gcs_ref, null ork_filename, False
+        has_source_ork) rather than silently dropping or coercing them."""
+        db = InMemoryDb()
+        db.save_rocket(
+            _rocket("r-defaults", "DefaultsRocket", _T1, gcs_ref="exports/r-defaults/"),
+            org_id=_ORG,
+        )
+        client = _make_client(db)
+
+        resp = client.get("/api/rockets", headers=_auth())
+
+        assert resp.status_code == 200
+        item = resp.json()[0]
+        assert item["ork_filename"] is None
+        assert item["has_source_ork"] is False
+        assert isinstance(item["gcs_ref"], str)
 
     def test_default_limit_is_20(self):
         """REQ-04.3: default limit must be 20."""
@@ -291,17 +344,70 @@ class TestRocketDetail:
         assert resp.json()["manifest"] == {}
 
     def test_returns_all_required_fields(self):
-        """REQ-04.4: detail must include rocket_id, name, created_at, created_by, manifest, gcs_ref."""
+        """REQ-04.4: detail must include rocket_id, name, created_at, created_by, manifest, gcs_ref.
+
+        Also asserts the drift fields called out in issue #70 — export_prefix,
+        gcs_ref, ork_filename, has_source_ork — survive response_model with
+        their correct values and types (a regression test for silent field
+        drops / type coercion, e.g. gcs_ref becoming None instead of "").
+        """
         db = InMemoryDb()
-        db.save_rocket(_rocket("r-fields2", "FieldsRocket", _T2), org_id=_ORG)
+        db.save_rocket(
+            _rocket(
+                "r-fields2",
+                "FieldsRocket",
+                _T2,
+                gcs_ref="exports/r-fields2/",
+                ork_filename="fields.ork",
+                has_source_ork=True,
+            ),
+            org_id=_ORG,
+        )
         client = _make_client(db)
 
         resp = client.get("/api/rockets/r-fields2", headers=_auth())
 
         assert resp.status_code == 200
         data = resp.json()
-        for field in ("rocket_id", "name", "created_at", "created_by", "manifest", "gcs_ref"):
-            assert field in data, f"Missing field {field!r}: {list(data.keys())}"
+        assert set(data.keys()) == {
+            "rocket_id",
+            "name",
+            "created_at",
+            "created_by",
+            "export_prefix",
+            "gcs_ref",
+            "ork_filename",
+            "has_source_ork",
+            "manifest",
+        }, f"Unexpected field set in detail response: {sorted(data.keys())}"
+        assert data["rocket_id"] == "r-fields2"
+        assert data["name"] == "FieldsRocket"
+        assert data["created_at"] == _T2.isoformat()
+        assert data["created_by"] == "test-user"
+        assert data["export_prefix"] == "exports/r-fields2/"
+        assert data["gcs_ref"] == "exports/r-fields2/"
+        assert data["ork_filename"] == "fields.ork"
+        assert data["has_source_ork"] is True
+        assert isinstance(data["manifest"], dict)
+
+    def test_detail_defaults_gcs_ref_and_ork_fields(self):
+        """A rocket saved without an explicit ork/gcs_ref must still round-trip
+        the declared defaults (empty-string gcs_ref, null ork_filename, False
+        has_source_ork) rather than silently dropping or coercing them."""
+        db = InMemoryDb()
+        db.save_rocket(
+            _rocket("r-defaults2", "DefaultsRocket2", _T1, gcs_ref="exports/r-defaults2/"),
+            org_id=_ORG,
+        )
+        client = _make_client(db)
+
+        resp = client.get("/api/rockets/r-defaults2", headers=_auth())
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["ork_filename"] is None
+        assert data["has_source_ork"] is False
+        assert isinstance(data["gcs_ref"], str)
 
     def test_returns_404_for_unknown_id(self):
         """REQ-04.4: unknown rocket_id → 404."""

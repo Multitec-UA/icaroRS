@@ -148,8 +148,12 @@ class TestConvertSuccess:
 
         assert resp.status_code == 200
         data = resp.json()
-        assert "export_id" in data
-        assert "manifest" in data
+        assert isinstance(data["export_id"], str)
+        assert data["export_id"] != ""
+        assert isinstance(data["manifest"], dict)
+        assert data["manifest"] == manifest
+        assert data["manifest"]["name"] == "TestRocket"
+        assert data["manifest"]["motors"] == []
 
     def test_non_ork_filename_returns_422(self):
         """Non-.ork extension → 422 (rejected before the subprocess is spawned)."""

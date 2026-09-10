@@ -132,7 +132,12 @@ class TestResultsViaStorage:
         data = resp.json()
         assert data["run_id"] == run_id
         assert data["status"] == "done"
-        assert "result" in data
+        assert data["result"] == {
+            "run_id": run_id,
+            "scalars": {"apogee_m": 3200.0},
+            "plot_urls": [],
+            "warnings": [],
+        }
 
     def test_open_blob_called_with_correct_key(self):
         """Storage.open_blob must be called with 'results/{run_id}/result.json'."""
@@ -237,6 +242,10 @@ class TestSeriesViaStorage:
         assert resp.status_code == 200
         data = resp.json()
         assert data["t"] == [0.0, 1.0]
+        assert data["altitude"] == [0.0, 30.0]
+        assert data["speed"] == [25.0, 25.0]
+        assert data["mach"] == [0.0, 0.05]
+        assert data["acceleration"] == [9.81, 9.81]
         assert data["path3d"][1] == [1.5, 2.0, 30.0]
 
     def test_returns_404_when_series_blob_absent(self):

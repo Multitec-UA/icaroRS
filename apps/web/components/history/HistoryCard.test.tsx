@@ -14,6 +14,10 @@ const historyItem = {
   status: "done" as const,
   scalars: { apogee: 1000 },
   scenario: { name: "acme-1" },
+  warnings: [],
+  result_prefix: "results/sim-1/",
+  plot_names: [],
+  has_series: false,
 };
 
 const simulateMock = vi.fn();

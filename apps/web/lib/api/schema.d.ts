@@ -411,6 +411,59 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * Atmosphere
+         * @description Atmosphere model selection and fallback policy.
+         *
+         *     Parameters
+         *     ----------
+         *     model : str
+         *         One of ``forecast``, ``wyoming_sounding``, ``standard_atmosphere``,
+         *         ``reanalysis``. Validated at load time (REQ-SCN-03).
+         *     file : str or None
+         *         For ``forecast``: GFS ensemble name (default ``"GFS"``).
+         *         For ``reanalysis``: path to a local ERA5-compatible .nc file (required
+         *         when model is ``reanalysis``, REQ-SCN-04).
+         *     station : str or None
+         *         Wyoming sounding station id. Required when model is
+         *         ``wyoming_sounding`` (REQ-SCN-05).
+         *     fallback : str
+         *         Atmosphere model to use when the primary fetch fails.  Defaults to
+         *         ``"standard_atmosphere"`` (REQ-SCN-06).
+         */
+        Atmosphere: {
+            /**
+             * Fallback
+             * @default standard_atmosphere
+             */
+            fallback: string;
+            /** File */
+            file?: string | null;
+            /**
+             * Model
+             * @default standard_atmosphere
+             */
+            model: string;
+            /** Station */
+            station?: string | null;
+        };
+        /**
+         * AtmosphereSuggestion
+         * @description Response body for GET /api/atmosphere/suggest.
+         */
+        AtmosphereSuggestion: {
+            /**
+             * Model
+             * @enum {string}
+             */
+            model: "forecast" | "standard_atmosphere";
+            /** Needs Internet */
+            needs_internet: boolean;
+            /** Reason */
+            reason: string;
+            /** Within Gfs Window */
+            within_gfs_window: boolean;
+        };
         /** Body_post_convert_api_convert_post */
         Body_post_convert_api_convert_post: {
             /**
@@ -418,6 +471,71 @@ export interface components {
              * @description OpenRocket .ork file
              */
             file: string;
+        };
+        /**
+         * ConvertResult
+         * @description Response body for POST /api/convert.
+         */
+        ConvertResult: {
+            /** Export Id */
+            export_id: string;
+            /** Manifest */
+            manifest: {
+                [key: string]: unknown;
+            };
+        };
+        /**
+         * Dispersion
+         * @description Uncertainty dispersion for a single parameter.
+         *
+         *     Parameters
+         *     ----------
+         *     std : float
+         *         Standard deviation of the dispersion.
+         *     kind : {"relative", "absolute"}
+         *         ``relative`` — std is a fraction of the nominal value (e.g. 0.05 = 5%).
+         *         ``absolute`` — std is in the same units as the nominal (e.g. 2.0°).
+         *         ``kind`` is REQUIRED; absent ``kind`` is a validation error (REQ-SCN-08).
+         */
+        Dispersion: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "relative" | "absolute";
+            /** Std */
+            std: number;
+        };
+        /**
+         * ElevationLookupResult
+         * @description Response body for GET /api/elevation.
+         */
+        ElevationLookupResult: {
+            /** Elevation */
+            elevation: number;
+            /**
+             * Source
+             * @constant
+             */
+            source: "dem";
+        };
+        /**
+         * FlightSeries
+         * @description Response body for GET /api/results/{run_id}/series.
+         */
+        FlightSeries: {
+            /** Acceleration */
+            acceleration?: number[] | null;
+            /** Altitude */
+            altitude?: number[] | null;
+            /** Mach */
+            mach?: number[] | null;
+            /** Path3D */
+            path3d?: number[][] | null;
+            /** Speed */
+            speed?: number[] | null;
+            /** T */
+            t: number[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -435,6 +553,177 @@ export interface components {
             org_id: string;
             /** User Id */
             user_id: string;
+        };
+        /**
+         * LaunchDate
+         * @description UTC launch date and hour.
+         *
+         *     Required for real-atmosphere models (forecast, wyoming_sounding).
+         *
+         *     Parameters
+         *     ----------
+         *     year, month, day, hour : int
+         *         UTC date and hour of the simulated launch.
+         */
+        LaunchDate: {
+            /** Day */
+            day: number;
+            /** Hour */
+            hour: number;
+            /** Month */
+            month: number;
+            /** Year */
+            year: number;
+        };
+        /**
+         * Rail
+         * @description Optional launch rail parameter overrides.
+         *
+         *     All fields are individually optional (REQ-SCN-09). Present values override
+         *     the corresponding fields in the export's ``flight`` block; absent values
+         *     keep the export value.
+         */
+        Rail: {
+            /** Heading */
+            heading?: number | null;
+            /** Inclination */
+            inclination?: number | null;
+            /** Length */
+            length?: number | null;
+        };
+        /**
+         * ResultEnvelope
+         * @description Response body for GET /api/results/{run_id}.
+         */
+        ResultEnvelope: {
+            result: components["schemas"]["SimulateResult"];
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @constant
+             */
+            status: "done";
+        };
+        /**
+         * RocketDetail
+         * @description Response body for GET /api/rockets/{rocket_id} — a RocketSummary plus its manifest.
+         */
+        RocketDetail: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Export Prefix */
+            export_prefix: string;
+            /** Gcs Ref */
+            gcs_ref: string;
+            /** Has Source Ork */
+            has_source_ork: boolean;
+            /** Manifest */
+            manifest: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Ork Filename */
+            ork_filename: string | null;
+            /** Rocket Id */
+            rocket_id: string;
+        };
+        /**
+         * RocketSummary
+         * @description One rocket as returned by GET /api/rockets.
+         */
+        RocketSummary: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Export Prefix */
+            export_prefix: string;
+            /** Gcs Ref */
+            gcs_ref: string;
+            /** Has Source Ork */
+            has_source_ork: boolean;
+            /** Name */
+            name: string;
+            /** Ork Filename */
+            ork_filename: string | null;
+            /** Rocket Id */
+            rocket_id: string;
+        };
+        /**
+         * Scenario
+         * @description Root scenario model.  Returned by :func:`load_scenario`.
+         *
+         *     Parameters
+         *     ----------
+         *     name : str
+         *         Human-readable label for this scenario (used as default MC output prefix).
+         *     site : Site
+         *         Launch site coordinates.  Required.
+         *     date : LaunchDate or None
+         *         UTC launch date.  Required when atmosphere.model requires it.
+         *     atmosphere : Atmosphere
+         *         Atmosphere model configuration.
+         *     rail : Rail or None
+         *         Optional launch rail parameter overrides.
+         *     uncertainty : dict[str, Dispersion] or None
+         *         Per-parameter dispersion budget.  ``None`` signals "not set in YAML"
+         *         so :func:`load_scenario` can fill DEFAULT_UNCERTAINTY.
+         */
+        Scenario: {
+            /**
+             * @default {
+             *       "fallback": "standard_atmosphere",
+             *       "model": "standard_atmosphere"
+             *     }
+             */
+            atmosphere: components["schemas"]["Atmosphere"];
+            date?: components["schemas"]["LaunchDate"] | null;
+            /**
+             * Name
+             * @default unnamed_scenario
+             */
+            name: string;
+            rail?: components["schemas"]["Rail"] | null;
+            site: components["schemas"]["Site"];
+            /** Uncertainty */
+            uncertainty?: {
+                [key: string]: components["schemas"]["Dispersion"];
+            } | null;
+        };
+        /**
+         * ScenarioTemplate
+         * @description Response body for GET /api/scenario/template — a starter Scenario plus uncertainty presets.
+         */
+        ScenarioTemplate: {
+            /**
+             * @default {
+             *       "fallback": "standard_atmosphere",
+             *       "model": "standard_atmosphere"
+             *     }
+             */
+            atmosphere: components["schemas"]["Atmosphere"];
+            date?: components["schemas"]["LaunchDate"] | null;
+            /**
+             * Name
+             * @default unnamed_scenario
+             */
+            name: string;
+            rail?: components["schemas"]["Rail"] | null;
+            site: components["schemas"]["Site"];
+            /** Uncertainty */
+            uncertainty?: {
+                [key: string]: components["schemas"]["Dispersion"];
+            } | null;
+            /** Uncertainty Presets */
+            uncertainty_presets: {
+                [key: string]: {
+                    [key: string]: components["schemas"]["Dispersion"];
+                };
+            };
         };
         /**
          * SessionRequest
@@ -455,6 +744,81 @@ export interface components {
             scenario: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * SimulateResult
+         * @description Response body for POST /api/simulate.
+         */
+        SimulateResult: {
+            /** Plot Urls */
+            plot_urls: string[];
+            /** Run Id */
+            run_id: string;
+            /** Scalars */
+            scalars: {
+                [key: string]: number;
+            };
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * SimulationSummary
+         * @description One simulation as returned by GET /api/history.
+         */
+        SimulationSummary: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Has Series */
+            has_series: boolean;
+            /** Name */
+            name: string;
+            /** Plot Names */
+            plot_names: string[];
+            /** Result Prefix */
+            result_prefix: string;
+            /** Rocket Id */
+            rocket_id: string;
+            /** Scalars */
+            scalars: {
+                [key: string]: unknown;
+            };
+            /** Scenario */
+            scenario: {
+                [key: string]: unknown;
+            };
+            /** Simulation Id */
+            simulation_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "done" | "error";
+            /** Warnings */
+            warnings: string[];
+        };
+        /**
+         * Site
+         * @description Launch site coordinates.
+         *
+         *     Parameters
+         *     ----------
+         *     latitude : float
+         *         WGS-84 latitude in decimal degrees. Required. Range: -90 to 90.
+         *     longitude : float
+         *         WGS-84 longitude in decimal degrees. Required. Range: -180 to 180.
+         *     elevation : float or None
+         *         Altitude above sea-level in metres. When absent the elevation from the
+         *         export's ``environment`` block is used (REQ-SCN-10).
+         */
+        Site: {
+            /** Elevation */
+            elevation?: number | null;
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -496,9 +860,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["AtmosphereSuggestion"];
                 };
             };
             /** @description Validation Error */
@@ -600,9 +962,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ConvertResult"];
                 };
             };
             /** @description Validation Error */
@@ -636,9 +996,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ElevationLookupResult"];
                 };
             };
             /** @description Validation Error */
@@ -670,9 +1028,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["SimulationSummary"][];
                 };
             };
             /** @description Validation Error */
@@ -703,9 +1059,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ResultEnvelope"];
                 };
             };
             /** @description Validation Error */
@@ -768,9 +1122,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["FlightSeries"];
                 };
             };
             /** @description Validation Error */
@@ -802,9 +1154,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    }[];
+                    "application/json": components["schemas"]["RocketSummary"][];
                 };
             };
             /** @description Validation Error */
@@ -835,9 +1185,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["RocketDetail"];
                 };
             };
             /** @description Validation Error */
@@ -866,9 +1214,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["ScenarioTemplate"];
                 };
             };
         };
@@ -894,9 +1240,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["Scenario"];
                 };
             };
             /** @description Validation Error */
@@ -929,9 +1273,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["SimulateResult"];
                 };
             };
             /** @description Validation Error */

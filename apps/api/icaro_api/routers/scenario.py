@@ -16,7 +16,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import ValidationError
 
-from icaro.scenario import DEFAULT_UNCERTAINTY, Scenario
+from icaro.scenario import DEFAULT_UNCERTAINTY, Dispersion, Scenario
 from icaro_api.auth import require_auth
 from icaro_api.config import Settings, get_settings
 
@@ -60,7 +60,13 @@ PRESETS: dict[str, dict[str, Any]] = {
 # ---------------------------------------------------------------------------
 
 
-@router.get("/template")
+class ScenarioTemplate(Scenario):
+    """Response body for GET /api/scenario/template — a starter Scenario plus uncertainty presets."""
+
+    uncertainty_presets: dict[str, dict[str, Dispersion]]
+
+
+@router.get("/template", response_model=ScenarioTemplate)
 def get_scenario_template() -> dict[str, Any]:
     """Return a starter Scenario dict with DEFAULT_UNCERTAINTY and PRESETS.
 
@@ -126,7 +132,7 @@ def _humanize_error(err: dict[str, Any]) -> str:
     return msg
 
 
-@router.post("/validate")
+@router.post("/validate", response_model=Scenario)
 def validate_scenario(body: dict[str, Any]) -> dict[str, Any]:
     """Validate and normalize a scenario dict.
 

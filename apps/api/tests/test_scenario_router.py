@@ -100,6 +100,22 @@ class TestScenarioTemplate:
         resp = client.get("/api/scenario/template")
         assert resp.status_code == 401
 
+    def test_response_contains_all_scenario_fields(self, client, auth):
+        """response_model=ScenarioTemplate must not silently drop any Scenario field."""
+        resp = client.get("/api/scenario/template", headers=auth)
+        data = resp.json()
+        for field in ("name", "site", "date", "atmosphere", "rail", "uncertainty"):
+            assert field in data, f"missing Scenario field: {field}"
+
+    def test_presets_nested_structure_intact(self, client, auth):
+        """response_model must preserve the nested preset -> param -> {std, kind} shape."""
+        resp = client.get("/api/scenario/template", headers=auth)
+        data = resp.json()
+        presets = data["uncertainty_presets"]
+        conservative_mass = presets["Conservative"]["mass"]
+        assert conservative_mass["std"] == pytest.approx(0.08)
+        assert conservative_mass["kind"] == "relative"
+
 
 # ---------------------------------------------------------------------------
 # POST /api/scenario/validate
@@ -135,6 +151,26 @@ class TestScenarioValidate:
         assert "site" in data
         assert data["site"]["latitude"] == pytest.approx(48.8566)
         assert data["site"]["longitude"] == pytest.approx(2.3522)
+
+    def test_valid_body_roundtrips_all_fields(self, client, auth):
+        """response_model=Scenario must not silently drop any field the request set."""
+        resp = client.post(
+            "/api/scenario/validate", json=_VALID_SCENARIO, headers=auth
+        )
+        data = resp.json()
+        assert data["name"] == _VALID_SCENARIO["name"]
+        assert data["site"]["latitude"] == pytest.approx(
+            _VALID_SCENARIO["site"]["latitude"]
+        )
+        assert data["site"]["longitude"] == pytest.approx(
+            _VALID_SCENARIO["site"]["longitude"]
+        )
+        assert data["site"]["elevation"] == pytest.approx(
+            _VALID_SCENARIO["site"]["elevation"]
+        )
+        assert data["atmosphere"]["model"] == _VALID_SCENARIO["atmosphere"]["model"]
+        for field in ("date", "rail", "uncertainty"):
+            assert field in data, f"missing Scenario field: {field}"
 
     def test_bad_longitude_returns_422(self, client, auth):
         """AC-RG-2.4: invalid field → 422."""

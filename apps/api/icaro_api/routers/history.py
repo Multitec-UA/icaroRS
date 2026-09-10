@@ -23,9 +23,10 @@ save time without breaking the current interface.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from icaro_api.auth import Identity, require_auth
 from icaro_api.runs import get_db
@@ -40,7 +41,24 @@ _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
 
 
-@router.get("/history")
+class SimulationSummary(BaseModel):
+    """One simulation as returned by GET /api/history."""
+
+    simulation_id: str
+    rocket_id: str
+    name: str
+    created_at: str
+    created_by: str
+    status: Literal["done", "error"]
+    scenario: dict[str, Any]
+    scalars: dict[str, Any]
+    warnings: list[str]
+    result_prefix: str
+    plot_names: list[str]
+    has_series: bool
+
+
+@router.get("/history", response_model=list[SimulationSummary])
 def list_history(
     limit: int = _DEFAULT_LIMIT,
     before: datetime | None = None,

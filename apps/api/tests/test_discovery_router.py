@@ -71,7 +71,9 @@ class TestAtmosphereSuggest:
         data = resp.json()
         assert data["model"] == "forecast"
         assert data["within_gfs_window"] is True
+        assert isinstance(data["reason"], str)
         assert data["reason"]  # non-empty human-readable string
+        assert data["needs_internet"] is True
 
     def test_out_of_window_returns_standard_atmosphere(self, client):
         """AC-RG-2.8: date out of window → model=standard_atmosphere, within_gfs_window=false."""
@@ -84,6 +86,9 @@ class TestAtmosphereSuggest:
         data = resp.json()
         assert data["model"] == "standard_atmosphere"
         assert data["within_gfs_window"] is False
+        assert isinstance(data["reason"], str)
+        assert data["reason"]
+        assert data["needs_internet"] is False
 
     def test_reason_is_non_empty_string(self, client):
         """AC-RG-2.7: reason is a plain-language non-empty string."""
@@ -129,6 +134,7 @@ class TestElevationEndpoint:
             )
         assert resp.status_code == 200
         data = resp.json()
+        assert isinstance(data["elevation"], float)
         assert data["elevation"] == pytest.approx(432.0)
         assert data["source"] == "dem"
 
