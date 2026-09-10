@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * SitePicker — place-name search (OpenStreetMap Nominatim) + click-to-pick map.
+ * SitePicker — place-name search (OpenStreetMap Nominatim, proxied through
+ * our own `/api/geocode` route — see issue #55) + click-to-pick map.
  *
  * Controlled: the parent owns lat/lon and gets updates via onPick. The Leaflet
  * map is dynamically imported with ssr:false (Leaflet needs the browser).
@@ -9,8 +10,15 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useRef, useState } from "react";
-import { Spinner, TextInput } from "@/components/ui";
+import { Callout, Spinner, TextInput } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
+import { geocodeSearch, type GeocodeHit } from "@/lib/geocode";
 
+// NOTE: "Loading map…" is a pre-existing hardcoded literal, not new copy
+// introduced by this fix — left as-is here on purpose. Issue #54 (i18n leak
+// sweep, branched from this one) fixes it together with this file's other
+// two pre-existing leaks, so its new lint/detection guard covers all three
+// at once instead of this PR fixing one leak while leaving two behind.
 const MapInner = dynamic(() => import("./MapInner"), {
   ssr: false,
   loading: () => (
@@ -19,12 +27,6 @@ const MapInner = dynamic(() => import("./MapInner"), {
     </div>
   ),
 });
-
-interface NominatimHit {
-  lat: string;
-  lon: string;
-  display_name: string;
-}
 
 export function SitePicker({
   lat,
@@ -35,23 +37,29 @@ export function SitePicker({
   lon: number | null;
   onPick: (lat: number, lon: number) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<NominatimHit[]>([]);
+  const [hits, setHits] = useState<GeocodeHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 3) {
       setHits([]);
+      setSearchFailed(false);
       return;
     }
     setSearching(true);
+    setSearchFailed(false);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      setHits(res.ok ? await res.json() : []);
+      setHits(await geocodeSearch(q));
     } catch {
+      // A failed lookup (network/upstream/throttle) is NOT the same as a
+      // genuine zero-result search — surface it distinctly instead of
+      // rendering an empty dropdown that looks identical to "no matches".
       setHits([]);
+      setSearchFailed(true);
     } finally {
       setSearching(false);
     }
@@ -63,7 +71,7 @@ export function SitePicker({
     debounceRef.current = setTimeout(() => search(value), 400);
   }
 
-  function choose(hit: NominatimHit) {
+  function choose(hit: GeocodeHit) {
     setQuery(hit.display_name);
     setHits([]);
     onPick(parseFloat(hit.lat), parseFloat(hit.lon));
@@ -99,6 +107,7 @@ export function SitePicker({
           </ul>
         )}
       </div>
+      {searchFailed && <Callout tone="error">{t("sitePicker.searchError")}</Callout>}
       <div className="overflow-hidden rounded-2xl ring-1 ring-inset ring-white/10">
         <MapInner lat={lat} lon={lon} onPick={onPick} />
       </div>

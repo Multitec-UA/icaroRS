@@ -74,6 +74,10 @@
     "errorsTitle": "Please fix the following"
   },
 
+  "sitePicker": {
+    "searchError": "Couldn't search for that place. Please try again in a moment."
+  },
+
   "models": {
     "forecast": "Real forecast (GFS)",
     "standard_atmosphere": "Standard atmosphere",

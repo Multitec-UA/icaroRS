@@ -56,6 +56,7 @@ export type MessageKey =
   | "basics.continue"
   | "basics.checking"
   | "basics.errorsTitle"
+  | "sitePicker.searchError"
   | "models.forecast"
   | "models.standard_atmosphere"
   | "models.wyoming_sounding"
