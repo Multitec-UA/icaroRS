@@ -169,6 +169,7 @@ export type MessageKey =
   | "rockets.loading"
   | "rockets.empty"
   | "rockets.errorLoad"
+  | "rockets.errorUseFailed"
   | "rockets.colName"
   | "rockets.colDate"
   | "rockets.colBy"

@@ -22,10 +22,10 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthGate";
-import { useWizard } from "@/components/wizard/WizardProvider";
+import { useWizardNav } from "@/components/wizard/WizardProvider";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useT } from "@/components/i18n/LocaleProvider";
-import { cn } from "@/components/ui";
+import { cn } from "@/lib/styles";
 
 interface NavItem {
   key: "simulate" | "rockets" | "history";
@@ -38,7 +38,8 @@ export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { logout } = useAuth();
-  const { reset } = useWizard();
+  // Nav-only (issue #50) — see Stepper.tsx for why this matters.
+  const { reset } = useWizardNav();
 
   function handleNav(href: string) {
     // Leaving the results screen ends the current run — clear the wizard form so

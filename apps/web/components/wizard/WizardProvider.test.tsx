@@ -1,7 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { act, renderHook } from "@testing-library/react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { WizardProvider, toLaunchDate, useWizard } from "./WizardProvider";
+import {
+  WizardProvider,
+  useWizard,
+  useWizardDraft,
+  useWizardNav,
+} from "./WizardProvider";
+
+// Pure domain-rule tests (toLaunchDate, buildScenarioBody, canAdvance,
+// needsDate) live in lib/domain/scenario.test.ts (issue #50) — no rendering
+// needed there. This file covers the React wiring: the reducer, the two
+// contexts, and the render-isolation the split is for.
 
 function wrapper({ children }: { children: ReactNode }) {
   return <WizardProvider>{children}</WizardProvider>;
@@ -10,25 +20,6 @@ function wrapper({ children }: { children: ReactNode }) {
 function setup() {
   return renderHook(() => useWizard(), { wrapper });
 }
-
-describe("toLaunchDate", () => {
-  it("returns null for a null input", () => {
-    expect(toLaunchDate(null)).toBeNull();
-  });
-
-  it("parses a datetime-local string literally, without a timezone shift", () => {
-    expect(toLaunchDate("2026-06-01T09:54")).toEqual({
-      year: 2026,
-      month: 6,
-      day: 1,
-      hour: 9,
-    });
-  });
-
-  it("returns null for a malformed string", () => {
-    expect(toLaunchDate("not-a-date")).toBeNull();
-  });
-});
 
 describe("WizardProvider — canAdvance per step", () => {
   it("rocket: false until an export id is set", () => {
@@ -178,13 +169,78 @@ describe("WizardProvider — reducer / navigation", () => {
   });
 });
 
-describe("useWizard", () => {
-  it("throws when used outside a WizardProvider", () => {
+describe("useWizard / useWizardNav / useWizardDraft — outside a provider", () => {
+  it("each throws its own message when used outside a WizardProvider", () => {
     // Swallow the expected React error-boundary console.error noise.
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     expect(() => renderHook(() => useWizard())).toThrow(
-      "useWizard must be used within a <WizardProvider>",
+      "useWizardNav must be used within a <WizardProvider>",
+    );
+    expect(() => renderHook(() => useWizardNav())).toThrow(
+      "useWizardNav must be used within a <WizardProvider>",
+    );
+    expect(() => renderHook(() => useWizardDraft())).toThrow(
+      "useWizardDraft must be used within a <WizardProvider>",
     );
     spy.mockRestore();
+  });
+});
+
+describe("WizardProvider — render isolation (issue #50)", () => {
+  it("does not re-render a useWizardNav-only consumer when a draft field changes", () => {
+    const navRenders = vi.fn();
+    const draftRenders = vi.fn();
+
+    function NavProbe() {
+      useWizardNav();
+      navRenders();
+      return null;
+    }
+
+    function DraftProbe() {
+      const { setName } = useWizardDraft();
+      draftRenders();
+      return (
+        <button onClick={() => setName("changed")}>change draft</button>
+      );
+    }
+
+    render(
+      <WizardProvider>
+        <NavProbe />
+        <DraftProbe />
+      </WizardProvider>,
+    );
+
+    expect(navRenders).toHaveBeenCalledTimes(1);
+    expect(draftRenders).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByText("change draft"));
+
+    // The draft consumer re-renders (it just changed); the nav-only consumer
+    // — the whole point of the split — does not, because typing/changing a
+    // draft field no longer invalidates the nav context's memoized value.
+    expect(draftRenders).toHaveBeenCalledTimes(2);
+    expect(navRenders).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-renders a useWizardNav consumer when the step changes", () => {
+    const navRenders = vi.fn();
+
+    function NavProbe() {
+      const { step, goto } = useWizardNav();
+      navRenders();
+      return <button onClick={() => goto("basics")}>{step}</button>;
+    }
+
+    render(
+      <WizardProvider>
+        <NavProbe />
+      </WizardProvider>,
+    );
+
+    expect(navRenders).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByText("rocket"));
+    expect(navRenders).toHaveBeenCalledTimes(2);
   });
 });

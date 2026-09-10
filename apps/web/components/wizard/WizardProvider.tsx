@@ -13,6 +13,18 @@
  *
  * React context must live in a Client Component (Next 16 — server components
  * can't hold context), hence "use client" at the top.
+ *
+ * Domain rules (toLaunchDate, buildScenarioBody, canAdvance, needsDate,
+ * STEP_ORDER) live in lib/domain/scenario.ts (issue #50) — plain functions,
+ * unit-testable without rendering anything. This file is just the React
+ * wiring: the reducer and two contexts.
+ *
+ * Two contexts, not one (issue #50): a single context whose value depends on
+ * the whole draft meant every consumer re-rendered on every keystroke,
+ * including AppNav/Stepper/WizardShell, which only care about the step and
+ * whether a rocket has been uploaded. `WizardNavContext` carries exactly
+ * that; `WizardDraftContext` carries the rest and is memoized separately, so
+ * a draft-only change never invalidates a nav-only consumer.
  */
 
 import {
@@ -23,34 +35,14 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import type {
-  Atmosphere,
-  AtmosphereModel,
-  Dispersion,
-  LaunchDate,
-  Rail,
-  Site,
-  SimulateResult,
-} from "@/lib/api";
-
-// ---------------------------------------------------------------------------
-// Steps
-// ---------------------------------------------------------------------------
-
-export type WizardStep = "rocket" | "basics" | "advanced" | "review" | "results";
-
-const STEP_ORDER: WizardStep[] = [
-  "rocket",
-  "basics",
-  "advanced",
-  "review",
-  "results",
-];
-
-/** Atmosphere models that require a launch date (and an internet fetch). */
-function needsDate(model: AtmosphereModel): boolean {
-  return model === "forecast" || model === "wyoming_sounding";
-}
+import type { Atmosphere, Dispersion, Rail, Site, SimulateResult } from "@/lib/api";
+import {
+  STEP_ORDER,
+  buildScenarioBody,
+  canAdvance as computeCanAdvance,
+  needsDate as computeNeedsDate,
+  type WizardStep,
+} from "@/lib/domain/scenario";
 
 const DEFAULT_ATMOSPHERE: Atmosphere = {
   model: "standard_atmosphere",
@@ -138,66 +130,43 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Nav context — step + navigation only. Consumers: AppNav, Stepper,
+// WizardShell. Memoized on just `state.step` / `state.exportId`, so it never
+// changes identity when a draft field (name, site, uncertainty, ...) changes.
 // ---------------------------------------------------------------------------
 
-/**
- * Parse a datetime-local string ("2026-06-01T09:54") into a LaunchDate.
- * Parsed literally (NOT via `new Date`) so no local-timezone shift is applied —
- * the domain treats the launch time as UTC.
- */
-export function toLaunchDate(iso: string | null): LaunchDate | null {
-  if (!iso) return null;
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})/);
-  if (!m) return null;
-  return { year: +m[1], month: +m[2], day: +m[3], hour: +m[4] };
+interface WizardNavContextValue {
+  step: WizardStep;
+  /** Whether a rocket has been uploaded — Stepper uses this to gate jumping ahead. */
+  exportId: string | null;
+  goto: (step: WizardStep) => void;
+  next: () => void;
+  back: () => void;
+  reset: () => void;
 }
 
-/** Build the scenario body sent to /api/scenario/validate and /api/simulate. */
-function buildScenarioBody(state: WizardState): Record<string, unknown> {
-  return {
-    name: state.name,
-    site: state.site,
-    date: toLaunchDate(state.launchDatetime),
-    atmosphere: state.atmosphere,
-    rail: state.rail,
-    uncertainty: state.uncertainty,
-  };
-}
+const WizardNavContext = createContext<WizardNavContextValue | null>(null);
 
-function canAdvance(state: WizardState): boolean {
-  switch (state.step) {
-    case "rocket":
-      return state.exportId !== null;
-    case "basics":
-      return (
-        state.site !== null &&
-        Number.isFinite(state.site.latitude) &&
-        Number.isFinite(state.site.longitude) &&
-        (!needsDate(state.atmosphere.model) ||
-          toLaunchDate(state.launchDatetime) !== null)
-      );
-    case "advanced":
-      return true; // advanced overrides are all optional
-    case "review":
-      return state.result !== null; // only after a successful simulate
-    case "results":
-      return false;
-    default:
-      return false;
+export function useWizardNav(): WizardNavContextValue {
+  const ctx = useContext(WizardNavContext);
+  if (!ctx) {
+    throw new Error("useWizardNav must be used within a <WizardProvider>");
   }
+  return ctx;
 }
 
 // ---------------------------------------------------------------------------
-// Context
+// Draft context — the scenario draft, its setters, and the derived guards
+// that depend on it. Consumers: the step components, ResultsDashboard,
+// RocketsList. Memoized on the whole `state`, so it changes on every
+// keystroke — expected, since these consumers render the draft itself.
 // ---------------------------------------------------------------------------
 
-interface WizardContextValue {
+interface WizardDraftContextValue {
   state: WizardState;
   /** True when the current step's local guard is satisfied. */
   canAdvance: boolean;
-  /** Steps the user is allowed to jump to (everything up to the furthest reached). */
-  step: WizardStep;
+  needsDate: boolean;
   setExport: (exportId: string, manifest: Record<string, unknown>) => void;
   setName: (name: string) => void;
   setSite: (site: Site | null) => void;
@@ -206,16 +175,37 @@ interface WizardContextValue {
   setRail: (rail: Rail | null) => void;
   setUncertainty: (uncertainty: Record<string, Dispersion> | null) => void;
   setResult: (result: SimulateResult) => void;
-  goto: (step: WizardStep) => void;
-  next: () => void;
-  back: () => void;
-  reset: () => void;
   /** Snapshot of the scenario body for validate/simulate calls. */
   scenarioBody: () => Record<string, unknown>;
-  needsDate: boolean;
 }
 
-const WizardContext = createContext<WizardContextValue | null>(null);
+const WizardDraftContext = createContext<WizardDraftContextValue | null>(null);
+
+export function useWizardDraft(): WizardDraftContextValue {
+  const ctx = useContext(WizardDraftContext);
+  if (!ctx) {
+    throw new Error("useWizardDraft must be used within a <WizardProvider>");
+  }
+  return ctx;
+}
+
+// ---------------------------------------------------------------------------
+// Combined convenience hook — for consumers that already need both slices
+// (most step components: a draft field AND `next()`/`back()`). Re-renders
+// whenever either slice changes, which is correct for these — they already
+// read decision fields from both. Nav-only consumers should use
+// `useWizardNav` directly instead of this, or they lose the isolation.
+// ---------------------------------------------------------------------------
+
+export function useWizard(): WizardNavContextValue & WizardDraftContextValue {
+  const nav = useWizardNav();
+  const draft = useWizardDraft();
+  return { ...nav, ...draft };
+}
+
+// ---------------------------------------------------------------------------
+// Provider
+// ---------------------------------------------------------------------------
 
 export function WizardProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
@@ -271,12 +261,23 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
   const scenarioBody = useCallback(() => buildScenarioBody(state), [state]);
 
-  const value = useMemo<WizardContextValue>(
+  const navValue = useMemo<WizardNavContextValue>(
+    () => ({
+      step: state.step,
+      exportId: state.exportId,
+      goto,
+      next,
+      back,
+      reset,
+    }),
+    [state.step, state.exportId, goto, next, back, reset],
+  );
+
+  const draftValue = useMemo<WizardDraftContextValue>(
     () => ({
       state,
-      step: state.step,
-      canAdvance: canAdvance(state),
-      needsDate: needsDate(state.atmosphere.model),
+      canAdvance: computeCanAdvance(state.step, state),
+      needsDate: computeNeedsDate(state.atmosphere.model),
       setExport,
       setName,
       setSite,
@@ -285,10 +286,6 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setRail,
       setUncertainty,
       setResult,
-      goto,
-      next,
-      back,
-      reset,
       scenarioBody,
     }),
     [
@@ -301,23 +298,15 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setRail,
       setUncertainty,
       setResult,
-      goto,
-      next,
-      back,
-      reset,
       scenarioBody,
     ],
   );
 
-  return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;
+  return (
+    <WizardNavContext.Provider value={navValue}>
+      <WizardDraftContext.Provider value={draftValue}>
+        {children}
+      </WizardDraftContext.Provider>
+    </WizardNavContext.Provider>
+  );
 }
-
-export function useWizard(): WizardContextValue {
-  const ctx = useContext(WizardContext);
-  if (!ctx) {
-    throw new Error("useWizard must be used within a <WizardProvider>");
-  }
-  return ctx;
-}
-
-export { STEP_ORDER, needsDate };

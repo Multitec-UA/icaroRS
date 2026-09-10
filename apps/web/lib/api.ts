@@ -299,16 +299,16 @@ export class ApiError extends Error {
 // Core fetch wrapper
 // ---------------------------------------------------------------------------
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(path, { ...init });
-  } catch {
-    throw new ApiError(0, "Could not reach the icaro API. Is the server running?", {
-      code: "network",
-    });
-  }
-
+/**
+ * Parses a fetch `Response` into `T` or throws the mapped `ApiError` — the
+ * exact same status → code mapping the client uses. Exported so
+ * lib/server-api.ts (issue #52) can reuse it: Server Components can't use
+ * `request()` below as-is (no browser cookie jar — the session cookie has to
+ * be forwarded explicitly, and the fetch target is the API's real origin,
+ * not the same-origin `/api/*` rewrite), but the response shape and error
+ * mapping are identical either way.
+ */
+export async function parseApiResponse<T>(res: Response): Promise<T> {
   if (res.ok) {
     // 200 with no body (shouldn't happen on our contract) → undefined.
     const text = await res.text();
@@ -348,6 +348,18 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       ? detail
       : `Request failed (${res.status}).`;
   throw new ApiError(res.status, message, { code: "requestFailed" });
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(path, { ...init });
+  } catch {
+    throw new ApiError(0, "Could not reach the icaro API. Is the server running?", {
+      code: "network",
+    });
+  }
+  return parseApiResponse<T>(res);
 }
 
 function isRecord(v: unknown): v is Record<string, unknown> {

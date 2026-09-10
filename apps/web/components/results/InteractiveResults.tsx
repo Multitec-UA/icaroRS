@@ -12,10 +12,8 @@
  * so they stay out of SSR and are code-split off the initial bundle.
  */
 
-import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
-import { ApiError, getSeries, type FlightSeries } from "@/lib/api";
-import { useAuth } from "@/components/auth/AuthGate";
+import { useSeriesQuery } from "@/lib/queries";
 import { Eyebrow, Spinner, Surface } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { useT } from "@/components/i18n/LocaleProvider";
@@ -45,27 +43,11 @@ const SeriesChart = dynamic(
 );
 
 export function InteractiveResults({ runId }: { runId: string }) {
-  const { logout } = useAuth();
   const t = useT();
-  const [series, setSeries] = useState<FlightSeries | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-    getSeries(runId)
-      .then((s) => active && setSeries(s))
-      .catch((err) => {
-        if (!active) return;
-        // 401 → session expired; anything else (404 included) → just hide the
-        // interactive section and let the PNG gallery stand in.
-        if (err instanceof ApiError && err.isUnauthorized) logout();
-      })
-      .finally(() => active && setLoading(false));
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [runId]);
+  // A 401 logs the user out globally (lib/query-client.ts); any other error
+  // (404 included, for a run that predates this feature) just leaves `series`
+  // undefined and the PNG gallery stands in — same as before.
+  const { data: series, isLoading: loading } = useSeriesQuery(runId);
 
   if (loading) {
     return (

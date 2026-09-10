@@ -218,6 +218,7 @@
     "loading": "Cargando cohetes…",
     "empty": "Todavía no hay cohetes guardados. Carga un archivo .ork para comenzar.",
     "errorLoad": "No se pudo cargar la lista de cohetes.",
+    "errorUseFailed": "No se pudo usar este cohete. Intenta de nuevo.",
     "colName": "Nombre",
     "colDate": "Guardado el",
     "colBy": "Por",

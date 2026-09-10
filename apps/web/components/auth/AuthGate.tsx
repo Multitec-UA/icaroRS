@@ -23,6 +23,7 @@ import {
   type ReactNode,
 } from "react";
 import { ApiError, createSession, getIdentity, logout as apiLogout, type Identity } from "@/lib/api";
+import { setUnauthorizedHandler } from "@/lib/query-client";
 import { signInWithPassword, signOut as firebaseSignOut } from "@/lib/firebase";
 import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
 import { Reveal } from "@/components/motion";
@@ -75,6 +76,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
     void apiLogout();
     void firebaseSignOut();
   }, []);
+
+  // Every query/mutation run through the shared QueryClient (lib/query-client.ts)
+  // reports a 401 here, instead of each consumer repeating
+  // `if (err.isUnauthorized) logout()`. `logout` is stable (useCallback, no
+  // deps), so this registers once and is torn down on unmount.
+  useEffect(() => {
+    setUnauthorizedHandler(logout);
+    return () => setUnauthorizedHandler(null);
+  }, [logout]);
 
   if (status === "checking") {
     return (

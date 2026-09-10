@@ -4,7 +4,7 @@
  * (app-level, shared across all authenticated pages). Results live on their
  * own page (/results/[runId]); this shell drives rocket → review. */
 
-import { useWizard } from "./WizardProvider";
+import { useWizardNav } from "./WizardProvider";
 import { Stepper } from "./Stepper";
 import { RocketStep } from "./RocketStep";
 import { BasicsStep } from "./BasicsStep";
@@ -14,7 +14,8 @@ import { Card } from "@/components/ui";
 import { FadeSwap } from "@/components/motion";
 
 export function WizardShell() {
-  const { step } = useWizard();
+  // Nav-only (issue #50) — see Stepper.tsx for why this matters.
+  const { step } = useWizardNav();
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-8 px-4 py-8">

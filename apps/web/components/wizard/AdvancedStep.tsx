@@ -15,15 +15,16 @@
 import { useEffect, useState } from "react";
 import {
   ApiError,
-  getScenarioTemplate,
   validateScenario,
   type AtmosphereModel,
   type Dispersion,
   type FieldError,
 } from "@/lib/api";
+import { useScenarioTemplateQuery } from "@/lib/queries";
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
-import { Button, Callout, Eyebrow, Field, Spinner, TextInput, cn, selectClass } from "@/components/ui";
+import { Button, Callout, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { cn, selectClass } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
 type Presets = Record<string, Record<string, Dispersion>>;
@@ -47,30 +48,24 @@ export function AdvancedStep() {
   const { logout } = useAuth();
   const t = useT();
 
-  const [presets, setPresets] = useState<Presets | null>(null);
+  // A 401 here is handled globally (lib/query-client.ts).
+  const { data: template } = useScenarioTemplateQuery();
+  const presets: Presets | null = template?.uncertainty_presets ?? null;
   const [selected, setSelected] = useState<PresetName>("Typical");
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [validating, setValidating] = useState(false);
 
-  // Load presets once; seed uncertainty with Typical if not set yet.
+  // Seed uncertainty with the "Typical" preset once the template has loaded,
+  // if nothing has set it yet. Depending on `state.uncertainty` looks
+  // suspicious for an effect that also SETS it, but it's what makes this
+  // safe without an exhaustive-deps suppression: once setUncertainty runs,
+  // `state.uncertainty` becomes non-null, the effect re-runs, the guard is
+  // now false, and it converges — no infinite loop, no stale closure.
   useEffect(() => {
-    let active = true;
-    getScenarioTemplate()
-      .then((tmpl) => {
-        if (!active) return;
-        setPresets(tmpl.uncertainty_presets);
-        if (state.uncertainty === null && tmpl.uncertainty_presets["Typical"]) {
-          setUncertainty(tmpl.uncertainty_presets["Typical"]);
-        }
-      })
-      .catch((err) => {
-        if (err instanceof ApiError && err.isUnauthorized) logout();
-      });
-    return () => {
-      active = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (presets && state.uncertainty === null && presets["Typical"]) {
+      setUncertainty(presets["Typical"]);
+    }
+  }, [presets, state.uncertainty, setUncertainty]);
 
   function choosePreset(name: PresetName) {
     setSelected(name);

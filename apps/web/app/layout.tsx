@@ -4,6 +4,7 @@ import "./globals.css";
 import { cookies, headers } from "next/headers";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { WizardProvider } from "@/components/wizard/WizardProvider";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import type { Locale } from "@/lib/i18n";
@@ -74,18 +75,23 @@ export default async function RootLayout({
     >
       <body className="min-h-[100dvh] flex flex-col">
         <AmbientBackground />
-        {/* LocaleProvider wraps AuthGate so the login screen is also localized.
-            initialLocale is fully resolved server-side (cookie → Accept-Language
-            → "en"), so the first render is already in the right language. */}
-        <LocaleProvider initialLocale={locale}>
-          {/* Auth + wizard state live at the root so they persist across the
-              wizard (/) and the results page (/results/[runId]). WizardProvider
-              wraps AuthGate so the shared nav (AppNav) can reset the wizard form
-              when leaving the results screen. */}
-          <WizardProvider>
-            <AuthGate>{children}</AuthGate>
-          </WizardProvider>
-        </LocaleProvider>
+        {/* QueryProvider is outermost so the server-state layer (issue #48) is
+            available regardless of auth status — it holds one QueryClient for
+            the tab's lifetime rather than being recreated on every login. */}
+        <QueryProvider>
+          {/* LocaleProvider wraps AuthGate so the login screen is also localized.
+              initialLocale is fully resolved server-side (cookie → Accept-Language
+              → "en"), so the first render is already in the right language. */}
+          <LocaleProvider initialLocale={locale}>
+            {/* Auth + wizard state live at the root so they persist across the
+                wizard (/) and the results page (/results/[runId]). WizardProvider
+                wraps AuthGate so the shared nav (AppNav) can reset the wizard form
+                when leaving the results screen. */}
+            <WizardProvider>
+              <AuthGate>{children}</AuthGate>
+            </WizardProvider>
+          </LocaleProvider>
+        </QueryProvider>
       </body>
     </html>
   );
