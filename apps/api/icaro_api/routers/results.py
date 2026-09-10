@@ -30,11 +30,13 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from pydantic import BaseModel
 
 from icaro_api.auth import Identity, require_auth
+from icaro_api.routers.simulate import SimulateResult
 from icaro_api.runs import get_db, get_storage
 from icaro_api.services.db import Db, SimRecord
 from icaro_api.services.storage import Storage
@@ -43,6 +45,25 @@ router = APIRouter(
     tags=["results"],
     dependencies=[Depends(require_auth)],
 )
+
+
+class ResultEnvelope(BaseModel):
+    """Response body for GET /api/results/{run_id}."""
+
+    run_id: str
+    status: Literal["done"]
+    result: SimulateResult
+
+
+class FlightSeries(BaseModel):
+    """Response body for GET /api/results/{run_id}/series."""
+
+    t: list[float]
+    altitude: list[float] | None = None
+    speed: list[float] | None = None
+    mach: list[float] | None = None
+    acceleration: list[float] | None = None
+    path3d: list[list[float]] | None = None
 
 
 def _get_owned_run(run_id: str, db: Db, org_id: str, not_found_detail: str) -> SimRecord:
@@ -57,7 +78,7 @@ def _get_owned_run(run_id: str, db: Db, org_id: str, not_found_detail: str) -> S
     return sim
 
 
-@router.get("/results/{run_id}")
+@router.get("/results/{run_id}", response_model=ResultEnvelope)
 def get_result(
     run_id: str,
     storage: Storage = Depends(get_storage),
@@ -102,7 +123,7 @@ def get_result(
     }
 
 
-@router.get("/results/{run_id}/series")
+@router.get("/results/{run_id}/series", response_model=FlightSeries)
 def get_series(
     run_id: str,
     storage: Storage = Depends(get_storage),

@@ -101,7 +101,12 @@ class TestResultsEndpoint:
         # Forward-compat shape (RG-9.7, design §11)
         assert data["run_id"] == run_id
         assert data["status"] == "done"
-        assert "result" in data
+        assert data["result"] == {
+            "run_id": run_id,
+            "scalars": {"apogee_m": 1000.0},
+            "plot_urls": [],
+            "warnings": [],
+        }
 
     def test_returns_404_if_run_missing(self, tmp_path):
         """Missing run_id → 404."""
@@ -240,6 +245,10 @@ class TestSeriesEndpoint:
         assert resp.status_code == 200
         data = resp.json()
         assert data["t"] == [0.0, 1.0, 2.0]
+        assert data["altitude"] == [0.0, 30.0, 60.0]
+        assert data["speed"] == [25.0, 25.0, 25.0]
+        assert data["mach"] == [0.0, 0.05, 0.1]
+        assert data["acceleration"] == [9.81, 9.81, 9.81]
         assert data["path3d"][1] == [1.5, 2.0, 30.0]
 
     def test_returns_404_when_series_missing(self, tmp_path):
