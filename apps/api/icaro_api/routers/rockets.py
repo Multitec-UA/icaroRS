@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 
 from icaro_api.auth import Identity, require_auth
 from icaro_api.runs import get_db, get_storage
@@ -30,7 +31,26 @@ _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
 
 
-@router.get("/rockets")
+class RocketSummary(BaseModel):
+    """One rocket as returned by GET /api/rockets."""
+
+    rocket_id: str
+    name: str
+    created_at: str
+    created_by: str
+    export_prefix: str
+    gcs_ref: str
+    ork_filename: str | None
+    has_source_ork: bool
+
+
+class RocketDetail(RocketSummary):
+    """Response body for GET /api/rockets/{rocket_id} — a RocketSummary plus its manifest."""
+
+    manifest: dict[str, Any]
+
+
+@router.get("/rockets", response_model=list[RocketSummary])
 def list_rockets(
     limit: int = _DEFAULT_LIMIT,
     before: datetime | None = None,
@@ -66,7 +86,7 @@ def list_rockets(
     ]
 
 
-@router.get("/rockets/{rocket_id}")
+@router.get("/rockets/{rocket_id}", response_model=RocketDetail)
 def get_rocket(
     rocket_id: str,
     db: Db = Depends(get_db),
