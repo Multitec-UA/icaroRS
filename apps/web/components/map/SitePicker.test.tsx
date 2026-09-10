@@ -17,10 +17,13 @@ vi.mock("@/lib/geocode", async (importOriginal) => {
 
 // The real MapInner touches Leaflet/window at import time — irrelevant to
 // SitePicker's own search/error logic, same rationale as InteractiveResults
-// stubbing out the chart libs it dynamically imports.
-vi.mock("./MapInner", () => ({
-  default: () => <div>map-inner-stub</div>,
-}));
+// stubbing out the chart libs it dynamically imports. The artificial delay
+// keeps next/dynamic's `loading` fallback on screen long enough to assert
+// against (a same-tick mock resolves before the very first render commits).
+vi.mock("./MapInner", async () => {
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  return { default: () => <div>map-inner-stub</div> };
+});
 
 function Providers({ children }: { children: ReactNode }) {
   return <LocaleProvider initialLocale="en">{children}</LocaleProvider>;
@@ -30,8 +33,27 @@ afterEach(() => {
   geocodeSearchMock.mockReset();
 });
 
-describe("SitePicker (issue #55 — geocoding proxied through our own route)", () => {
-  it("renders its static copy unchanged and never talks to Nominatim directly", () => {
+describe("SitePicker (issues #55 — geocode proxy, #54 — i18n leak sweep)", () => {
+  // NOTE: this must run first in the file. next/dynamic caches the module
+  // once the underlying `import("./MapInner")` has resolved, so any earlier
+  // render() of <SitePicker> in this file would make the "still loading"
+  // window unobservable here.
+  it("shows a localized fallback while the map chunk loads — proving LocaleProvider context reaches the next/dynamic `loading` callback", async () => {
+    render(
+      <Providers>
+        <SitePicker lat={null} lon={null} onPick={vi.fn()} />
+      </Providers>,
+    );
+
+    // The mocked import is deliberately delayed (see the mock above), so this
+    // is asserting against the actual `loading:` fallback, not a race.
+    expect(screen.getByText("Loading map…")).toBeInTheDocument();
+
+    // ...and it resolves to the real map once the chunk "loads".
+    expect(await screen.findByText("map-inner-stub")).toBeInTheDocument();
+  });
+
+  it("renders localized copy and never talks to Nominatim directly", () => {
     render(
       <Providers>
         <SitePicker lat={null} lon={null} onPick={vi.fn()} />

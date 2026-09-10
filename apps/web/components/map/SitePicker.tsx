@@ -14,18 +14,21 @@ import { Callout, Spinner, TextInput } from "@/components/ui";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { geocodeSearch, type GeocodeHit } from "@/lib/geocode";
 
-// NOTE: "Loading map…" is a pre-existing hardcoded literal, not new copy
-// introduced by this fix — left as-is here on purpose. Issue #54 (i18n leak
-// sweep, branched from this one) fixes it together with this file's other
-// two pre-existing leaks, so its new lint/detection guard covers all three
-// at once instead of this PR fixing one leak while leaving two behind.
+// A next/dynamic `loading:` callback renders wherever <MapInner> would in the
+// JSX tree, so it's still a descendant of LocaleProvider (mounted at the root
+// layout) — useT() works here exactly as it would in the component body.
+function MapLoadingFallback() {
+  const t = useT();
+  return (
+    <div className="flex h-80 w-full items-center justify-center rounded-2xl bg-white/[0.02] text-sm text-muted ring-1 ring-inset ring-white/10">
+      {t("sitePicker.loadingMap")}
+    </div>
+  );
+}
+
 const MapInner = dynamic(() => import("./MapInner"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-80 w-full items-center justify-center rounded-2xl bg-white/[0.02] text-sm text-muted ring-1 ring-inset ring-white/10">
-      Loading map…
-    </div>
-  ),
+  loading: MapLoadingFallback,
 });
 
 export function SitePicker({
@@ -82,7 +85,7 @@ export function SitePicker({
       <div className="relative">
         <TextInput
           className="w-full"
-          placeholder="Search a place (e.g. Alicante, Spain)…"
+          placeholder={t("sitePicker.searchPlaceholder")}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
         />
@@ -111,9 +114,7 @@ export function SitePicker({
       <div className="overflow-hidden rounded-2xl ring-1 ring-inset ring-white/10">
         <MapInner lat={lat} lon={lon} onPick={onPick} />
       </div>
-      <p className="text-xs text-muted">
-        Click anywhere on the map to drop the launch point, or search for a place above.
-      </p>
+      <p className="text-xs text-muted">{t("sitePicker.helperText")}</p>
     </div>
   );
 }

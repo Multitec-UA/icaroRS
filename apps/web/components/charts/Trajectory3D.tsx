@@ -25,6 +25,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Grid, Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { Button } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 const SCENE_SIZE = 6; // half-extent the trajectory is scaled to fit
 const PLAY_SECONDS = 9; // wall-clock duration of one full play-through
@@ -163,6 +164,7 @@ function Timeline({
   onSeek: (v: number) => void;
 }) {
   const [val, setVal] = useState(0);
+  const t = useT();
 
   // Mirror the ref-driven progress into the slider without touching the Canvas.
   useEffect(() => {
@@ -178,7 +180,7 @@ function Timeline({
   return (
     <div className="flex items-center gap-4">
       <Button variant="ghost" onClick={onToggle} className="h-10 shrink-0 px-5">
-        {playing ? "Pause" : "Play"}
+        {playing ? t("interactive.pause") : t("interactive.play")}
       </Button>
       <input
         type="range"
@@ -187,7 +189,7 @@ function Timeline({
         step={0.001}
         value={val}
         onChange={(e) => onSeek(parseFloat(e.target.value))}
-        aria-label="Scrub flight timeline"
+        aria-label={t("interactive.scrubTimeline")}
         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-400"
       />
       <span className="tabular-readout w-12 shrink-0 text-right text-sm text-muted">
