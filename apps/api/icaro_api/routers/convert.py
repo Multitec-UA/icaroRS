@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from pydantic import BaseModel
 
 from icaro_api.auth import Identity, require_auth
 from icaro_api.config import Settings, get_settings
@@ -37,7 +38,14 @@ router = APIRouter(
 )
 
 
-@router.post("/convert")
+class ConvertResult(BaseModel):
+    """Response body for POST /api/convert."""
+
+    export_id: str
+    manifest: dict[str, Any]
+
+
+@router.post("/convert", response_model=ConvertResult)
 async def post_convert(
     file: UploadFile = File(..., description="OpenRocket .ork file"),
     settings: Settings = Depends(get_settings),
