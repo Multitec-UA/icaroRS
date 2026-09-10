@@ -1,10 +1,14 @@
 #!/usr/bin/env node
 /**
- * Catalog completeness gate — dependency-free Node ESM.
+ * i18n completeness gate.
  *
  * Asserts:
  *   (a) en.json and es.json have identical key sets (symmetric diff)
  *   (b) no key has an empty-string value in either catalog
+ *   (c) no untranslated JSX literal under components/ or app/ (issue #54 —
+ *       (a) and (b) only ever caught catalog PARITY; a literal that never
+ *       called t() at all was invisible to them, which is exactly how eight
+ *       hardcoded strings shipped past this gate. See i18n-literal-scan.mjs.
  *
  * Exits 0 on success, non-zero on any violation.
  */
@@ -12,6 +16,7 @@
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { scanForUntranslatedLiterals } from "./i18n-literal-scan.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const messagesDir = join(__dirname, "..", "messages");
@@ -104,9 +109,36 @@ if (emptyInEs.length > 0) {
   failed = true;
 }
 
+// ---------------------------------------------------------------------------
+// Check (c) — untranslated JSX literals under components/ and app/
+// ---------------------------------------------------------------------------
+
+const { violations, unusedAllowlistEntries } = scanForUntranslatedLiterals();
+
+if (violations.length > 0) {
+  console.error(
+    `[i18n:check] Untranslated literal${violations.length === 1 ? "" : "s"} found (${violations.length}) — route these through t() and add the key to both catalogs, or add a documented entry to scripts/i18n-literal-allowlist.mjs if this one is deliberate:`,
+  );
+  for (const v of violations) {
+    console.error(`  - ${v.file}:${v.line} [${v.kind}] ${JSON.stringify(v.text)}`);
+  }
+  failed = true;
+}
+
+if (unusedAllowlistEntries.length > 0) {
+  console.warn(
+    `[i18n:check] Warning: ${unusedAllowlistEntries.length} entr${unusedAllowlistEntries.length === 1 ? "y" : "ies"} in scripts/i18n-literal-allowlist.mjs matched nothing this run (stale — the literal changed or moved). Not failing the build, but please clean these up:`,
+  );
+  for (const e of unusedAllowlistEntries) {
+    console.warn(`  - ${e.file}: ${JSON.stringify(e.text)}`);
+  }
+}
+
 if (failed) {
   process.exit(1);
 }
 
 const total = enKeys.size;
-console.log(`[i18n:check] OK — ${total} keys, both catalogs in sync.`);
+console.log(
+  `[i18n:check] OK — ${total} keys in sync across both catalogs; no untranslated JSX literals under components/ or app/.`,
+);
