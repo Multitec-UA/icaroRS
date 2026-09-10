@@ -65,6 +65,9 @@ def _sim(
     status: str = "done",
     apogee: float = 3000.0,
     org_id: str = _ORG,
+    warnings: list[str] | None = None,
+    plot_names: list[str] | None = None,
+    has_series: bool = False,
 ) -> SimRecord:
     return SimRecord(
         simulation_id=sim_id,
@@ -75,8 +78,10 @@ def _sim(
         org_id=org_id,
         status=status,
         scalars={"apogee_m": apogee},
-        warnings=[],
+        warnings=warnings if warnings is not None else [],
         result_prefix=f"results/{sim_id}/",
+        plot_names=plot_names if plot_names is not None else [],
+        has_series=has_series,
     )
 
 
@@ -143,6 +148,70 @@ class TestHistoryList:
             f"scalars must contain apogee (REQ-05.2): {scalars}"
         )
         assert apogee_val == 3200.0
+
+    def test_all_twelve_fields_survive_response_model(self):
+        """response_model=list[SimulationSummary] must not silently drop any
+        field the router actually emits — including warnings, result_prefix,
+        plot_names, and has_series, which apps/web's hand-written
+        SimulationSummary TS type does not currently declare (known,
+        pre-existing drift; this is a regression test for that drift, not a
+        request to narrow the model to match the web client).
+        """
+        db = InMemoryDb()
+        rocket_id = "r-twelve"
+        db.save_rocket(_rocket(rocket_id, "TwelveFieldsRocket"), org_id=_ORG)
+        db.save_simulation(
+            _sim(
+                "s-twelve",
+                rocket_id,
+                _T1,
+                status="error",
+                apogee=4321.5,
+                warnings=["parachute deployed late", "low battery"],
+                plot_names=["altitude.png", "velocity.png"],
+                has_series=True,
+            ),
+            org_id=_ORG,
+        )
+        client = _make_client(db)
+
+        resp = client.get("/api/history", headers=_auth())
+
+        assert resp.status_code == 200
+        items = resp.json()
+        assert len(items) == 1
+        item = items[0]
+
+        assert set(item.keys()) == {
+            "simulation_id",
+            "rocket_id",
+            "name",
+            "created_at",
+            "created_by",
+            "status",
+            "scenario",
+            "scalars",
+            "warnings",
+            "result_prefix",
+            "plot_names",
+            "has_series",
+        }, f"Unexpected field set: {sorted(item.keys())}"
+
+        assert item["simulation_id"] == "s-twelve"
+        assert item["rocket_id"] == rocket_id
+        assert item["name"] == "TwelveFieldsRocket"
+        assert item["created_at"] == _T1.isoformat()
+        assert item["created_by"] == "test"
+        assert item["status"] == "error"
+        assert item["scenario"] == {}
+        # apogee/apogee_m fallback logic must still round-trip inside scalars.
+        assert item["scalars"]["apogee_m"] == 4321.5
+        assert item["scalars"]["apogee"] == 4321.5
+        # Drift fields — must survive response_model, not be silently dropped.
+        assert item["warnings"] == ["parachute deployed late", "low battery"]
+        assert item["result_prefix"] == "results/s-twelve/"
+        assert item["plot_names"] == ["altitude.png", "velocity.png"]
+        assert item["has_series"] is True
 
     def test_name_is_denormalized_from_rocket(self):
         """REQ-05.2: 'name' must be the rocket name (not empty)."""
