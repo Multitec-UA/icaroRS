@@ -1,28 +1,30 @@
 /**
  * Typed client for the icaro API contract.
  *
- * Types come from two places (issue #51):
+ * Types come from two places (issue #51, extended by #70):
  *
  * 1. GENERATED — `lib/api/schema.d.ts` is produced by `openapi-typescript`
  *    from the committed OpenAPI snapshot (`openapi/schema.json`, refreshed
  *    via `npm run api:schema` + `npm run api:types` — see those scripts for
  *    the committed-snapshot-vs-live-API decision). `npm run api:check`
- *    fails CI if the committed types drift from a fresh generation. Any
- *    response/request shape FastAPI actually declares with a Pydantic
- *    model — e.g. `Identity` below, from `IdentityResponse` — is imported
- *    from there, never hand-transcribed again.
+ *    fails CI if the committed types drift from a fresh generation. Every
+ *    `apps/api` router endpoint now declares a real `response_model=`
+ *    (issue #70), so `app.openapi()` sees field-level shape for all of them,
+ *    not just `IdentityResponse` — e.g. `RocketSummary`, `RocketDetail`,
+ *    `SimulationSummary`, `SimulateResult`, `ConvertResult`,
+ *    `AtmosphereSuggestion`, and `FlightSeries` below are now imported
+ *    straight from `components["schemas"]`, never hand-transcribed again.
  *
- * 2. HAND-WRITTEN — everything below the "Domain types" divider is still
- *    written by hand, because the corresponding `apps/api` routers return
- *    a bare `dict[str, Any]` / `list[dict[str, Any]]` (no `response_model`),
- *    so `app.openapi()` cannot see field-level shape for them yet — the
- *    generated type for e.g. `GET /api/scenario/template` is just
- *    `{ [key: string]: unknown }`. Using that directly here would be a
- *    silent type-safety regression, not an improvement, so these shapes
- *    stay hand-maintained (mirroring apps/api/icaro_api/routers/*.py + the
- *    icaro Scenario domain model) until those routers gain typed responses.
- *    Tracked in issue #70 — closing it lets these move to the generated
- *    column too.
+ * 2. HAND-WRITTEN — the `Scenario` domain-model family (`Site`, `LaunchDate`,
+ *    `Atmosphere`, `Rail`, `Dispersion`, `Scenario`, `ScenarioTemplate`),
+ *    `FieldError`, `ElevationResponse`, and `ResultEnvelope` stay hand-
+ *    maintained even though real generated shapes exist for all of them now.
+ *    Each has its own reason, noted on the type itself — mostly that the
+ *    generated shape is a *narrower or differently-designed* type than the
+ *    hand-written one (forward-compat status unions, deliberate nullability,
+ *    a custom non-pydantic error shape), or that the type fans out across
+ *    enough call sites (the whole wizard) that swapping it is worth its own
+ *    reviewable PR rather than folding it into this schema-regen change.
  *
  * The `request` wrapper, `ApiError`, the stable `ErrorCode` union, and every
  * endpoint function are hand-written on purpose and are NOT meant to be
@@ -44,7 +46,16 @@ import type { components } from "./api/schema";
 
 // ---------------------------------------------------------------------------
 // Domain types — mirror packages/icaro/icaro/scenario.py
-// (hand-written — see header comment for why these aren't generated yet)
+//
+// A real generated shape exists for every one of these now (issue #70 gave
+// `Scenario`, `Site`, `LaunchDate`, `Atmosphere`, `Rail`, `Dispersion`, and
+// `ScenarioTemplate` field-level `response_model`s). They stay hand-written
+// here on purpose, not because generation is impossible: this family feeds
+// the entire scenario wizard (BasicsStep, WizardProvider, RocketStep, and
+// friends), so swapping every one of these for its `components["schemas"]`
+// equivalent is a call-site-heavy change worth its own small, reviewable PR
+// rather than folding it into this schema-regen change. Left as a deliberate
+// follow-up.
 // ---------------------------------------------------------------------------
 
 export type DispersionKind = "relative" | "absolute";
@@ -96,10 +107,14 @@ export interface Scenario {
 }
 
 // ---------------------------------------------------------------------------
-// Endpoint response shapes (hand-written — see header comment)
+// Endpoint response shapes
 // ---------------------------------------------------------------------------
 
-/** GET /api/scenario/template — a starter Scenario plus the named presets. */
+/**
+ * GET /api/scenario/template — a starter Scenario plus the named presets.
+ * Hand-written for the same reason as the `Scenario` family above (it
+ * `extends Scenario`) — see that section's comment.
+ */
 export interface ScenarioTemplate extends Scenario {
   uncertainty_presets: Record<string, Record<string, Dispersion>>;
 }
@@ -119,65 +134,65 @@ export interface FieldError {
   message: string;
 }
 
-/** GET /api/atmosphere/suggest */
-export interface AtmosphereSuggestion {
-  model: AtmosphereModel;
-  reason: string;
-  within_gfs_window: boolean;
-  needs_internet: boolean;
-}
+/** GET /api/atmosphere/suggest, from `response_model=AtmosphereSuggestion`. */
+export type AtmosphereSuggestion = components["schemas"]["AtmosphereSuggestion"];
 
-/** GET /api/elevation */
+/**
+ * GET /api/elevation. A real generated `ElevationLookupResult` shape exists
+ * now (`{ elevation: number; source: "dem" }`, non-nullable — the router's
+ * pydantic model has always guaranteed a non-null `elevation` on a 200, the
+ * 503 failure path is a thrown `ApiError` instead). Kept hand-written with
+ * the looser `elevation: number | null` because `BasicsStep.tsx` still has
+ * an `elevation !== null` branch written for the pre-#70 untyped-dict world;
+ * narrowing this type to match the generated one is correct but means
+ * touching that call site's dead branch, which is a deliberate follow-up
+ * left for a separate, smaller PR.
+ */
 export interface ElevationResponse {
   elevation: number | null;
   source: string;
 }
 
-/** POST /api/convert */
-export interface ConvertResponse {
-  export_id: string;
-  manifest: Record<string, unknown>;
-}
+/** POST /api/convert, from `response_model=ConvertResult`. */
+export type ConvertResponse = components["schemas"]["ConvertResult"];
 
 /** POST /api/simulate (and the `result` inside the results envelope). */
-export interface SimulateResult {
-  run_id: string;
-  scalars: Record<string, number | null>;
-  plot_urls: string[];
-  warnings: string[];
-}
+export type SimulateResult = components["schemas"]["SimulateResult"];
 
 // ---------------------------------------------------------------------------
 // Rockets + History endpoint shapes (simulation-persistence)
 // ---------------------------------------------------------------------------
 
-/** One item from GET /api/rockets */
-export interface RocketSummary {
-  rocket_id: string;
-  name: string;
-  created_at: string;
-  created_by: string;
-}
+/**
+ * One item from GET /api/rockets, from `response_model=list[RocketSummary]`.
+ * This is the drift issue #70 fixes: the old hand-written shape was missing
+ * `export_prefix`, `gcs_ref`, `ork_filename`, and `has_source_ork`, which the
+ * router has returned for a while — the generated type now correctly
+ * includes them.
+ */
+export type RocketSummary = components["schemas"]["RocketSummary"];
 
-/** Full rocket detail from GET /api/rockets/{rocket_id} */
-export interface RocketDetail extends RocketSummary {
-  manifest: Record<string, unknown>;
-  gcs_ref: string;
-}
+/**
+ * Full rocket detail from GET /api/rockets/{rocket_id}, from
+ * `response_model=RocketDetail`.
+ */
+export type RocketDetail = components["schemas"]["RocketDetail"];
 
-/** One item from GET /api/history */
-export interface SimulationSummary {
-  simulation_id: string;
-  rocket_id: string;
-  name: string;
-  created_at: string;
-  created_by: string;
-  status: "done" | "error";
-  scalars: Record<string, number | null>;
-  scenario: Record<string, unknown>;
-}
+/**
+ * One item from GET /api/history, from `response_model=list[SimulationSummary]`.
+ * Another drift issue #70 fixes: the old hand-written shape was missing
+ * `warnings`, `result_prefix`, `plot_names`, and `has_series`.
+ */
+export type SimulationSummary = components["schemas"]["SimulationSummary"];
 
-/** GET /api/results/{run_id} — forward-compat job-status envelope. */
+/**
+ * GET /api/results/{run_id} — forward-compat job-status envelope.
+ * The generated `ResultEnvelope` now exists but narrows `status` to the
+ * literal `"done"` (the only value the router currently returns) — this
+ * type deliberately keeps the wider `"running" | "error"` union for the
+ * job-status polling this envelope is designed to support once the API
+ * grows an in-progress/failed state, so it stays hand-written on purpose.
+ */
 export interface ResultEnvelope {
   run_id: string;
   status: "done" | "running" | "error";
@@ -185,19 +200,13 @@ export interface ResultEnvelope {
 }
 
 /**
- * GET /api/results/{run_id}/series — resampled flight time-series (issue #11).
- * All series share the `t` axis. A series may be absent if it could not be
- * extracted; `path3d` is (East, North, Up) in metres, starting at the origin.
- * 404 when the run predates this feature → caller falls back to PNG plots.
+ * GET /api/results/{run_id}/series — resampled flight time-series (issue #11),
+ * from `response_model=FlightSeries`. All series share the `t` axis. A series
+ * may be absent if it could not be extracted; `path3d` is (East, North, Up)
+ * in metres, starting at the origin. 404 when the run predates this feature
+ * → caller falls back to PNG plots.
  */
-export interface FlightSeries {
-  t: number[];
-  altitude?: number[];
-  speed?: number[];
-  mach?: number[];
-  acceleration?: number[];
-  path3d?: [number, number, number][];
-}
+export type FlightSeries = components["schemas"]["FlightSeries"];
 
 // ---------------------------------------------------------------------------
 // Session — Identity Platform, via the httpOnly cookie minted by the API

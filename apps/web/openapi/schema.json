@@ -1,6 +1,78 @@
 {
   "components": {
     "schemas": {
+      "Atmosphere": {
+        "description": "Atmosphere model selection and fallback policy.\n\nParameters\n----------\nmodel : str\n    One of ``forecast``, ``wyoming_sounding``, ``standard_atmosphere``,\n    ``reanalysis``. Validated at load time (REQ-SCN-03).\nfile : str or None\n    For ``forecast``: GFS ensemble name (default ``\"GFS\"``).\n    For ``reanalysis``: path to a local ERA5-compatible .nc file (required\n    when model is ``reanalysis``, REQ-SCN-04).\nstation : str or None\n    Wyoming sounding station id. Required when model is\n    ``wyoming_sounding`` (REQ-SCN-05).\nfallback : str\n    Atmosphere model to use when the primary fetch fails.  Defaults to\n    ``\"standard_atmosphere\"`` (REQ-SCN-06).",
+        "properties": {
+          "fallback": {
+            "default": "standard_atmosphere",
+            "title": "Fallback",
+            "type": "string"
+          },
+          "file": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "File"
+          },
+          "model": {
+            "default": "standard_atmosphere",
+            "title": "Model",
+            "type": "string"
+          },
+          "station": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Station"
+          }
+        },
+        "title": "Atmosphere",
+        "type": "object"
+      },
+      "AtmosphereSuggestion": {
+        "description": "Response body for GET /api/atmosphere/suggest.",
+        "properties": {
+          "model": {
+            "enum": [
+              "forecast",
+              "standard_atmosphere"
+            ],
+            "title": "Model",
+            "type": "string"
+          },
+          "needs_internet": {
+            "title": "Needs Internet",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "within_gfs_window": {
+            "title": "Within Gfs Window",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "model",
+          "reason",
+          "within_gfs_window",
+          "needs_internet"
+        ],
+        "title": "AtmosphereSuggestion",
+        "type": "object"
+      },
       "Body_post_convert_api_convert_post": {
         "properties": {
           "file": {
@@ -14,6 +86,159 @@
           "file"
         ],
         "title": "Body_post_convert_api_convert_post",
+        "type": "object"
+      },
+      "ConvertResult": {
+        "description": "Response body for POST /api/convert.",
+        "properties": {
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          }
+        },
+        "required": [
+          "export_id",
+          "manifest"
+        ],
+        "title": "ConvertResult",
+        "type": "object"
+      },
+      "Dispersion": {
+        "description": "Uncertainty dispersion for a single parameter.\n\nParameters\n----------\nstd : float\n    Standard deviation of the dispersion.\nkind : {\"relative\", \"absolute\"}\n    ``relative`` \u2014 std is a fraction of the nominal value (e.g. 0.05 = 5%).\n    ``absolute`` \u2014 std is in the same units as the nominal (e.g. 2.0\u00b0).\n    ``kind`` is REQUIRED; absent ``kind`` is a validation error (REQ-SCN-08).",
+        "properties": {
+          "kind": {
+            "enum": [
+              "relative",
+              "absolute"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "std": {
+            "title": "Std",
+            "type": "number"
+          }
+        },
+        "required": [
+          "std",
+          "kind"
+        ],
+        "title": "Dispersion",
+        "type": "object"
+      },
+      "ElevationLookupResult": {
+        "description": "Response body for GET /api/elevation.",
+        "properties": {
+          "elevation": {
+            "title": "Elevation",
+            "type": "number"
+          },
+          "source": {
+            "const": "dem",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "elevation",
+          "source"
+        ],
+        "title": "ElevationLookupResult",
+        "type": "object"
+      },
+      "FlightSeries": {
+        "description": "Response body for GET /api/results/{run_id}/series.",
+        "properties": {
+          "acceleration": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Acceleration"
+          },
+          "altitude": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Altitude"
+          },
+          "mach": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mach"
+          },
+          "path3d": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "number"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path3D"
+          },
+          "speed": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speed"
+          },
+          "t": {
+            "items": {
+              "type": "number"
+            },
+            "title": "T",
+            "type": "array"
+          }
+        },
+        "required": [
+          "t"
+        ],
+        "title": "FlightSeries",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -59,6 +284,346 @@
         "title": "IdentityResponse",
         "type": "object"
       },
+      "LaunchDate": {
+        "description": "UTC launch date and hour.\n\nRequired for real-atmosphere models (forecast, wyoming_sounding).\n\nParameters\n----------\nyear, month, day, hour : int\n    UTC date and hour of the simulated launch.",
+        "properties": {
+          "day": {
+            "title": "Day",
+            "type": "integer"
+          },
+          "hour": {
+            "title": "Hour",
+            "type": "integer"
+          },
+          "month": {
+            "title": "Month",
+            "type": "integer"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "month",
+          "day",
+          "hour"
+        ],
+        "title": "LaunchDate",
+        "type": "object"
+      },
+      "Rail": {
+        "description": "Optional launch rail parameter overrides.\n\nAll fields are individually optional (REQ-SCN-09). Present values override\nthe corresponding fields in the export's ``flight`` block; absent values\nkeep the export value.",
+        "properties": {
+          "heading": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heading"
+          },
+          "inclination": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inclination"
+          },
+          "length": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Length"
+          }
+        },
+        "title": "Rail",
+        "type": "object"
+      },
+      "ResultEnvelope": {
+        "description": "Response body for GET /api/results/{run_id}.",
+        "properties": {
+          "result": {
+            "$ref": "#/components/schemas/SimulateResult"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "const": "done",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "result"
+        ],
+        "title": "ResultEnvelope",
+        "type": "object"
+      },
+      "RocketDetail": {
+        "description": "Response body for GET /api/rockets/{rocket_id} \u2014 a RocketSummary plus its manifest.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "export_prefix": {
+            "title": "Export Prefix",
+            "type": "string"
+          },
+          "gcs_ref": {
+            "title": "Gcs Ref",
+            "type": "string"
+          },
+          "has_source_ork": {
+            "title": "Has Source Ork",
+            "type": "boolean"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ork_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Filename"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rocket_id",
+          "name",
+          "created_at",
+          "created_by",
+          "export_prefix",
+          "gcs_ref",
+          "ork_filename",
+          "has_source_ork",
+          "manifest"
+        ],
+        "title": "RocketDetail",
+        "type": "object"
+      },
+      "RocketSummary": {
+        "description": "One rocket as returned by GET /api/rockets.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "export_prefix": {
+            "title": "Export Prefix",
+            "type": "string"
+          },
+          "gcs_ref": {
+            "title": "Gcs Ref",
+            "type": "string"
+          },
+          "has_source_ork": {
+            "title": "Has Source Ork",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ork_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Filename"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "rocket_id",
+          "name",
+          "created_at",
+          "created_by",
+          "export_prefix",
+          "gcs_ref",
+          "ork_filename",
+          "has_source_ork"
+        ],
+        "title": "RocketSummary",
+        "type": "object"
+      },
+      "Scenario": {
+        "description": "Root scenario model.  Returned by :func:`load_scenario`.\n\nParameters\n----------\nname : str\n    Human-readable label for this scenario (used as default MC output prefix).\nsite : Site\n    Launch site coordinates.  Required.\ndate : LaunchDate or None\n    UTC launch date.  Required when atmosphere.model requires it.\natmosphere : Atmosphere\n    Atmosphere model configuration.\nrail : Rail or None\n    Optional launch rail parameter overrides.\nuncertainty : dict[str, Dispersion] or None\n    Per-parameter dispersion budget.  ``None`` signals \"not set in YAML\"\n    so :func:`load_scenario` can fill DEFAULT_UNCERTAINTY.",
+        "properties": {
+          "atmosphere": {
+            "$ref": "#/components/schemas/Atmosphere",
+            "default": {
+              "fallback": "standard_atmosphere",
+              "model": "standard_atmosphere"
+            }
+          },
+          "date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LaunchDate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "default": "unnamed_scenario",
+            "title": "Name",
+            "type": "string"
+          },
+          "rail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "site": {
+            "$ref": "#/components/schemas/Site"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Dispersion"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          }
+        },
+        "required": [
+          "site"
+        ],
+        "title": "Scenario",
+        "type": "object"
+      },
+      "ScenarioTemplate": {
+        "description": "Response body for GET /api/scenario/template \u2014 a starter Scenario plus uncertainty presets.",
+        "properties": {
+          "atmosphere": {
+            "$ref": "#/components/schemas/Atmosphere",
+            "default": {
+              "fallback": "standard_atmosphere",
+              "model": "standard_atmosphere"
+            }
+          },
+          "date": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/LaunchDate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "name": {
+            "default": "unnamed_scenario",
+            "title": "Name",
+            "type": "string"
+          },
+          "rail": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Rail"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "site": {
+            "$ref": "#/components/schemas/Site"
+          },
+          "uncertainty": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/Dispersion"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Uncertainty"
+          },
+          "uncertainty_presets": {
+            "additionalProperties": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/Dispersion"
+              },
+              "type": "object"
+            },
+            "title": "Uncertainty Presets",
+            "type": "object"
+          }
+        },
+        "required": [
+          "site",
+          "uncertainty_presets"
+        ],
+        "title": "ScenarioTemplate",
+        "type": "object"
+      },
       "SessionRequest": {
         "description": "Request body for POST /api/auth/session.",
         "properties": {
@@ -91,6 +656,155 @@
           "scenario"
         ],
         "title": "SimulateRequest",
+        "type": "object"
+      },
+      "SimulateResult": {
+        "description": "Response body for POST /api/simulate.",
+        "properties": {
+          "plot_urls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Plot Urls",
+            "type": "array"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "scalars": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "title": "Scalars",
+            "type": "object"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "run_id",
+          "scalars",
+          "plot_urls",
+          "warnings"
+        ],
+        "title": "SimulateResult",
+        "type": "object"
+      },
+      "SimulationSummary": {
+        "description": "One simulation as returned by GET /api/history.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "has_series": {
+            "title": "Has Series",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "plot_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Plot Names",
+            "type": "array"
+          },
+          "result_prefix": {
+            "title": "Result Prefix",
+            "type": "string"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          },
+          "scalars": {
+            "additionalProperties": true,
+            "title": "Scalars",
+            "type": "object"
+          },
+          "scenario": {
+            "additionalProperties": true,
+            "title": "Scenario",
+            "type": "object"
+          },
+          "simulation_id": {
+            "title": "Simulation Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "simulation_id",
+          "rocket_id",
+          "name",
+          "created_at",
+          "created_by",
+          "status",
+          "scenario",
+          "scalars",
+          "warnings",
+          "result_prefix",
+          "plot_names",
+          "has_series"
+        ],
+        "title": "SimulationSummary",
+        "type": "object"
+      },
+      "Site": {
+        "description": "Launch site coordinates.\n\nParameters\n----------\nlatitude : float\n    WGS-84 latitude in decimal degrees. Required. Range: -90 to 90.\nlongitude : float\n    WGS-84 longitude in decimal degrees. Required. Range: -180 to 180.\nelevation : float or None\n    Altitude above sea-level in metres. When absent the elevation from the\n    export's ``environment`` block is used (REQ-SCN-10).",
+        "properties": {
+          "elevation": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elevation"
+          },
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "Site",
         "type": "object"
       },
       "ValidationError": {
@@ -164,9 +878,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Suggest Atmosphere Api Atmosphere Suggest Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/AtmosphereSuggestion"
                 }
               }
             },
@@ -280,9 +992,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Post Convert Api Convert Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ConvertResult"
                 }
               }
             },
@@ -338,9 +1048,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Elevation Api Elevation Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ElevationLookupResult"
                 }
               }
             },
@@ -402,8 +1110,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/SimulationSummary"
                   },
                   "title": "Response List History Api History Get",
                   "type": "array"
@@ -449,9 +1156,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Result Api Results  Run Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ResultEnvelope"
                 }
               }
             },
@@ -544,9 +1249,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Series Api Results  Run Id  Series Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/FlightSeries"
                 }
               }
             },
@@ -608,8 +1311,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "additionalProperties": true,
-                    "type": "object"
+                    "$ref": "#/components/schemas/RocketSummary"
                   },
                   "title": "Response List Rockets Api Rockets Get",
                   "type": "array"
@@ -655,9 +1357,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Rocket Api Rockets  Rocket Id  Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/RocketDetail"
                 }
               }
             },
@@ -689,9 +1389,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Get Scenario Template Api Scenario Template Get",
-                  "type": "object"
+                  "$ref": "#/components/schemas/ScenarioTemplate"
                 }
               }
             },
@@ -725,9 +1423,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Validate Scenario Api Scenario Validate Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/Scenario"
                 }
               }
             },
@@ -769,9 +1465,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "additionalProperties": true,
-                  "title": "Response Run Simulate Api Simulate Post",
-                  "type": "object"
+                  "$ref": "#/components/schemas/SimulateResult"
                 }
               }
             },

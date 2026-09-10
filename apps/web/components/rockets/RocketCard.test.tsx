@@ -10,6 +10,10 @@ const rocketSummary = {
   name: "acme-1",
   created_at: "2026-01-01T00:00:00Z",
   created_by: "pilot@multitec.dev",
+  export_prefix: "exports/rocket-1/",
+  gcs_ref: "gs://bucket/rocket-1",
+  ork_filename: "acme-1.ork",
+  has_source_ork: true,
 };
 
 const getRocketMock = vi.fn();
