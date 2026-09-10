@@ -11,9 +11,10 @@ Spec AC-RG-2.7, AC-RG-2.8, AC-RG-2.9, RG-2.6, RG-2.7.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 
 from icaro.discovery import choose_atmosphere_model_for_date, gfs_window_check
 from icaro_api.auth import require_auth
@@ -26,12 +27,28 @@ router = APIRouter(
 )
 
 
+class AtmosphereSuggestion(BaseModel):
+    """Response body for GET /api/atmosphere/suggest."""
+
+    model: Literal["forecast", "standard_atmosphere"]
+    reason: str
+    within_gfs_window: bool
+    needs_internet: bool
+
+
+class ElevationLookupResult(BaseModel):
+    """Response body for GET /api/elevation."""
+
+    elevation: float
+    source: Literal["dem"]
+
+
 # ---------------------------------------------------------------------------
 # GET /api/atmosphere/suggest
 # ---------------------------------------------------------------------------
 
 
-@router.get("/atmosphere/suggest")
+@router.get("/atmosphere/suggest", response_model=AtmosphereSuggestion)
 async def suggest_atmosphere(
     date: str = Query(..., description="ISO 8601 date+time for the launch"),
     settings: Settings = Depends(get_settings),
@@ -73,7 +90,7 @@ async def suggest_atmosphere(
 # ---------------------------------------------------------------------------
 
 
-@router.get("/elevation")
+@router.get("/elevation", response_model=ElevationLookupResult)
 async def get_elevation(
     lat: float = Query(..., description="WGS-84 latitude in decimal degrees"),
     lon: float = Query(..., description="WGS-84 longitude in decimal degrees"),
