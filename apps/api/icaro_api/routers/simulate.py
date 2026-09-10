@@ -60,7 +60,16 @@ class SimulateRequest(BaseModel):
     """Scenario dict (validated by Scenario.model_validate before use)."""
 
 
-@router.post("/simulate")
+class SimulateResult(BaseModel):
+    """Response body for POST /api/simulate."""
+
+    run_id: str
+    scalars: dict[str, float]
+    plot_urls: list[str]
+    warnings: list[str]
+
+
+@router.post("/simulate", response_model=SimulateResult)
 def run_simulate(
     body: SimulateRequest,
     settings: Settings = Depends(get_settings),

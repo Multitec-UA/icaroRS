@@ -358,6 +358,16 @@ class TestPersistenceFailureIsolation:
         data = resp.json()
         assert data.get("scalars", {}).get("apogee_m") == 5000.0
 
+        # Regression guard for issue #70: response_model=SimulateResult must not
+        # silently drop any of the four documented fields.
+        assert isinstance(data["run_id"], str) and data["run_id"]
+        assert isinstance(data["scalars"], dict) and data["scalars"]
+        assert all(isinstance(v, (int, float)) for v in data["scalars"].values())
+        assert data["plot_urls"] == [
+            f"/api/results/{fake_res['run_id']}/plots/trajectory_3d.png"
+        ]
+        assert isinstance(data["warnings"], list)
+
     def test_db_failure_returns_200(self, tmp_path):
         """REQ-07.4: db.save_simulation raising must not cause a 5xx response."""
         from icaro_api.config import Settings, get_settings
