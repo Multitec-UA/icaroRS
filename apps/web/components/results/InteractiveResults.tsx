@@ -18,15 +18,20 @@ import { Eyebrow, Spinner, Surface } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { useT } from "@/components/i18n/LocaleProvider";
 
+function Trajectory3DLoadingFallback() {
+  const t = useT();
+  return (
+    <div className="flex h-[440px] items-center justify-center text-muted">
+      <Spinner /> <span className="ml-2">{t("interactive.loading3d")}</span>
+    </div>
+  );
+}
+
 const Trajectory3D = dynamic(
   () => import("@/components/charts/Trajectory3D").then((m) => m.Trajectory3D),
   {
     ssr: false,
-    loading: () => (
-      <div className="flex h-[440px] items-center justify-center text-muted">
-        <Spinner /> <span className="ml-2">Loading 3D…</span>
-      </div>
-    ),
+    loading: Trajectory3DLoadingFallback,
   },
 );
 

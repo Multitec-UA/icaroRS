@@ -1,6 +1,7 @@
 {
   "common": {
-    "technicalEnglishNote": "Technical messages are shown in English."
+    "technicalEnglishNote": "Technical messages are shown in English.",
+    "loading": "Loading"
   },
 
   "auth": {
@@ -26,7 +27,9 @@
     "simulate": "Simulate",
     "rockets": "Rockets",
     "history": "History",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "primaryNavigation": "Primary navigation",
+    "language": "Language"
   },
 
   "stepper": {
@@ -72,6 +75,13 @@
     "continue": "Continue",
     "checking": "Checking…",
     "errorsTitle": "Please fix the following"
+  },
+
+  "sitePicker": {
+    "loadingMap": "Loading map…",
+    "searchPlaceholder": "Search a place (e.g. Alicante, Spain)…",
+    "searchError": "Couldn't search for that place. Please try again in a moment.",
+    "helperText": "Click anywhere on the map to drop the launch point, or search for a place above."
   },
 
   "models": {
@@ -166,7 +176,10 @@
     "sectionHeading": "Interactive flight data",
     "trajectoryEyebrow": "Trajectory",
     "trajectoryHint": "Drag to orbit · scroll to zoom",
-    "telemetryEyebrow": "Telemetry"
+    "telemetryEyebrow": "Telemetry",
+    "play": "Play",
+    "pause": "Pause",
+    "scrubTimeline": "Scrub flight timeline"
   },
 
   "scalars": {

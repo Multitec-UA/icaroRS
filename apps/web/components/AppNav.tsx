@@ -70,7 +70,7 @@ export function AppNav() {
 
       {/* Primary island: floating glass pill */}
       <nav
-        aria-label="Primary navigation"
+        aria-label={t("nav.primaryNavigation")}
         className="flex items-center gap-0.5 rounded-full bg-white/[0.04] p-1 ring-1 ring-inset ring-white/10 shadow-[0_4px_32px_rgba(0,0,0,0.5)]"
       >
         {items.map(({ href, label }) => {

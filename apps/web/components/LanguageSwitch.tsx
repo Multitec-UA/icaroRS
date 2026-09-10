@@ -11,7 +11,7 @@
  * inactive segment is muted. No flags.
  */
 
-import { useLocale } from "@/components/i18n/LocaleProvider";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/styles";
 
 const LOCALES = [
@@ -21,11 +21,12 @@ const LOCALES = [
 
 export function LanguageSwitch({ className }: { className?: string }) {
   const { locale, setLocale } = useLocale();
+  const t = useT();
 
   return (
     <div
       role="group"
-      aria-label="Language"
+      aria-label={t("nav.language")}
       className={cn(
         "inline-flex items-center rounded-full ring-1 ring-inset ring-white/10",
         className,

@@ -19,6 +19,7 @@
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
 import { cn, inputBase } from "@/lib/styles";
+import { useT } from "@/components/i18n/LocaleProvider";
 
 // ---------------------------------------------------------------------------
 // Surface — the Double-Bezel (Doppelrand): a glass plate sitting in a machined
@@ -254,10 +255,11 @@ export function Callout({
 // ---------------------------------------------------------------------------
 
 export function Spinner({ className }: { className?: string }) {
+  const t = useT();
   return (
     <span
       role="status"
-      aria-label="Loading"
+      aria-label={t("common.loading")}
       className={cn(
         "inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent",
         className,
@@ -268,10 +270,9 @@ export function Spinner({ className }: { className?: string }) {
 
 // ---------------------------------------------------------------------------
 // InfoTip — a tiny "i" badge with a native-title definition.
-// Definition text is resolved from the active locale catalog via useT().
+// Definition text is resolved from the active locale catalog via useT()
+// (imported at the top of this file, alongside Spinner's own use of it).
 // ---------------------------------------------------------------------------
-
-import { useT } from "@/components/i18n/LocaleProvider";
 
 export function InfoTip({ term }: { term: string }) {
   const t = useT();

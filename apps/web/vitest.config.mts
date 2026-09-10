@@ -13,6 +13,11 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./vitest.setup.tsx"],
     css: false,
-    exclude: ["node_modules/**", ".next/**"],
+    // scripts/__fixtures__ holds planted-literal fixtures for
+    // i18n-literal-scan.test.mjs (issue #54) — including one intentionally
+    // named *.test.tsx (Ignored.test.tsx, proving test files are excluded
+    // from the real scan). Vitest's default glob would otherwise try to run
+    // it as an actual test file and fail on "no test suite found".
+    exclude: ["node_modules/**", ".next/**", "scripts/__fixtures__/**"],
   },
 });

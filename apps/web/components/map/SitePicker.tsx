@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * SitePicker — place-name search (OpenStreetMap Nominatim) + click-to-pick map.
+ * SitePicker — place-name search (OpenStreetMap Nominatim, proxied through
+ * our own `/api/geocode` route — see issue #55) + click-to-pick map.
  *
  * Controlled: the parent owns lat/lon and gets updates via onPick. The Leaflet
  * map is dynamically imported with ssr:false (Leaflet needs the browser).
@@ -9,22 +10,26 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useRef, useState } from "react";
-import { Spinner, TextInput } from "@/components/ui";
+import { Callout, Spinner, TextInput } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
+import { geocodeSearch, type GeocodeHit } from "@/lib/geocode";
+
+// A next/dynamic `loading:` callback renders wherever <MapInner> would in the
+// JSX tree, so it's still a descendant of LocaleProvider (mounted at the root
+// layout) — useT() works here exactly as it would in the component body.
+function MapLoadingFallback() {
+  const t = useT();
+  return (
+    <div className="flex h-80 w-full items-center justify-center rounded-2xl bg-white/[0.02] text-sm text-muted ring-1 ring-inset ring-white/10">
+      {t("sitePicker.loadingMap")}
+    </div>
+  );
+}
 
 const MapInner = dynamic(() => import("./MapInner"), {
   ssr: false,
-  loading: () => (
-    <div className="flex h-80 w-full items-center justify-center rounded-2xl bg-white/[0.02] text-sm text-muted ring-1 ring-inset ring-white/10">
-      Loading map…
-    </div>
-  ),
+  loading: MapLoadingFallback,
 });
-
-interface NominatimHit {
-  lat: string;
-  lon: string;
-  display_name: string;
-}
 
 export function SitePicker({
   lat,
@@ -35,23 +40,29 @@ export function SitePicker({
   lon: number | null;
   onPick: (lat: number, lon: number) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<NominatimHit[]>([]);
+  const [hits, setHits] = useState<GeocodeHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [searchFailed, setSearchFailed] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback(async (q: string) => {
     if (q.trim().length < 3) {
       setHits([]);
+      setSearchFailed(false);
       return;
     }
     setSearching(true);
+    setSearchFailed(false);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, { headers: { Accept: "application/json" } });
-      setHits(res.ok ? await res.json() : []);
+      setHits(await geocodeSearch(q));
     } catch {
+      // A failed lookup (network/upstream/throttle) is NOT the same as a
+      // genuine zero-result search — surface it distinctly instead of
+      // rendering an empty dropdown that looks identical to "no matches".
       setHits([]);
+      setSearchFailed(true);
     } finally {
       setSearching(false);
     }
@@ -63,7 +74,7 @@ export function SitePicker({
     debounceRef.current = setTimeout(() => search(value), 400);
   }
 
-  function choose(hit: NominatimHit) {
+  function choose(hit: GeocodeHit) {
     setQuery(hit.display_name);
     setHits([]);
     onPick(parseFloat(hit.lat), parseFloat(hit.lon));
@@ -74,7 +85,7 @@ export function SitePicker({
       <div className="relative">
         <TextInput
           className="w-full"
-          placeholder="Search a place (e.g. Alicante, Spain)…"
+          placeholder={t("sitePicker.searchPlaceholder")}
           value={query}
           onChange={(e) => onQueryChange(e.target.value)}
         />
@@ -99,12 +110,11 @@ export function SitePicker({
           </ul>
         )}
       </div>
+      {searchFailed && <Callout tone="error">{t("sitePicker.searchError")}</Callout>}
       <div className="overflow-hidden rounded-2xl ring-1 ring-inset ring-white/10">
         <MapInner lat={lat} lon={lon} onPick={onPick} />
       </div>
-      <p className="text-xs text-muted">
-        Click anywhere on the map to drop the launch point, or search for a place above.
-      </p>
+      <p className="text-xs text-muted">{t("sitePicker.helperText")}</p>
     </div>
   );
 }
