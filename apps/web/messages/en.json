@@ -1,4 +1,9 @@
 {
+  "meta": {
+    "title": "icaro · rocket simulation",
+    "description": "Run a rocket flight simulation from your OpenRocket design."
+  },
+
   "common": {
     "technicalEnglishNote": "Technical messages are shown in English.",
     "loading": "Loading"
