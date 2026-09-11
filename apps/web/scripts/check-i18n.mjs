@@ -5,10 +5,11 @@
  * Asserts:
  *   (a) en.json and es.json have identical key sets (symmetric diff)
  *   (b) no key has an empty-string value in either catalog
- *   (c) no untranslated JSX literal under components/ or app/ (issue #54 —
- *       (a) and (b) only ever caught catalog PARITY; a literal that never
- *       called t() at all was invisible to them, which is exactly how eight
- *       hardcoded strings shipped past this gate. See i18n-literal-scan.mjs.
+ *   (c) no untranslated JSX literal, and no hardcoded Next.js `metadata`
+ *       copy, under components/ or app/ (issues #54 and #103 — (a) and (b)
+ *       only ever caught catalog PARITY; a literal that never called t() at
+ *       all was invisible to them, which is exactly how eight hardcoded
+ *       strings shipped past this gate. See i18n-literal-scan.mjs.
  *
  * Exits 0 on success, non-zero on any violation.
  */
@@ -110,7 +111,8 @@ if (emptyInEs.length > 0) {
 }
 
 // ---------------------------------------------------------------------------
-// Check (c) — untranslated JSX literals under components/ and app/
+// Check (c) — untranslated literals (JSX + route metadata) under
+// components/ and app/
 // ---------------------------------------------------------------------------
 
 const { violations, unusedAllowlistEntries } = scanForUntranslatedLiterals();
@@ -140,5 +142,5 @@ if (failed) {
 
 const total = enKeys.size;
 console.log(
-  `[i18n:check] OK — ${total} keys in sync across both catalogs; no untranslated JSX literals under components/ or app/.`,
+  `[i18n:check] OK — ${total} keys in sync across both catalogs; no untranslated JSX literals or metadata copy under components/ or app/.`,
 );

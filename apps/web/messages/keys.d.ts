@@ -2,6 +2,8 @@
 // Re-run `npm run i18n:types` after changing messages/en.json.
 
 export type MessageKey =
+  | "meta.title"
+  | "meta.description"
   | "common.technicalEnglishNote"
   | "common.loading"
   | "auth.eyebrow"
