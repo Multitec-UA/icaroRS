@@ -47,6 +47,69 @@ describe("scanForUntranslatedLiterals (issue #54 — real leak detection, not ju
     expect(violations.some((v) => v.file === "components/Clean.tsx")).toBe(false);
   });
 
+  it("flags every copy field of an exported metadata object, nesting included (issue #103)", () => {
+    const { violations } = scanForUntranslatedLiterals({ root: fixtureRoot });
+
+    const meta = violations.filter((v) => v.file === "app/MetaLeaky.tsx");
+    expect(meta.map((v) => v.text).sort()).toEqual(
+      [
+        "Planted applicationName leak",
+        "Planted generateMetadata title leak",
+        "Planted metadata description leak",
+        "Planted metadata title leak",
+        "Planted openGraph title leak",
+        "Planted siteName leak",
+      ].sort(),
+    );
+    expect(meta.every((v) => v.kind.startsWith("metadata "))).toBe(true);
+  });
+
+  it("flags hardcoded copy inside an exported generateMetadata(), the shape app/layout.tsx uses", () => {
+    const { violations } = scanForUntranslatedLiterals({ root: fixtureRoot });
+
+    // Covers metadataRootsIn()'s function-declaration branch specifically:
+    // delete it and this assertion is the one that fails.
+    expect(
+      violations.some(
+        (v) =>
+          v.file === "app/MetaLeaky.tsx" &&
+          v.text === "Planted generateMetadata title leak" &&
+          v.kind === 'metadata "title"',
+      ),
+    ).toBe(true);
+  });
+
+  it("scopes the metadata rule to exported metadata, so an ordinary `title` option is not a leak", () => {
+    const { violations } = scanForUntranslatedLiterals({ root: fixtureRoot });
+
+    expect(violations.filter((v) => v.file === "app/NotMetadata.tsx")).toEqual([]);
+  });
+
+  it("never flags a machine-valued metadata field such as metadataBase", () => {
+    const { violations } = scanForUntranslatedLiterals({ root: fixtureRoot });
+
+    expect(violations.some((v) => v.text.includes("example.invalid"))).toBe(false);
+  });
+
+  it("never flags metadata copy routed through t() in generateMetadata", () => {
+    const { violations } = scanForUntranslatedLiterals({ root: fixtureRoot });
+
+    expect(violations.some((v) => v.file === "app/MetaClean.tsx")).toBe(false);
+  });
+
+  it("scans .ts files as TypeScript, so a page.ts exporting metadata is not a hole", () => {
+    const { violations } = scanForUntranslatedLiterals({ root: fixtureRoot });
+
+    // The fixture opens with an angle-bracket type assertion. Parsed as TSX
+    // that reads as an unclosed JSX element and the metadata below it
+    // disappears, so finding this leak also proves the ScriptKind branch.
+    expect(
+      violations.some(
+        (v) => v.file === "app/meta-in-ts.ts" && v.text === "Planted metadata leak in a .ts file",
+      ),
+    ).toBe(true);
+  });
+
   it("exempts a literal matching a documented allowlist entry, and counts the entry as used", () => {
     const allowlist = [
       { file: "components/Allowed.tsx", text: "Deliberately allowed literal", reason: "fixture" },

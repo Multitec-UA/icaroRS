@@ -7,7 +7,8 @@ import { WizardProvider } from "@/components/wizard/WizardProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
-import { resolveLocale } from "@/lib/i18n";
+import { resolveLocale, type Locale } from "@/lib/i18n";
+import { getServerT } from "@/lib/server-i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -19,21 +20,45 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "icaro · rocket simulation",
-  description: "Run a rocket flight simulation from your OpenRocket design.",
-};
+/**
+ * Resolve the request's locale from server-visible data only (NEXT_LOCALE
+ * cookie → Accept-Language → "en"). Shared by generateMetadata() and the
+ * layout itself: Next.js calls them as two independent invocations, so each
+ * needs its own resolution, and they must agree — otherwise the tab title
+ * could be in a different language than <html lang>.
+ */
+async function requestLocale(): Promise<Locale> {
+  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
+  return resolveLocale(
+    cookieStore.get("NEXT_LOCALE")?.value,
+    headerStore.get("accept-language"),
+  );
+}
+
+/**
+ * Document metadata is user-facing copy (browser tab, bookmarks, history,
+ * link previews, search results), so it goes through the catalog like
+ * everything else. It has to be generateMetadata() rather than a static
+ * `metadata` export because the locale is only knowable per request.
+ *
+ * generateMetadata runs on the server outside React, so useT() is
+ * unavailable; lib/server-i18n.ts registers both catalogs at import time
+ * precisely for this case (same approach as app/not-found.tsx).
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const t = getServerT(await requestLocale());
+  return {
+    title: t("meta.title"),
+    description: t("meta.description"),
+  };
+}
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
-  const locale = resolveLocale(
-    cookieStore.get("NEXT_LOCALE")?.value,
-    headerStore.get("accept-language"),
-  );
+  const locale = await requestLocale();
 
   return (
     <html

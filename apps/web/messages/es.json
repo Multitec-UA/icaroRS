@@ -1,4 +1,9 @@
 {
+  "meta": {
+    "title": "icaro · simulación de cohetes",
+    "description": "Ejecuta una simulación de vuelo de cohete a partir de tu diseño de OpenRocket."
+  },
+
   "common": {
     "technicalEnglishNote": "Los mensajes técnicos se muestran en inglés.",
     "loading": "Cargando"
