@@ -19,6 +19,7 @@ import {
   type AtmosphereSuggestion,
   type FieldError,
 } from "@/lib/api";
+import { launchDateToIso, resolveTimeZone, toLaunchDate } from "@/lib/domain/scenario";
 import { useWizard } from "./WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { SitePicker } from "@/components/map/SitePicker";
@@ -76,12 +77,14 @@ export function BasicsStep() {
   // --- date → atmosphere suggestion -------------------------------------
   async function onDateChange(value: string) {
     setLaunchDatetime(value || null);
-    if (!value) {
+    // The picker holds the user's wall clock; the API reasons in UTC.
+    const launchDate = toLaunchDate(value || null);
+    if (!launchDate) {
       setSuggestion(null);
       return;
     }
     try {
-      const s = await suggestAtmosphere(value);
+      const s = await suggestAtmosphere(launchDateToIso(launchDate));
       setSuggestion(s);
       setAtmosphere({ ...state.atmosphere, model: s.model });
     } catch (err) {
@@ -174,7 +177,7 @@ export function BasicsStep() {
         htmlFor="dt"
         term="forecast"
         error={errorFor("date")}
-        hint={t("basics.dateTimeHint")}
+        hint={t("basics.dateTimeHint", { timeZone: resolveTimeZone() })}
       >
         <TextInput
           id="dt"

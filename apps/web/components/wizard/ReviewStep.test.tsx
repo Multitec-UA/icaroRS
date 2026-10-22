@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { useRouter } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
+import { mockBrowserTimeZone } from "@/test/mock-time-zone";
 import { ApiError } from "@/lib/api";
 import { useWizard } from "./WizardProvider";
 import { ReviewStep } from "./ReviewStep";
@@ -102,5 +103,60 @@ describe("ReviewStep (issue #48 — shared simulate mutation)", () => {
     fireEvent.click(screen.getByText("Run simulation 🚀"));
 
     expect(await screen.findByText(/Site is required/)).toBeInTheDocument();
+  });
+});
+
+describe("ReviewStep — launch time in the user's time zone", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  function WithLaunchTime({ children }: { children: ReactNode }) {
+    const { setExport, setLaunchDatetime, state } = useWizard();
+    useEffect(() => {
+      setExport("export-1", { name: "acme-1" });
+      setLaunchDatetime("2026-10-24T10:00");
+    }, [setExport, setLaunchDatetime]);
+    return (
+      <>
+        <span data-testid="export-id">{state.exportId ?? ""}</span>
+        {children}
+      </>
+    );
+  }
+
+  it("shows the chosen local time and sends its UTC hour to the API", async () => {
+    mockBrowserTimeZone("Europe/Madrid");
+    simulateMock.mockResolvedValueOnce({ run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] });
+    vi.mocked(useRouter).mockReturnValue({
+      push: vi.fn(),
+      replace: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh: vi.fn(),
+      prefetch: vi.fn(),
+    });
+
+    render(
+      <AppProviders>
+        <WithLaunchTime>
+          <ReviewStep />
+        </WithLaunchTime>
+      </AppProviders>,
+    );
+
+    await waitForExportSeeded();
+    const row = screen.getByText("Launch time").parentElement as HTMLElement;
+    expect(row).toHaveTextContent("10:00");
+    expect(row).not.toHaveTextContent("UTC");
+
+    fireEvent.click(screen.getByText("Run simulation 🚀"));
+    await waitFor(() => expect(simulateMock).toHaveBeenCalled());
+    expect(simulateMock.mock.calls[0][1].date).toEqual({
+      year: 2026,
+      month: 10,
+      day: 24,
+      hour: 8,
+    });
   });
 });
