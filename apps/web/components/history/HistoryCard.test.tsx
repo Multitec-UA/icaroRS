@@ -95,3 +95,28 @@ describe("HistoryCard (issue #52 — client island in the server-rendered /histo
     expect(await screen.findByText("The request failed (code 500).")).toBeInTheDocument();
   });
 });
+
+describe("HistoryCard — view stored results without re-running", () => {
+  it("links a finished entry to its stored results page", async () => {
+    render(
+      <AppProviders>
+        <HistoryCard item={historyItem} />
+      </AppProviders>,
+    );
+
+    const link = await screen.findByRole("link", { name: /View details/ });
+    expect(link).toHaveAttribute("href", "/results/sim-1");
+    expect(simulateMock).not.toHaveBeenCalled();
+  });
+
+  it("offers no details link for a failed entry, which has no stored results", async () => {
+    render(
+      <AppProviders>
+        <HistoryCard item={{ ...historyItem, status: "error" }} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByText("acme-1")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /View details/ })).not.toBeInTheDocument();
+  });
+});

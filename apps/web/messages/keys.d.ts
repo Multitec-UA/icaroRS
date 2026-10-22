@@ -207,6 +207,7 @@ export type MessageKey =
   | "history.colApogee"
   | "history.statusDone"
   | "history.statusError"
+  | "history.viewDetails"
   | "history.reRun"
   | "history.backToWizard"
   | "glossary.apogee"
