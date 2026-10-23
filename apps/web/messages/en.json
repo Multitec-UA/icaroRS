@@ -13,13 +13,17 @@
     "eyebrow": "Rocket simulation",
     "title": "icaro",
     "subtitle": "Turn your OpenRocket design into a full 6-DOF flight simulation.",
-    "username": "Username",
+    "email": "Email",
     "password": "Password",
     "signIn": "Sign in",
     "signingIn": "Signing in…",
-    "errorWrongCredentials": "Wrong username or password.",
+    "errorWrongCredentials": "Wrong email or password.",
     "errorUnreachable": "Could not reach the API. Is the server running?",
-    "errorGeneric": "Sign-in failed."
+    "errorGeneric": "Sign-in failed.",
+    "forgotPassword": "Forgot your password?",
+    "forgotPasswordNeedEmail": "Type your email above to get a reset link.",
+    "forgotPasswordRequested": "If an account exists for that email, you will receive a link to reset your password.",
+    "forgotPasswordFailed": "Could not send the email. Try again in a few minutes."
   },
 
   "wizard": {
@@ -32,9 +36,18 @@
     "simulate": "Simulate",
     "rockets": "Rockets",
     "history": "History",
-    "signOut": "Sign out",
     "primaryNavigation": "Primary navigation",
     "language": "Language"
+  },
+
+  "account": {
+    "open": "Account",
+    "organization": "Organization",
+    "changePassword": "Change password",
+    "changePasswordSending": "Sending…",
+    "changePasswordSent": "We sent a link to change your password to {email}.",
+    "changePasswordFailed": "Could not send the email. Try again in a few minutes.",
+    "signOut": "Sign out"
   },
 
   "stepper": {
