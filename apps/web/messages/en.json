@@ -32,9 +32,18 @@
     "simulate": "Simulate",
     "rockets": "Rockets",
     "history": "History",
-    "signOut": "Sign out",
     "primaryNavigation": "Primary navigation",
     "language": "Language"
+  },
+
+  "account": {
+    "open": "Account",
+    "organization": "Organization",
+    "changePassword": "Change password",
+    "changePasswordSending": "Sending…",
+    "changePasswordSent": "We sent a link to change your password to {email}.",
+    "changePasswordFailed": "Could not send the email. Try again in a few minutes.",
+    "signOut": "Sign out"
   },
 
   "stepper": {

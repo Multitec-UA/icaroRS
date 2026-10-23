@@ -13,6 +13,7 @@
 import { initializeApp, getApps, type FirebaseOptions } from "firebase/app";
 import {
   getAuth,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
 } from "firebase/auth";
@@ -31,6 +32,21 @@ function app() {
 export async function signInWithPassword(email: string, password: string): Promise<string> {
   const credential = await signInWithEmailAndPassword(getAuth(app()), email, password);
   return credential.user.getIdToken();
+}
+
+/**
+ * Start Firebase's built-in password change flow: Identity Platform emails
+ * `email` a link to its hosted page, where the user picks a new password.
+ * `languageCode` sets the language of that email and page.
+ *
+ * Changing the password revokes the account's refresh tokens, so the API's
+ * revocation check then rejects the current session cookie and the app drops
+ * back to the login screen on its next request.
+ */
+export function sendPasswordReset(email: string, languageCode: string): Promise<void> {
+  const auth = getAuth(app());
+  auth.languageCode = languageCode;
+  return sendPasswordResetEmail(auth, email);
 }
 
 /** Drop the client-side Firebase session (in addition to clearing our own cookie). */

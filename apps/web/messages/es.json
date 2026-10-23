@@ -32,9 +32,18 @@
     "simulate": "Simular",
     "rockets": "Cohetes",
     "history": "Historial",
-    "signOut": "Cerrar sesión",
     "primaryNavigation": "Navegación principal",
     "language": "Idioma"
+  },
+
+  "account": {
+    "open": "Cuenta",
+    "organization": "Organización",
+    "changePassword": "Cambiar contraseña",
+    "changePasswordSending": "Enviando…",
+    "changePasswordSent": "Te enviamos un enlace para cambiar la contraseña a {email}.",
+    "changePasswordFailed": "No se pudo enviar el email. Inténtalo de nuevo en unos minutos.",
+    "signOut": "Cerrar sesión"
   },
 
   "stepper": {
