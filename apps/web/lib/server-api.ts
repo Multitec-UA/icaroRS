@@ -17,6 +17,12 @@
  * Calling `cookies()` already opts the route into dynamic rendering for the
  * same reason.
  *
+ * A connection that fails before reaching the API (typical right after a
+ * new web instance starts) is retried with lib/fetch-retry.ts's backoff:
+ * every call here is a GET, so repeating it is safe. Each retry and the
+ * final failure are logged with the underlying connection errors, which
+ * Node would otherwise print across many separate log entries.
+ *
  * Only import this from Server Components — never from a "use client" file.
  * It shares response parsing (parseApiResponse) and the ApiError type with
  * lib/api.ts so error handling stays identical either way; it does NOT
@@ -31,6 +37,7 @@ import {
   type RocketSummary,
   type SimulationSummary,
 } from "./api";
+import { RETRY_DELAYS_MS, describeFetchError, fetchRetrying } from "./fetch-retry";
 
 const API_ORIGIN = process.env.ICARO_API_ORIGIN ?? "http://127.0.0.1:8000";
 
@@ -39,11 +46,19 @@ async function serverRequest<T>(path: string): Promise<T> {
 
   let res: Response;
   try {
-    res = await fetch(`${API_ORIGIN}${path}`, {
-      headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
-      cache: "no-store",
-    });
-  } catch {
+    res = await fetchRetrying(
+      `${API_ORIGIN}${path}`,
+      {
+        headers: cookieHeader ? { Cookie: cookieHeader } : undefined,
+        cache: "no-store",
+      },
+      {
+        delaysMs: RETRY_DELAYS_MS,
+        onRetry: (retry, reason) => console.warn(`[server-api] GET ${path} retry ${retry}: ${reason}`),
+      },
+    );
+  } catch (err) {
+    console.error(`[server-api] GET ${path} failed: ${describeFetchError(err)}`);
     throw new ApiError(0, "Could not reach the icaro API. Is the server running?", {
       code: "network",
     });

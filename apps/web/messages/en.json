@@ -222,7 +222,7 @@
   },
 
   "errors": {
-    "network": "Could not connect to the server.",
+    "network": "Could not reach the server. It may be starting up: try again in a few seconds.",
     "validation": "The request is not valid.",
     "unavailable": "The service is not available.",
     "requestFailed": "The request failed (code {status}).",
