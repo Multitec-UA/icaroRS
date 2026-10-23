@@ -10,7 +10,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, type FieldError } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
-import { toLaunchDate } from "@/lib/domain/scenario";
+import { formatLaunchDate, toLaunchDate } from "@/lib/domain/scenario";
 import { useWizardDraft } from "./WizardProvider";
 import { Button, Callout, Eyebrow, Spinner } from "@/components/ui";
 import { cn } from "@/lib/styles";
@@ -63,20 +63,10 @@ export function ReviewStep() {
   const date = toLaunchDate(state.launchDatetime);
   const site = state.site;
 
-  // Format the launch time using the active locale for date conventions
+  // Show the UTC launch hour back in the user's own time zone (with its
+  // name), so the summary reads in the same clock the picker was filled in.
   function formatLaunchTime(): string {
-    if (!date) return "—";
-    // Build a Date object then format with locale conventions
-    const d = new Date(Date.UTC(date.year, date.month - 1, date.day, date.hour, 0, 0));
-    return d.toLocaleString(locale, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: "UTC",
-      hour12: false,
-    }) + " UTC";
+    return date ? formatLaunchDate(date, locale) : "—";
   }
 
   return (

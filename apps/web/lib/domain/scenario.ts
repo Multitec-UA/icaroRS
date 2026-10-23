@@ -2,8 +2,8 @@
  * Pure scenario/wizard domain rules (issue #50).
  *
  * Extracted out of components/wizard/WizardProvider.tsx: which atmosphere
- * models require a launch date, how a `datetime-local` string maps to the
- * hour-granular domain `LaunchDate` without a timezone shift, what shape the
+ * models require a launch date, how a `datetime-local` string typed in the
+ * user's time zone maps to the hour-granular UTC domain `LaunchDate`, what shape the
  * API expects for validate/simulate, and which step transitions are allowed.
  *
  * Plain functions over plain data — no React, no context. Mirrors
@@ -50,19 +50,116 @@ export const DEFAULT_ATMOSPHERE: Atmosphere = {
 };
 
 // ---------------------------------------------------------------------------
-// Launch date parsing
+// Launch date: user's wall clock <-> UTC domain date
 // ---------------------------------------------------------------------------
 
 /**
- * Parse a datetime-local string ("2026-06-01T09:54") into a LaunchDate.
- * Parsed literally (NOT via `new Date`) so no local-timezone shift is applied —
- * the domain treats the launch time as UTC.
+ * Time zone used when the browser does not report a usable one. The team and
+ * its launch sites are in Spain, so this is the least surprising default.
  */
-export function toLaunchDate(iso: string | null): LaunchDate | null {
-  if (!iso) return null;
-  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2})/);
+export const FALLBACK_TIME_ZONE = "Europe/Madrid";
+
+function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The IANA time zone the launch-time picker is expressed in: the browser's
+ * own zone, or FALLBACK_TIME_ZONE when the browser reports none or an
+ * unknown one.
+ */
+export function resolveTimeZone(): string {
+  try {
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (timeZone && isValidTimeZone(timeZone)) return timeZone;
+  } catch {
+    // Fall through to the fallback zone.
+  }
+  return FALLBACK_TIME_ZONE;
+}
+
+/** Offset of `timeZone` from UTC, in milliseconds, at the instant `utcMs`. */
+function zoneOffsetMs(utcMs: number, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(utcMs));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((p) => p.type === type)?.value);
+  const wallAsUtc = Date.UTC(
+    part("year"),
+    part("month") - 1,
+    part("day"),
+    part("hour"),
+    part("minute"),
+    part("second"),
+  );
+  return wallAsUtc - utcMs;
+}
+
+/**
+ * Parse a datetime-local string ("2026-06-01T09:54"), read as a wall-clock
+ * time in `timeZone`, into the UTC LaunchDate the domain expects.
+ *
+ * The domain is hour-granular: minutes are dropped after converting to UTC,
+ * so a zone with a half-hour offset lands on the UTC hour that started
+ * before the chosen instant.
+ */
+export function toLaunchDate(
+  local: string | null,
+  timeZone: string = resolveTimeZone(),
+): LaunchDate | null {
+  if (!local) return null;
+  const m = local.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):?(\d{2})?/);
   if (!m) return null;
-  return { year: +m[1], month: +m[2], day: +m[3], hour: +m[4] };
+  const wallAsUtc = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], m[5] ? +m[5] : 0);
+  // Two passes: the offset at the guessed instant can differ from the offset
+  // at the real one when the wall clock sits next to a DST change.
+  let utcMs = wallAsUtc - zoneOffsetMs(wallAsUtc, timeZone);
+  utcMs = wallAsUtc - zoneOffsetMs(utcMs, timeZone);
+  const utc = new Date(utcMs);
+  return {
+    year: utc.getUTCFullYear(),
+    month: utc.getUTCMonth() + 1,
+    day: utc.getUTCDate(),
+    hour: utc.getUTCHours(),
+  };
+}
+
+/** Serialize a UTC LaunchDate as an ISO 8601 string with an explicit offset. */
+export function launchDateToIso(date: LaunchDate): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.year}-${pad(date.month)}-${pad(date.day)}T${pad(date.hour)}:00:00+00:00`;
+}
+
+/** Render a UTC LaunchDate as a wall-clock time in `timeZone`, with its zone name. */
+export function formatLaunchDate(
+  date: LaunchDate,
+  locale: string,
+  timeZone: string = resolveTimeZone(),
+): string {
+  const instant = new Date(Date.UTC(date.year, date.month - 1, date.day, date.hour));
+  return instant.toLocaleString(locale, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone,
+    timeZoneName: "short",
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -79,12 +176,19 @@ export interface ScenarioDraft {
   uncertainty: Record<string, Dispersion> | null;
 }
 
-/** Build the scenario body sent to /api/scenario/validate and /api/simulate. */
-export function buildScenarioBody(draft: ScenarioDraft): Record<string, unknown> {
+/**
+ * Build the scenario body sent to /api/scenario/validate and /api/simulate.
+ * `draft.launchDatetime` is the user's wall clock in `timeZone`; the body
+ * carries it converted to UTC.
+ */
+export function buildScenarioBody(
+  draft: ScenarioDraft,
+  timeZone: string = resolveTimeZone(),
+): Record<string, unknown> {
   return {
     name: draft.name,
     site: draft.site,
-    date: toLaunchDate(draft.launchDatetime),
+    date: toLaunchDate(draft.launchDatetime, timeZone),
     atmosphere: draft.atmosphere,
     rail: draft.rail,
     uncertainty: draft.uncertainty,

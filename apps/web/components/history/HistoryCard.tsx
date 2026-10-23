@@ -6,12 +6,17 @@
  * HistoryList.tsx so a Server Component can render the (static) list shell
  * and drop this in per row.
  *
+ * "View details" opens the stored results page for a finished entry
+ * (/results/{simulation_id}) — nothing is recomputed: the simulation id is
+ * the run id the results page reads from storage.
+ *
  * "Re-run" triggers re-launch flow A: submits the stored (rocket_id,
  * scenario) verbatim to /api/simulate and navigates to the new result page —
  * the original simulation document is NOT mutated. Owns its own mutation
  * state (issue #48) so re-running one entry never affects any other card.
  */
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, type SimulationSummary } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
@@ -19,6 +24,11 @@ import { Button, Card, Spinner } from "@/components/ui";
 import { cn } from "@/lib/styles";
 import { CountUp, Reveal } from "@/components/motion";
 import { useT } from "@/components/i18n/LocaleProvider";
+
+// Matches components/ui.tsx's Button primary variant — a <Link> navigates
+// without a client onClick, so it can't reuse <Button> itself.
+const detailsLinkClassName =
+  "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full px-6 text-sm font-medium transition-all duration-500 ease-[var(--ease-spring)] active:scale-[0.98] bg-foreground text-[#050505] hover:shadow-[0_0_36px_-6px_rgba(34,211,238,0.55)]";
 
 export function HistoryCard({ item, index = 0 }: { item: SimulationSummary; index?: number }) {
   const t = useT();
@@ -101,7 +111,15 @@ export function HistoryCard({ item, index = 0 }: { item: SimulationSummary; inde
         )}
 
         {/* Action row */}
-        <div className="flex justify-end">
+        <div className="flex flex-wrap justify-end gap-2">
+          {item.status === "done" && (
+            <Link
+              href={`/results/${encodeURIComponent(item.simulation_id)}`}
+              className={detailsLinkClassName}
+            >
+              {t("history.viewDetails")}
+            </Link>
+          )}
           <Button
             variant="ghost"
             withArrow={!isRunning}

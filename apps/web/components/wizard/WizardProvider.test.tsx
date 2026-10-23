@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import { mockBrowserTimeZone } from "@/test/mock-time-zone";
 import {
   WizardProvider,
   useWizard,
@@ -151,6 +152,9 @@ describe("WizardProvider — reducer / navigation", () => {
   });
 
   it("scenarioBody() builds the validate/simulate payload from the current draft", () => {
+    // Pin the browser to UTC so the picker's wall clock equals the UTC hour
+    // regardless of the machine running the suite.
+    mockBrowserTimeZone("UTC");
     const { result } = setup();
     act(() => result.current.setName("acme-1"));
     act(() =>
@@ -166,6 +170,7 @@ describe("WizardProvider — reducer / navigation", () => {
       rail: null,
       uncertainty: null,
     });
+    vi.restoreAllMocks();
   });
 });
 
