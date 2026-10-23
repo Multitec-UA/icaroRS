@@ -43,6 +43,7 @@
  */
 
 import type { components } from "./api/schema";
+import { RETRY_DELAYS_MS, fetchRetrying } from "./fetch-retry";
 
 // ---------------------------------------------------------------------------
 // Domain types — mirror packages/icaro/icaro/scenario.py
@@ -227,16 +228,22 @@ export type Identity = components["schemas"]["IdentityResponse"];
  */
 export function createSession(idToken: string): Promise<void> {
   const body: components["schemas"]["SessionRequest"] = { id_token: idToken };
-  return request<void>("/api/auth/session", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  // Safe to repeat: exchanging the same ID token again just mints another cookie.
+  return request<void>(
+    "/api/auth/session",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    { retryable: true },
+  );
 }
 
 /** Clear the session cookie. Always resolves, even if there was no session. */
 export function logout(): Promise<void> {
-  return request<void>("/api/auth/logout", { method: "POST" });
+  // Safe to repeat: clearing an already-cleared cookie is a no-op.
+  return request<void>("/api/auth/logout", { method: "POST" }, { retryable: true });
 }
 
 /**
@@ -359,14 +366,43 @@ export async function parseApiResponse<T>(res: Response): Promise<T> {
   throw new ApiError(res.status, message, { code: "requestFailed" });
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * True for the bare 500 Next's `/api/*` rewrite answers when it cannot reach
+ * the API at all. It carries no Content-Type, while every API response,
+ * error or not, does — so this never matches a real API error.
+ */
+function isProxyFailure(res: Response): boolean {
+  return res.status === 500 && !res.headers.get("Content-Type");
+}
+
+interface RequestOptions {
+  /**
+   * Repeat the request when it never reached the API. Defaults to true for
+   * GET/HEAD; pass it only for a write that is safe to run twice.
+   */
+  retryable?: boolean;
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  { retryable }: RequestOptions = {},
+): Promise<T> {
+  const method = (init.method ?? "GET").toUpperCase();
+  const canRetry = retryable ?? (method === "GET" || method === "HEAD");
   let res: Response;
   try {
-    res = await fetch(path, { ...init });
+    res = await fetchRetrying(path, init, {
+      delaysMs: canRetry ? RETRY_DELAYS_MS : [],
+      isTransientResponse: isProxyFailure,
+    });
   } catch {
     throw new ApiError(0, "Could not reach the icaro API. Is the server running?", {
       code: "network",
     });
+  }
+  if (isProxyFailure(res)) {
+    throw new ApiError(res.status, "Could not reach the icaro API.", { code: "network" });
   }
   return parseApiResponse<T>(res);
 }
@@ -385,11 +421,16 @@ export function getScenarioTemplate(): Promise<ScenarioTemplate> {
 
 /** Validate/normalize a (possibly partial) scenario dict. Throws ApiError(422). */
 export function validateScenario(body: unknown): Promise<Scenario> {
-  return request<Scenario>("/api/scenario/validate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  // Safe to repeat: validation only reads the body and stores nothing.
+  return request<Scenario>(
+    "/api/scenario/validate",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+    { retryable: true },
+  );
 }
 
 export function suggestAtmosphere(dateIso: string): Promise<AtmosphereSuggestion> {

@@ -222,7 +222,7 @@
   },
 
   "errors": {
-    "network": "No se pudo conectar con el servidor.",
+    "network": "No se pudo conectar con el servidor. Puede que se esté iniciando: inténtalo de nuevo en unos segundos.",
     "validation": "La solicitud no es válida.",
     "unavailable": "El servicio no está disponible.",
     "requestFailed": "La solicitud falló (código {status}).",

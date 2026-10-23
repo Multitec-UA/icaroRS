@@ -23,6 +23,8 @@ function mockFetchResolve(init: { ok: boolean; status: number; body?: unknown })
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
   cookiesMock.mockReset();
 });
 
@@ -71,15 +73,65 @@ describe("server-api — response handling (reuses lib/api.ts's parseApiResponse
   });
 
   it("maps a fetch rejection to ApiError(0, code: network)", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
     mockCookieJar("");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("offline")));
 
     const { getRocketsServer } = await import("./server-api");
     const { ApiError } = await import("./api");
 
-    const err: InstanceType<typeof ApiError> = await getRocketsServer().catch((e) => e);
+    const pending = getRocketsServer().catch((e) => e);
+    await vi.runAllTimersAsync();
+    const err: InstanceType<typeof ApiError> = await pending;
     expect(err).toBeInstanceOf(ApiError);
     expect(err.status).toBe(0);
     expect(err.code).toBe("network");
+  });
+});
+
+describe("server-api — connections that never reached the API", () => {
+  it("retries a failed connection and returns the later success", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    mockCookieJar("");
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("fetch failed"))
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify([])),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { getHistoryServer } = await import("./server-api");
+    const pending = getHistoryServer();
+    await vi.runAllTimersAsync();
+
+    await expect(pending).resolves.toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(warn).toHaveBeenCalledWith("[server-api] GET /api/history?limit=20 retry 1: fetch failed");
+  });
+
+  it("logs the cause once it gives up, after three attempts", async () => {
+    vi.useFakeTimers();
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    mockCookieJar("");
+    const cause = Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT", address: "34.143.73.2" });
+    const fetchMock = vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const { getHistoryServer } = await import("./server-api");
+    const pending = getHistoryServer().catch((e) => e);
+    await vi.runAllTimersAsync();
+    await pending;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(errorLog).toHaveBeenCalledWith(
+      "[server-api] GET /api/history?limit=20 failed: fetch failed: ETIMEDOUT 34.143.73.2",
+    );
   });
 });
