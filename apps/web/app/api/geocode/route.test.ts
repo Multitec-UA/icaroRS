@@ -70,6 +70,27 @@ describe("GET /api/geocode (issue #55)", () => {
     expect(body).toEqual({ error: "network" });
   });
 
+  it("logs why the upstream call failed, down to each connection attempt", async () => {
+    const cause = new AggregateError(
+      [
+        Object.assign(new Error("connect ENETUNREACH"), { code: "ENETUNREACH", address: "2a04:4e42::347" }),
+        Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT", address: "199.232.33.91" }),
+      ],
+      "",
+    );
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("fetch failed", { cause })));
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { GET } = await freshRoute();
+
+    const res = await GET(geocodeRequest("Alicante"));
+
+    expect(res.status).toBe(502);
+    expect(errorLog).toHaveBeenCalledWith(
+      "[geocode] Nominatim request failed: fetch failed: ENETUNREACH 2a04:4e42::347; ETIMEDOUT 199.232.33.91",
+    );
+    errorLog.mockRestore();
+  });
+
   it("surfaces a 429 throttle from Nominatim distinctly from other failures", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 429 }));
     vi.stubGlobal("fetch", fetchMock);

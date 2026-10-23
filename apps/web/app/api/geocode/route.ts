@@ -37,6 +37,7 @@
  *     store.
  */
 
+import { describeFetchError } from "@/lib/fetch-retry";
 import type { NextRequest } from "next/server";
 
 interface NominatimHit {
@@ -151,7 +152,9 @@ export async function GET(request: NextRequest) {
         "User-Agent": USER_AGENT,
       },
     });
-  } catch {
+  } catch (err) {
+    // Without this the cause is lost: the browser only sees {"error":"network"}.
+    console.error(`[geocode] Nominatim request failed: ${describeFetchError(err)}`);
     return errorResponse(502, "network");
   }
 
