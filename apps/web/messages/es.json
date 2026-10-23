@@ -13,13 +13,17 @@
     "eyebrow": "Simulación de cohetes",
     "title": "icaro",
     "subtitle": "Convierte tu diseño de OpenRocket en una simulación de vuelo completa con 6 grados de libertad.",
-    "username": "Usuario",
+    "email": "Email",
     "password": "Contraseña",
     "signIn": "Iniciar sesión",
     "signingIn": "Iniciando sesión…",
-    "errorWrongCredentials": "Usuario o contraseña incorrectos.",
+    "errorWrongCredentials": "Email o contraseña incorrectos.",
     "errorUnreachable": "No se pudo alcanzar la API. ¿Está corriendo el servidor?",
-    "errorGeneric": "Error al iniciar sesión."
+    "errorGeneric": "Error al iniciar sesión.",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "forgotPasswordNeedEmail": "Escribe tu email arriba para recibir el enlace.",
+    "forgotPasswordRequested": "Si hay una cuenta con ese email, recibirás un enlace para restablecer la contraseña.",
+    "forgotPasswordFailed": "No se pudo enviar el email. Inténtalo de nuevo en unos minutos."
   },
 
   "wizard": {

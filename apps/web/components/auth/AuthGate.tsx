@@ -24,11 +24,15 @@ import {
 } from "react";
 import { ApiError, createSession, getIdentity, logout as apiLogout, type Identity } from "@/lib/api";
 import { setUnauthorizedHandler } from "@/lib/query-client";
-import { signInWithPassword, signOut as firebaseSignOut } from "@/lib/firebase";
+import {
+  sendPasswordReset,
+  signInWithPassword,
+  signOut as firebaseSignOut,
+} from "@/lib/firebase";
 import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
-import { useT } from "@/components/i18n/LocaleProvider";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { AppNav } from "@/components/AppNav";
 
 interface AuthContextValue {
@@ -106,12 +110,41 @@ export function AuthGate({ children }: { children: ReactNode }) {
   );
 }
 
+/**
+ * Forgot-password outcome. "requested" is shown whatever Firebase answers
+ * about the account itself, so the screen never reveals whether an email has
+ * an account (Identity Platform's email enumeration protection does the same
+ * server-side). Only failures unrelated to the account are reported.
+ */
+type ResetState = "idle" | "needEmail" | "sending" | "requested" | "failed";
+
+/** Firebase errors that say nothing about the account: the request itself did not go through. */
+const RESET_DELIVERY_ERRORS = new Set(["auth/network-request-failed", "auth/too-many-requests"]);
+
 function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void }) {
   const t = useT();
+  const { locale } = useLocale();
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [reset, setReset] = useState<ResetState>("idle");
+
+  async function forgotPassword() {
+    const address = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address)) {
+      setReset("needEmail");
+      return;
+    }
+    setReset("sending");
+    try {
+      await sendPasswordReset(address, locale);
+      setReset("requested");
+    } catch (err) {
+      const code = isFirebaseAuthError(err) ? (err as { code: string }).code : "";
+      setReset(RESET_DELIVERY_ERRORS.has(code) ? "failed" : "requested");
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -155,7 +188,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
         </div>
         <Card innerClassName="p-6 sm:p-6">
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <Field label={t("auth.username")} htmlFor="email">
+            <Field label={t("auth.email")} htmlFor="email">
               <TextInput
                 id="email"
                 type="email"
@@ -175,6 +208,31 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 required
               />
             </Field>
+            <div className="-mt-1 flex flex-col items-end gap-1.5">
+              <button
+                type="button"
+                onClick={forgotPassword}
+                disabled={reset === "sending"}
+                className="text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40"
+              >
+                {t("auth.forgotPassword")}
+              </button>
+              {reset === "needEmail" && (
+                <p role="status" className="text-right text-xs text-muted">
+                  {t("auth.forgotPasswordNeedEmail")}
+                </p>
+              )}
+              {reset === "requested" && (
+                <p role="status" className="text-right text-xs text-emerald-400">
+                  {t("auth.forgotPasswordRequested")}
+                </p>
+              )}
+              {reset === "failed" && (
+                <p role="alert" className="text-right text-xs text-rose-400">
+                  {t("auth.forgotPasswordFailed")}
+                </p>
+              )}
+            </div>
             {error && <Callout tone="error">{error}</Callout>}
             <Button type="submit" disabled={busy} className="mt-1 w-full" withArrow={!busy}>
               {busy && <Spinner />}
