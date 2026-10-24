@@ -60,3 +60,51 @@ describe("SeriesChart — accessible metric toggles and chart name", () => {
     expect(lastOption.xAxis.name).toBe("Tiempo (s)");
   });
 });
+
+describe("SeriesChart — controlled metric (flight series panel)", () => {
+  it("owns the active metric and renders its own toggles when uncontrolled", () => {
+    renderChart();
+
+    expect(screen.getAllByRole("button")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "Speed" }));
+    expect(screen.getByRole("img", { name: "Speed over time, peak 5.5" })).toBeInTheDocument();
+  });
+
+  it("follows the controlled metric and leaves the toggles to the controller", () => {
+    const onMetricChange = vi.fn();
+    const { rerender } = render(
+      <LocaleProvider initialLocale="en">
+        <SeriesChart series={series} metric="speed" onMetricChange={onMetricChange} />
+      </LocaleProvider>,
+    );
+
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByRole("img", { name: "Speed over time, peak 5.5" })).toBeInTheDocument();
+
+    rerender(
+      <LocaleProvider initialLocale="en">
+        <SeriesChart series={series} metric="altitude" onMetricChange={onMetricChange} />
+      </LocaleProvider>,
+    );
+    expect(screen.getByRole("img", { name: "Altitude over time, peak 20" })).toBeInTheDocument();
+  });
+
+  it("paints the chart with the palette it is given", () => {
+    setOption.mockClear();
+    render(
+      <LocaleProvider initialLocale="en">
+        <SeriesChart
+          series={series}
+          palette={{ altitude: "#abcdef", ink: "#111111", muted: "#222222", divider: "#333333", axis: "#444444", surface: "#555555", border: "#666666" }}
+        />
+      </LocaleProvider>,
+    );
+
+    const option = setOption.mock.calls.at(-1)?.[0] as {
+      series: { lineStyle: { color: string } }[];
+      xAxis: { axisLabel: { color: string } };
+    };
+    expect(option.series[0].lineStyle.color).toBe("#abcdef");
+    expect(option.xAxis.axisLabel.color).toBe("#222222");
+  });
+});
