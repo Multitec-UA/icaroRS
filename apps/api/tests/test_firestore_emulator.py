@@ -23,7 +23,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from icaro_api.services.db import FirestoreDb, RocketRecord, SimRecord
+from icaro_api.services.db import ExportRecord, FirestoreDb, RocketRecord, SimRecord
 
 
 # ---------------------------------------------------------------------------
@@ -67,12 +67,12 @@ def db() -> FirestoreDb:
 
 @pytest.fixture(autouse=True)
 def _clear_collections(db: FirestoreDb) -> None:
-    """Delete all documents in ``rockets`` and ``simulations`` before each test.
+    """Delete all documents in ``rockets``, ``exports`` and ``simulations`` before each test.
 
     This gives each test a clean slate without relying on unique IDs that
     accumulate state across sessions, and avoids fragile time-based coupling.
     """
-    for col_name in ("rockets", "simulations"):
+    for col_name in ("rockets", "exports", "simulations"):
         col = db._db.collection(col_name)
         docs = col.stream()
         for doc in docs:
@@ -87,7 +87,6 @@ def _clear_collections(db: FirestoreDb) -> None:
 def _rocket(
     rocket_id: str = "r-test",
     dt: datetime | None = None,
-    manifest: dict | None = None,
     org_id: str = _ORG,
 ) -> RocketRecord:
     return RocketRecord(
@@ -96,9 +95,26 @@ def _rocket(
         created_at=dt or _BASE,
         created_by="ci",
         org_id=org_id,
-        export_prefix=f"exports/{rocket_id}/",
+    )
+
+
+def _export(
+    export_id: str = "e-test",
+    rocket_id: str = "r-test",
+    dt: datetime | None = None,
+    manifest: dict | None = None,
+    org_id: str = _ORG,
+) -> ExportRecord:
+    return ExportRecord(
+        export_id=export_id,
+        rocket_id=rocket_id,
+        name="TestRocket",
+        created_at=dt or _BASE,
+        created_by="ci",
+        org_id=org_id,
+        export_prefix=f"exports/{export_id}/",
         manifest=manifest if manifest is not None else {"name": "TestRocket"},
-        gcs_ref=f"exports/{rocket_id}/",
+        gcs_ref=f"exports/{export_id}/",
         ork_filename="test.ork",
         has_source_ork=False,
     )
@@ -136,17 +152,17 @@ def _sim(
 class TestPR28NestedArrayRegression:
     """Guard against Firestore 400 InvalidArgument: invalid nested entity.
 
-    Before the PR #28 fix, ``save_rocket`` would pass the full ``manifest``
+    Before the PR #28 fix, ``save_export`` would pass the full ``manifest``
     dict to Firestore.  Manifests with freeform fins contain arrays nested
     directly inside arrays (``shape_points: [[x, y], ...]``), which Firestore
     Native Mode rejects.  The fix pops ``manifest`` before writing — this test
     confirms that contract holds against a REAL emulator.
     """
 
-    def test_save_rocket_with_nested_array_manifest_does_not_raise(
+    def test_save_export_with_nested_array_manifest_does_not_raise(
         self, db: FirestoreDb
     ) -> None:
-        """save_rocket with freeform-fin nested arrays must not raise.
+        """save_export with freeform-fin nested arrays must not raise.
 
         The adapter must silently drop the manifest before writing.  If it
         reaches Firestore unmodified, the emulator returns 400 — proving the
@@ -167,10 +183,10 @@ class TestPR28NestedArrayRegression:
                 }
             ],
         }
-        rec = _rocket("r-pr28", manifest=manifest_with_nested_arrays)
+        rec = _export("e-pr28", manifest=manifest_with_nested_arrays)
 
         # Must not raise 400 InvalidArgument
-        db.save_rocket(rec, org_id=_ORG)
+        db.save_export(rec, org_id=_ORG)
 
     def test_raw_firestore_doc_has_no_manifest_field(
         self, db: FirestoreDb
@@ -190,9 +206,9 @@ class TestPR28NestedArrayRegression:
                 ],
             },
         )
-        db.save_rocket(rec, org_id=_ORG)
+        db.save_export(rec, org_id=_ORG)
 
-        snap = db._db.collection("rockets").document("r-pr28-raw").get()
+        snap = db._db.collection("exports").document("e-pr28-raw").get()
         assert snap.exists, "Document was not written to Firestore"
 
         raw = snap.to_dict()
@@ -213,14 +229,14 @@ class TestPR28NestedArrayRegression:
             "r-pr28-meta",
             manifest={"name": "FreeformRocket", "freeform_fins": [{"shape_points": [[0.0, 0.0]]}]},
         )
-        db.save_rocket(rec, org_id=_ORG)
+        db.save_export(rec, org_id=_ORG)
 
-        snap = db._db.collection("rockets").document("r-pr28-meta").get()
+        snap = db._db.collection("exports").document("e-pr28-meta").get()
         raw = snap.to_dict()
 
         assert raw["name"] == "TestRocket"
-        assert raw["export_prefix"] == "exports/r-pr28-meta/"
-        assert raw["gcs_ref"] == "exports/r-pr28-meta/"
+        assert raw["export_prefix"] == "exports/e-pr28-meta/"
+        assert raw["gcs_ref"] == "exports/e-pr28-meta/"
         assert raw["created_by"] == "ci"
         assert raw["has_source_ork"] is False
 
@@ -242,10 +258,6 @@ class TestGetRocket:
         assert got.rocket_id == "r-get"
         assert got.name == "TestRocket"
         assert got.created_by == "ci"
-        assert got.export_prefix == "exports/r-get/"
-        assert got.gcs_ref == "exports/r-get/"
-        assert got.ork_filename == "test.ork"
-        assert got.has_source_ork is False
 
     def test_get_rocket_returns_none_for_missing_id(
         self, db: FirestoreDb
@@ -254,22 +266,41 @@ class TestGetRocket:
         result = db.get_rocket("does-not-exist-xyz", org_id=_ORG)
         assert result is None
 
-    def test_get_rocket_manifest_defaults_to_empty_dict(
+    def test_get_export_manifest_defaults_to_empty_dict(
         self, db: FirestoreDb
     ) -> None:
-        """Since the manifest is not stored, get_rocket must return ``{}`` for it.
+        """Since the manifest is not stored, get_export must return ``{}`` for it."""
+        rec = _export("e-get-manifest", manifest={"name": "Rocket", "version": "1"})
+        db.save_export(rec, org_id=_ORG)
 
-        The adapter reconstructs the record using ``d.get("manifest", {})``,
-        so the returned record has an empty manifest — correct behaviour.
-        """
-        rec = _rocket("r-get-manifest", manifest={"name": "Rocket", "version": "1"})
-        db.save_rocket(rec, org_id=_ORG)
-
-        got = db.get_rocket("r-get-manifest", org_id=_ORG)
+        got = db.get_export("e-get-manifest", org_id=_ORG)
         assert got is not None
+        assert got.rocket_id == "r-test"
+        assert got.export_prefix == "exports/e-get-manifest/"
+        assert got.ork_filename == "test.ork"
         assert got.manifest == {}, (
             "manifest must be empty dict after round-trip (not stored in Firestore)"
         )
+
+
+class TestListExports:
+    def test_list_exports_by_rocket_newest_first(self, db: FirestoreDb) -> None:
+        """list_exports(rocket_id=...) returns only that rocket's files, newest first."""
+        db.save_export(_export("e-a", rocket_id="rk-a", dt=_BASE), org_id=_ORG)
+        db.save_export(_export("e-b", rocket_id="rk-b", dt=_BASE + timedelta(hours=1)), org_id=_ORG)
+        db.save_export(_export("e-a2", rocket_id="rk-a", dt=_BASE + timedelta(hours=2)), org_id=_ORG)
+
+        ids = [e.export_id for e in db.list_exports(org_id=_ORG, rocket_id="rk-a", limit=10)]
+        assert ids == ["e-a2", "e-a"]
+        assert len(db.list_exports(org_id=_ORG, limit=10)) == 3
+
+    def test_list_simulations_by_rocket(self, db: FirestoreDb) -> None:
+        """list_simulations(rocket_id=...) filters on the denormalised rocket_id."""
+        db.save_simulation(_sim("s-a", rocket_id="rk-a", dt=_BASE), org_id=_ORG)
+        db.save_simulation(_sim("s-b", rocket_id="rk-b", dt=_BASE + timedelta(hours=1)), org_id=_ORG)
+
+        ids = [s.simulation_id for s in db.list_simulations(org_id=_ORG, rocket_id="rk-a", limit=10)]
+        assert ids == ["s-a"]
 
 
 # ---------------------------------------------------------------------------

@@ -188,3 +188,121 @@ def test_real_convert_unavailable_without_jar():
     """Real convert_ork with no jar → ConvertUnavailableError → 503."""
     # This is an integration smoke test; skipped in standard CI.
     pass
+
+
+# ---------------------------------------------------------------------------
+# Rocket/Export split (S4): every convert creates an export; the rocket is
+# either new (default) or the one the user chose explicitly via ``rocket_id``.
+# ---------------------------------------------------------------------------
+
+
+def _client_with_db():
+    from datetime import datetime, timezone
+
+    from icaro_api.config import Settings, get_settings
+    from icaro_api.main import create_app
+    from icaro_api.runs import get_db
+    from icaro_api.services.db import InMemoryDb, RocketRecord
+
+    db = InMemoryDb()
+    db.save_rocket(
+        RocketRecord(
+            rocket_id="rk-existing",
+            name="Existing",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_by="test",
+            org_id="test-org",
+        ),
+        org_id="test-org",
+    )
+    db.save_rocket(
+        RocketRecord(
+            rocket_id="rk-theirs",
+            name="Theirs",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_by="other",
+            org_id="other-org",
+        ),
+        org_id="other-org",
+    )
+    app = create_app()
+    app.dependency_overrides[get_settings] = lambda: Settings()
+    app.dependency_overrides[get_identity_verifier] = lambda: _fake_verify_identity
+    app.dependency_overrides[get_db] = lambda: db
+    return TestClient(app, raise_server_exceptions=True), db
+
+
+def _ok_export(tmp_path, name="TestRocket"):
+    import json
+
+    export_dir = tmp_path / "rocket_export"
+    export_dir.mkdir(exist_ok=True)
+    (export_dir / "parameters.json").write_text(json.dumps({"name": name}))
+    return {"status": "ok", "export_dir": str(export_dir)}
+
+
+class TestConvertRocketDestination:
+    def test_without_rocket_id_creates_a_new_rocket_and_its_export(self, tmp_path):
+        client, db = _client_with_db()
+        with patch("icaro_api.routers.convert.run_convert", return_value=_ok_export(tmp_path, "Icarus")):
+            resp = client.post(
+                "/api/convert",
+                files={"file": ("icarus.ork", io.BytesIO(_ork_file_content()), "application/octet-stream")},
+                headers=_auth(),
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert set(data.keys()) == {"export_id", "rocket_id", "manifest"}
+        assert data["rocket_id"] != data["export_id"]
+
+        rocket = db.get_rocket(data["rocket_id"], org_id="test-org")
+        assert rocket is not None and rocket.name == "Icarus"
+        export = db.get_export(data["export_id"], org_id="test-org")
+        assert export is not None
+        assert export.rocket_id == data["rocket_id"]
+        assert export.name == "Icarus"
+        assert export.ork_filename == "icarus.ork"
+        assert export.export_prefix == f"orgs/test-org/exports/{data['export_id']}/"
+
+    def test_with_rocket_id_attaches_export_to_that_rocket(self, tmp_path):
+        client, db = _client_with_db()
+        with patch("icaro_api.routers.convert.run_convert", return_value=_ok_export(tmp_path)):
+            resp = client.post(
+                "/api/convert",
+                files={"file": ("v2.ork", io.BytesIO(_ork_file_content()), "application/octet-stream")},
+                data={"rocket_id": "rk-existing"},
+                headers=_auth(),
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["rocket_id"] == "rk-existing"
+        export = db.get_export(data["export_id"], org_id="test-org")
+        assert export is not None and export.rocket_id == "rk-existing"
+        # No second rocket was created.
+        assert [r.rocket_id for r in db.list_rockets(org_id="test-org")] == ["rk-existing"]
+
+    def test_unknown_rocket_id_returns_404_before_converting(self, tmp_path):
+        client, _ = _client_with_db()
+        with patch("icaro_api.routers.convert.run_convert") as mock_run:
+            resp = client.post(
+                "/api/convert",
+                files={"file": ("v2.ork", io.BytesIO(_ork_file_content()), "application/octet-stream")},
+                data={"rocket_id": "rk-missing"},
+                headers=_auth(),
+            )
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Rocket 'rk-missing' not found."
+        mock_run.assert_not_called()
+
+    def test_another_orgs_rocket_id_returns_404(self, tmp_path):
+        client, _ = _client_with_db()
+        with patch("icaro_api.routers.convert.run_convert") as mock_run:
+            resp = client.post(
+                "/api/convert",
+                files={"file": ("v2.ork", io.BytesIO(_ork_file_content()), "application/octet-stream")},
+                data={"rocket_id": "rk-theirs"},
+                headers=_auth(),
+            )
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Rocket 'rk-theirs' not found."
+        mock_run.assert_not_called()

@@ -40,7 +40,6 @@ def _rocket(
         created_at=dt or datetime(2026, 1, 1, tzinfo=timezone.utc),
         created_by="test",
         org_id=org_id,
-        export_prefix=f"exports/{rocket_id}/",
     )
 
 

@@ -117,8 +117,6 @@ class TestGetDbSingleton:
             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             created_by="test",
             org_id="org-test",
-            export_prefix="exports/test-rocket-singleton/",
-            gcs_ref="exports/test-rocket-singleton/",
         )
         db_write.save_rocket(rec, org_id="org-test")
 

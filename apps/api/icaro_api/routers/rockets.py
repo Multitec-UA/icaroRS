@@ -1,16 +1,16 @@
-"""Saved rockets endpoints — list and detail.
+"""Rockets endpoints — a rocket groups the ``.ork`` files (exports) a team uploads.
 
 Routes (all require auth via router-level dependency):
   GET /api/rockets                 — paginated list, reverse-chronological
-  GET /api/rockets/{rocket_id}     — full rocket record including manifest + gcs_ref
+  GET /api/rockets/{rocket_id}     — rocket + its exports, newest first
 
-Req: REQ-04.1 (reverse-chrono), REQ-04.2 (list fields), REQ-04.3 (pagination),
-     REQ-04.4 (detail with manifest + gcs_ref).
+Manifests live on the export: ``GET /api/exports/{export_id}``.
+
+Req: REQ-04.1 (reverse-chrono), REQ-04.3 (pagination).
 """
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 from typing import Any
 
@@ -18,9 +18,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from icaro_api.auth import Identity, require_auth
-from icaro_api.runs import get_db, get_storage
-from icaro_api.services.db import Db
-from icaro_api.services.storage import Storage
+from icaro_api.routers.exports import ExportSummary, export_summary
+from icaro_api.runs import get_db
+from icaro_api.services.db import Db, RocketRecord
 
 router = APIRouter(
     tags=["rockets"],
@@ -29,6 +29,7 @@ router = APIRouter(
 
 _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
+_MAX_EXPORTS_PER_ROCKET = 100
 
 
 class RocketSummary(BaseModel):
@@ -38,16 +39,21 @@ class RocketSummary(BaseModel):
     name: str
     created_at: str
     created_by: str
-    export_prefix: str
-    gcs_ref: str
-    ork_filename: str | None
-    has_source_ork: bool
 
 
 class RocketDetail(RocketSummary):
-    """Response body for GET /api/rockets/{rocket_id} — a RocketSummary plus its manifest."""
+    """Response body for GET /api/rockets/{rocket_id} — the rocket plus its exports."""
 
-    manifest: dict[str, Any]
+    exports: list[ExportSummary]
+
+
+def rocket_summary(rec: RocketRecord) -> dict[str, Any]:
+    return {
+        "rocket_id": rec.rocket_id,
+        "name": rec.name,
+        "created_at": rec.created_at.isoformat(),
+        "created_by": rec.created_by,
+    }
 
 
 @router.get("/rockets", response_model=list[RocketSummary])
@@ -57,7 +63,7 @@ def list_rockets(
     db: Db = Depends(get_db),
     identity: Identity = Depends(require_auth),
 ) -> list[dict[str, Any]]:
-    """Return a paginated list of saved rockets in reverse-chronological order.
+    """Return a paginated list of the org's rockets in reverse-chronological order.
 
     Parameters
     ----------
@@ -66,43 +72,24 @@ def list_rockets(
     before : datetime | None
         Cursor — return only rockets created before this timestamp (ISO 8601).
 
-    Satisfies REQ-04.1, REQ-04.2, REQ-04.3.
+    Satisfies REQ-04.1, REQ-04.3.
     """
     effective_limit = min(max(1, limit), _MAX_LIMIT)
     records = db.list_rockets(org_id=identity.org_id, limit=effective_limit, before=before)
-
-    return [
-        {
-            "rocket_id": r.rocket_id,
-            "name": r.name,
-            "created_at": r.created_at.isoformat(),
-            "created_by": r.created_by,
-            "export_prefix": r.export_prefix,
-            "gcs_ref": r.gcs_ref,
-            "ork_filename": r.ork_filename,
-            "has_source_ork": r.has_source_ork,
-        }
-        for r in records
-    ]
+    return [rocket_summary(r) for r in records]
 
 
 @router.get("/rockets/{rocket_id}", response_model=RocketDetail)
 def get_rocket(
     rocket_id: str,
     db: Db = Depends(get_db),
-    storage: Storage = Depends(get_storage),
     identity: Identity = Depends(require_auth),
 ) -> dict[str, Any]:
-    """Return the full rocket record including manifest and gcs_ref.
+    """Return the rocket and its exports (newest first).
 
-    The ``manifest`` is the single source of truth in object storage
-    (``parameters.json`` under the export prefix), NOT Firestore — it can
-    contain nested arrays that Firestore Native rejects (see
-    ``FirestoreDb.save_rocket``). It is loaded here from Storage and degrades to
-    ``{}`` if the blob is missing, so the endpoint never 500s on a stale record.
-
+    Both lookups are scoped to the caller's org in the ``Db`` layer, so a
+    rocket_id that exists in another org is indistinguishable from a missing one.
     Returns 404 if the rocket_id is not found OR not owned by the caller's org.
-    Satisfies REQ-04.4.
     """
     record = db.get_rocket(rocket_id, org_id=identity.org_id)
     if record is None:
@@ -110,24 +97,7 @@ def get_rocket(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Rocket '{rocket_id}' not found.",
         )
-
-    manifest: dict[str, Any] = {}
-    try:
-        raw = storage.open_blob(f"{record.export_prefix}parameters.json")
-        manifest = json.loads(raw)
-    except (KeyError, ValueError):
-        # Blob absent (KeyError) or unparseable (ValueError/JSONDecodeError) —
-        # serve an empty manifest rather than failing the detail request.
-        manifest = {}
-
-    return {
-        "rocket_id": record.rocket_id,
-        "name": record.name,
-        "created_at": record.created_at.isoformat(),
-        "created_by": record.created_by,
-        "export_prefix": record.export_prefix,
-        "manifest": manifest,
-        "gcs_ref": record.gcs_ref,
-        "ork_filename": record.ork_filename,
-        "has_source_ork": record.has_source_ork,
-    }
+    exports = db.list_exports(
+        org_id=identity.org_id, limit=_MAX_EXPORTS_PER_ROCKET, rocket_id=rocket_id
+    )
+    return {**rocket_summary(record), "exports": [export_summary(e) for e in exports]}

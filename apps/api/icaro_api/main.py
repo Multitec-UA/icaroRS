@@ -12,7 +12,7 @@ matplotlib.use("Agg")  # noqa: E402 — MUST precede any pyplot/rocketpy import
 
 from fastapi import FastAPI  # noqa: E402
 
-from icaro_api.routers import convert, discovery, results, rockets, history, scenario, session, simulate  # noqa: E402
+from icaro_api.routers import convert, discovery, exports, results, rockets, history, scenario, session, simulate  # noqa: E402
 
 
 def create_app() -> FastAPI:
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(simulate.router, prefix="/api")
     app.include_router(results.router, prefix="/api")
     app.include_router(rockets.router, prefix="/api")
+    app.include_router(exports.router, prefix="/api")
     app.include_router(history.router, prefix="/api")
     app.include_router(discovery.router, prefix="/api")
 
