@@ -7,7 +7,9 @@
   "common": {
     "technicalEnglishNote": "Technical messages are shown in English.",
     "loading": "Loading…",
-    "skipToContent": "Skip to main content"
+    "skipToContent": "Skip to main content",
+    "confirm": "Confirm",
+    "cancel": "Cancel"
   },
 
   "auth": {
@@ -203,7 +205,8 @@
       "one": "1 plot",
       "other": "{count} plots"
     },
-    "summaryCaption": "Run summary"
+    "summaryCaption": "Run summary",
+    "newRocketConfirm": "Discard this draft and start a new rocket?"
   },
 
   "interactive": {

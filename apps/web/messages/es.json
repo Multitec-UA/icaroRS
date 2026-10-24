@@ -7,7 +7,9 @@
   "common": {
     "technicalEnglishNote": "Los mensajes técnicos se muestran en inglés.",
     "loading": "Cargando…",
-    "skipToContent": "Saltar al contenido principal"
+    "skipToContent": "Saltar al contenido principal",
+    "confirm": "Confirmar",
+    "cancel": "Cancelar"
   },
 
   "auth": {
@@ -203,7 +205,8 @@
       "one": "1 gráfica",
       "other": "{count} gráficas"
     },
-    "summaryCaption": "Resumen de la ejecución"
+    "summaryCaption": "Resumen de la ejecución",
+    "newRocketConfirm": "¿Descartar este borrador y empezar un cohete nuevo?"
   },
 
   "interactive": {

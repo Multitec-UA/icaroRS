@@ -76,9 +76,45 @@ describe("ResultsActions (issue #52 — client island)", () => {
     // changed anything (otherwise exportId is null both before and after).
     await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));
 
-    fireEvent.click(screen.getByText("New rocket"));
+    // Destructive: the first click only asks; nothing is discarded yet.
+    fireEvent.click(screen.getByRole("button", { name: "New rocket" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Discard this draft and start a new rocket?",
+    );
+    expect(capturedExportId).toBe("export-1");
+    expect(push).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     expect(capturedExportId).toBeNull();
     expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("'New rocket' can be cancelled without losing the draft", async () => {
+    let capturedExportId: string | null | undefined;
+    function ExportProbe() {
+      const { state, setExport } = useWizard();
+      capturedExportId = state.exportId;
+      useEffect(() => {
+        setExport("export-1", {});
+      }, [setExport]);
+      return <span data-testid="export-id">{state.exportId ?? ""}</span>;
+    }
+
+    render(
+      <AppProviders>
+        <ExportProbe />
+        <ResultsActions />
+      </AppProviders>,
+    );
+    await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "New rocket" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(capturedExportId).toBe("export-1");
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: "New rocket" })).toBeInTheDocument();
   });
 });
