@@ -6,6 +6,7 @@ import {
   buildScenarioBody,
   FALLBACK_TIME_ZONE,
   canAdvance,
+  canRun,
   formatLaunchDate,
   launchDateToIso,
   needsDate,
@@ -185,6 +186,38 @@ describe("buildScenarioBody", () => {
       rail: null,
       uncertainty: null,
     });
+  });
+});
+
+describe("canRun", () => {
+  const ready = {
+    exportId: "export-1",
+    site: { latitude: 10, longitude: 20, elevation: null },
+    atmosphere: STANDARD_ATMOSPHERE,
+    launchDatetime: null,
+  };
+
+  it("requires an export", () => {
+    expect(canRun(ready)).toBe(true);
+    expect(canRun({ ...ready, exportId: null })).toBe(false);
+  });
+
+  it("requires a finite launch site", () => {
+    expect(canRun({ ...ready, site: null })).toBe(false);
+    expect(
+      canRun({ ...ready, site: { latitude: Number.NaN, longitude: 20, elevation: null } }),
+    ).toBe(false);
+    expect(
+      canRun({ ...ready, site: { latitude: 10, longitude: Number.POSITIVE_INFINITY, elevation: null } }),
+    ).toBe(false);
+  });
+
+  it("requires a launch date only when the atmosphere model needs one", () => {
+    expect(canRun({ ...ready, atmosphere: FORECAST_ATMOSPHERE })).toBe(false);
+    expect(canRun({ ...ready, atmosphere: FORECAST_ATMOSPHERE, launchDatetime: "not-a-date" })).toBe(false);
+    expect(
+      canRun({ ...ready, atmosphere: FORECAST_ATMOSPHERE, launchDatetime: "2026-06-01T09:54" }),
+    ).toBe(true);
   });
 });
 

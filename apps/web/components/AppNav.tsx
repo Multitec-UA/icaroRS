@@ -1,7 +1,10 @@
 "use client";
 
 /**
- * AppNav — shared app-level navigation rendered on all authenticated pages.
+ * AppNav — shared app-level navigation rendered on the authenticated pages
+ * that have no navigation of their own. The Workbench at `/` ships its own
+ * sidebar (components/workbench/Sidebar.tsx), so this renders nothing there
+ * and keeps serving /rockets, /history and /results/*.
  *
  * Layout: two visually distinct clusters.
  *   1. Primary island: a floating glass pill (sticky, centered) with the three
@@ -62,6 +65,9 @@ export function AppNav() {
     if (href === "/") return pathname === "/" || pathname === "";
     return pathname === href || pathname.startsWith(href + "/");
   }
+
+  // The Workbench owns the whole viewport at `/`, sidebar included.
+  if (pathname === "/" || pathname === "") return null;
 
   return (
     <div className="sticky top-0 z-40 flex items-start justify-center px-4 pt-5 pb-2">

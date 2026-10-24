@@ -64,6 +64,11 @@ interface WizardState {
   exportId: string | null;
   rocketId: string | null;
   manifest: Record<string, unknown> | null;
+  // Display metadata for the Workbench's rocket context button: the .ork
+  // filename of the export and the name of its rocket. Null when the caller
+  // did not know them (older call sites pass only the ids).
+  exportFilename: string | null;
+  rocketName: string | null;
 
   // The scenario draft.
   name: string;
@@ -74,9 +79,19 @@ interface WizardState {
   rail: Rail | null;
   uncertainty: Record<string, Dispersion> | null;
 
-  // Results (from /api/simulate).
+  // Results (from /api/simulate), plus the export they were computed from:
+  // when the active export changes after a run, the Workbench's status pill
+  // says the results on screen belong to the previous file.
   runId: string | null;
   result: SimulateResult | null;
+  resultExportId: string | null;
+  resultExportFilename: string | null;
+}
+
+/** Optional display metadata recorded alongside an export (see `setExport`). */
+export interface ExportMeta {
+  filename?: string | null;
+  rocketName?: string | null;
 }
 
 type WizardAction =
@@ -85,6 +100,8 @@ type WizardAction =
       exportId: string;
       manifest: Record<string, unknown>;
       rocketId: string | null;
+      exportFilename: string | null;
+      rocketName: string | null;
     }
   | { type: "SET_NAME"; name: string }
   | { type: "SET_SITE"; site: Site | null }
@@ -101,6 +118,8 @@ const INITIAL_STATE: WizardState = {
   exportId: null,
   rocketId: null,
   manifest: null,
+  exportFilename: null,
+  rocketName: null,
   name: "my_scenario",
   site: null,
   launchDatetime: null,
@@ -109,6 +128,8 @@ const INITIAL_STATE: WizardState = {
   uncertainty: null,
   runId: null,
   result: null,
+  resultExportId: null,
+  resultExportFilename: null,
 };
 
 /**
@@ -138,6 +159,8 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         exportId: action.exportId,
         rocketId: action.rocketId,
         manifest: action.manifest,
+        exportFilename: action.exportFilename,
+        rocketName: action.rocketName,
       };
     case "SET_NAME":
       return { ...state, name: action.name };
@@ -152,7 +175,13 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
     case "SET_UNCERTAINTY":
       return { ...state, uncertainty: action.uncertainty };
     case "SET_RESULT":
-      return { ...state, result: action.result, runId: action.result.run_id };
+      return {
+        ...state,
+        result: action.result,
+        runId: action.result.run_id,
+        resultExportId: state.exportId,
+        resultExportFilename: state.exportFilename,
+      };
     case "GOTO":
       return { ...state, step: action.step };
     case "RESET":
@@ -200,11 +229,15 @@ interface WizardDraftContextValue {
   /** True when the current step's local guard is satisfied. */
   canAdvance: boolean;
   needsDate: boolean;
-  /** Record the converted export (and, when known, the rocket it belongs to). */
+  /**
+   * Record the converted export (and, when known, the rocket it belongs to
+   * and the display metadata the Workbench shows: filename + rocket name).
+   */
   setExport: (
     exportId: string,
     manifest: Record<string, unknown>,
     rocketId?: string | null,
+    meta?: ExportMeta,
   ) => void;
   setName: (name: string) => void;
   setSite: (site: Site | null) => void;
@@ -249,8 +282,20 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const setExport = useCallback(
-    (exportId: string, manifest: Record<string, unknown>, rocketId?: string | null) =>
-      dispatch({ type: "SET_EXPORT", exportId, manifest, rocketId: rocketId ?? null }),
+    (
+      exportId: string,
+      manifest: Record<string, unknown>,
+      rocketId?: string | null,
+      meta?: ExportMeta,
+    ) =>
+      dispatch({
+        type: "SET_EXPORT",
+        exportId,
+        manifest,
+        rocketId: rocketId ?? null,
+        exportFilename: meta?.filename ?? null,
+        rocketName: meta?.rocketName ?? null,
+      }),
     [],
   );
   const setName = useCallback(

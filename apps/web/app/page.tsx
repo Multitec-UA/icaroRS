@@ -1,5 +1,5 @@
-import { WizardShell } from "@/components/wizard/WizardShell";
+import { WorkbenchShell } from "@/components/workbench/WorkbenchShell";
 
 export default function Home() {
-  return <WizardShell />;
+  return <WorkbenchShell />;
 }

@@ -23,7 +23,16 @@ vi.mock("@/lib/api", async (importOriginal) => {
  * once the identity resolves, hence the full provider stack.
  */
 describe("AppNav", () => {
-  it("renders the primary destinations as links with their hrefs", async () => {
+  it("renders nothing on / — the Workbench has its own sidebar", async () => {
+    vi.mocked(usePathname).mockReturnValue("/");
+    render(<AppProviders>content</AppProviders>);
+
+    expect(await screen.findByText("content")).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Primary navigation" })).toBeNull();
+  });
+
+  it("renders the primary destinations as links with their hrefs on /rockets", async () => {
+    vi.mocked(usePathname).mockReturnValue("/rockets");
     render(<AppProviders>content</AppProviders>);
 
     const nav = await screen.findByRole("navigation", { name: "Primary navigation" });

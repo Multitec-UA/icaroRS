@@ -38,7 +38,13 @@ export function RocketStep() {
     setStatus("loading");
     try {
       const { export_id, rocket_id, manifest } = await convert(file);
-      setExport(export_id, manifest, rocket_id);
+      // The API names a new rocket after the manifest, falling back to the
+      // filename without its extension (S4) — mirror that for the Workbench.
+      const manifestName = manifest["name"];
+      setExport(export_id, manifest, rocket_id, {
+        filename: file.name,
+        rocketName: typeof manifestName === "string" ? manifestName : file.name.replace(/\.ork$/i, ""),
+      });
       setStatus("done");
     } catch (err) {
       setStatus("error");
