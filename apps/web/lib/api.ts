@@ -539,3 +539,12 @@ export function getHistory(
   if (rocketId) q.set("rocket_id", rocketId);
   return request<SimulationSummary[]>(`/api/history?${q}`);
 }
+
+/**
+ * GET /api/history/{runId} — one run's summary row (rocket name, file,
+ * author, scenario, scalars): the metadata the run report shows. Throws
+ * ApiError(404) for an unknown run or one owned by another org.
+ */
+export function getRunSummary(runId: string): Promise<SimulationSummary> {
+  return request<SimulationSummary>(`/api/history/${encodeURIComponent(runId)}`);
+}

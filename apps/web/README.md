@@ -42,9 +42,14 @@ runtime — see `Dockerfile` for the production build args.
 ## Layout
 
 ```
-lib/api.ts                       typed client for the frozen /api contract + auth
-components/wizard/WizardProvider  state machine: rocket → basics → advanced → review → results
-app/                             App Router pages
+lib/api.ts                       typed client for the /api contract + auth (types generated from openapi/schema.json)
+lib/theme.ts, components/theme/  pastel light / soft dark themes (icaro-theme cookie, data-theme on <html>)
+components/shell/                sidebar shared by every signed-in route (Workbench · Rockets · Runs)
+components/workbench/            the Workbench at /: rocket context, .ork import states, inputs, results
+components/flight/               flight replay, KPI cards, series panel, timeline, overlay chart
+components/runs/, components/results/  /runs (compare runs of one rocket) and /results/[runId] (run report)
+components/wizard/WizardProvider  the scenario draft store (export, rocket, site, time, rail, uncertainty, result)
+app/                             App Router pages (/history redirects to /runs)
 ```
 
 ## Develop

@@ -503,3 +503,38 @@ class TestHistoryExports:
         db.save_simulation(_sim("s-b1", "rk-b", _T2), org_id=_ORG)
 
         assert len(_make_client(db).get("/api/history", headers=_auth()).json()) == 2
+
+
+class TestHistoryDetail:
+    """GET /api/history/{simulation_id} — one run's summary row (run report metadata)."""
+
+    def test_returns_the_same_row_shape_as_the_list(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("rk-1", "Icarus"), org_id=_ORG)
+        db.save_export(_export("e-1", "rk-1", ork_filename="icarus_v2.ork"), org_id=_ORG)
+        db.save_simulation(_sim("s-1", "rk-1", _T1, export_id="e-1", apogee=3142.0), org_id=_ORG)
+        client = _make_client(db)
+
+        listed = client.get("/api/history", headers=_auth()).json()[0]
+        resp = client.get("/api/history/s-1", headers=_auth())
+
+        assert resp.status_code == 200
+        assert resp.json() == listed
+        assert resp.json()["name"] == "Icarus"
+        assert resp.json()["ork_filename"] == "icarus_v2.ork"
+        assert resp.json()["scalars"]["apogee"] == 3142.0
+
+    def test_returns_404_for_unknown_or_other_org(self):
+        db = InMemoryDb()
+        db.save_simulation(_sim("s-theirs", "rk-x", _T1, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        client = _make_client(db)
+
+        missing = client.get("/api/history/nope", headers=_auth())
+        theirs = client.get("/api/history/s-theirs", headers=_auth())
+
+        assert missing.status_code == 404
+        assert missing.json()["detail"] == "Run 'nope' not found."
+        assert theirs.status_code == 404
+
+    def test_returns_401_without_auth(self):
+        assert _make_client(InMemoryDb()).get("/api/history/s-1").status_code == 401
