@@ -12,6 +12,7 @@
 
 import { initializeApp, getApps, type FirebaseOptions } from "firebase/app";
 import {
+  connectAuthEmulator,
   getAuth,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
@@ -24,8 +25,24 @@ const firebaseConfig: FirebaseOptions = {
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
 };
 
+/**
+ * Local development only: when set (e.g. `127.0.0.1:9099`), sign-in goes to
+ * the Firebase Auth emulator instead of Identity Platform, so the whole stack
+ * runs without a real project. The API side honours the matching
+ * `FIREBASE_AUTH_EMULATOR_HOST`. Inlined at build time like the rest of the
+ * NEXT_PUBLIC_* config; unset in production builds.
+ */
+const AUTH_EMULATOR_HOST = process.env.NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST;
+
 function app() {
-  return getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+  if (getApps().length) return getApps()[0];
+  const instance = initializeApp(firebaseConfig);
+  if (AUTH_EMULATOR_HOST) {
+    connectAuthEmulator(getAuth(instance), `http://${AUTH_EMULATOR_HOST}`, {
+      disableWarnings: true,
+    });
+  }
+  return instance;
 }
 
 /** Sign in with email/password, return a fresh ID token to exchange for a session cookie. */
