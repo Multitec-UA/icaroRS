@@ -59,3 +59,34 @@ ICARO_ORK_JAR=packages/rocketserializer/OpenRocket-23.09.jar \
 # 2) start the web app — needs NEXT_PUBLIC_FIREBASE_* in .env.local (see Auth above)
 cd apps/web && npm run dev   # http://localhost:3000
 ```
+
+### Without a real Identity Platform project (Auth emulator)
+
+The whole stack also runs against the Firebase **Auth emulator**, so no GCP
+project or credentials are needed. `lib/firebase.ts` connects to it when
+`NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST` is set; `firebase-admin` on the API
+side honours `FIREBASE_AUTH_EMULATOR_HOST`. Every `demo-*` project id is
+accepted by the emulator without a real project behind it.
+
+```bash
+# 1) Auth emulator (needs Java ≥ 21). Any directory with this firebase.json works:
+#    { "emulators": { "auth": { "host": "127.0.0.1", "port": 9099 } } }
+firebase emulators:start --only auth --project demo-icaro
+
+# 2) API against the emulator (from repo root). Cookie `secure` off for plain HTTP.
+FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 GOOGLE_CLOUD_PROJECT=demo-icaro \
+  ICARO_SESSION_COOKIE_SECURE=false \
+  ICARO_ORK_JAR=packages/rocketserializer/OpenRocket-23.09.jar \
+  uv run uvicorn icaro_api.main:app --port 8000
+
+# 3) Web — any API key works with the emulator; the project id must match.
+cd apps/web && NEXT_PUBLIC_FIREBASE_API_KEY=demo-local-key \
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=demo-icaro.firebaseapp.com \
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID=demo-icaro \
+  NEXT_PUBLIC_FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099 npm run dev
+```
+
+Users still need the `org_id` custom claim. Create one against the emulator
+with `firebase-admin` (same env as the API):
+`auth.create_user(email=..., password=...)` then
+`auth.set_custom_user_claims(uid, {"org_id": "..."})`.

@@ -34,6 +34,20 @@
 
 html {
   background: var(--background);
+  /* Remove the 300ms double-tap-to-zoom delay without disabling pinch zoom. */
+  touch-action: manipulation;
+  /* The glass surfaces draw their own press feedback; no grey tap flash. */
+  -webkit-tap-highlight-color: transparent;
+  /* The sticky AppNav is ~4.5rem tall: keep focused/anchored targets below it. */
+  scroll-padding-top: 5rem;
+}
+
+/* Desktop only: no rubber-band bounce past the page edges. Coarse pointers keep
+   the default so pull-to-refresh and swipe navigation still work. */
+@media (pointer: fine) {
+  html {
+    overscroll-behavior: none;
+  }
 }
 
 body {
@@ -43,6 +57,9 @@ body {
   -webkit-font-smoothing: antialiased;
   /* No accidental horizontal scroll from the ambient blobs. */
   overflow-x: hidden;
+  /* Full-bleed layout: keep content clear of notches and home indicators. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom)
+    env(safe-area-inset-left);
 }
 
 /* Tabular numerals for the mono "instrument" readouts (apogee, Mach…). */

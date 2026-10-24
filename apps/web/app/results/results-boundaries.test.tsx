@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useRouter } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
 // Imported by relative path rather than colocated as `[runId]/*.test.tsx`:
 // Vitest's default test-file glob treats `[...]` as a character class, so a
@@ -48,28 +47,19 @@ describe("ResultsError (app/results/[runId]/error.tsx)", () => {
     expect(reset).toHaveBeenCalledTimes(1);
   });
 
-  it("navigates back to the start via the secondary action", async () => {
-    const push = vi.fn();
-    vi.mocked(useRouter).mockReturnValue({
-      push,
-      replace: vi.fn(),
-      back: vi.fn(),
-      forward: vi.fn(),
-      refresh: vi.fn(),
-      prefetch: vi.fn(),
-    });
-
+  it("offers the way back to the start as a real link", async () => {
     render(
       <AppProviders>
         <ResultsError error={new Error("boom")} reset={vi.fn()} />
       </AppProviders>,
     );
 
-    fireEvent.click(
-      await screen.findByRole("button", { name: "← Back to start" }),
+    // A link (not a button calling router.push) so Cmd/Ctrl-click and
+    // middle-click open the start page in a new tab.
+    expect(await screen.findByRole("link", { name: "← Back to start" })).toHaveAttribute(
+      "href",
+      "/",
     );
-
-    expect(push).toHaveBeenCalledWith("/");
   });
 });
 

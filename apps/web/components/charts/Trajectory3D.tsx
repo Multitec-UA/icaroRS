@@ -23,9 +23,10 @@ import {
 } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { Grid, Line, OrbitControls } from "@react-three/drei";
+import { useReducedMotion } from "motion/react";
 import * as THREE from "three";
 import { Button } from "@/components/ui";
-import { useT } from "@/components/i18n/LocaleProvider";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 
 const SCENE_SIZE = 6; // half-extent the trajectory is scaled to fit
 const PLAY_SECONDS = 9; // wall-clock duration of one full play-through
@@ -100,9 +101,12 @@ function RocketMarker({
 function Scene({
   points,
   advance,
+  autoRotate,
 }: {
   points: THREE.Vector3[];
   advance: (delta: number) => number;
+  /** The camera orbits on its own only while the flight is playing. */
+  autoRotate: boolean;
 }) {
   const apogee = points[points.length - 1];
   return (
@@ -144,7 +148,7 @@ function Scene({
         enablePan={false}
         minDistance={SCENE_SIZE * 0.6}
         maxDistance={SCENE_SIZE * 4}
-        autoRotate
+        autoRotate={autoRotate}
         autoRotateSpeed={0.4}
         target={[0, SCENE_SIZE * 0.35, 0]}
       />
@@ -163,19 +167,27 @@ function Timeline({
   onToggle: () => void;
   onSeek: (v: number) => void;
 }) {
-  const [val, setVal] = useState(0);
+  const [val, setVal] = useState(() => state.current.progress);
   const t = useT();
+  const { locale } = useLocale();
+  const percent = useMemo(
+    () => new Intl.NumberFormat(locale, { style: "percent", maximumFractionDigits: 0 }),
+    [locale],
+  );
 
-  // Mirror the ref-driven progress into the slider without touching the Canvas.
+  // Mirror the ref-driven progress into the slider without touching the
+  // Canvas. The loop only runs while playing; a pause syncs one last frame
+  // (the end-of-flight stop lands exactly on 100%) and then goes idle — the
+  // slider updates `val` itself while the user scrubs.
   useEffect(() => {
     let raf = 0;
-    const loop = () => {
+    const sync = () => {
       setVal(state.current.progress);
-      raf = requestAnimationFrame(loop);
+      if (playing) raf = requestAnimationFrame(sync);
     };
-    raf = requestAnimationFrame(loop);
+    raf = requestAnimationFrame(sync);
     return () => cancelAnimationFrame(raf);
-  }, [state]);
+  }, [state, playing]);
 
   return (
     <div className="flex items-center gap-4">
@@ -188,21 +200,29 @@ function Timeline({
         max={1}
         step={0.001}
         value={val}
-        onChange={(e) => onSeek(parseFloat(e.target.value))}
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          setVal(v);
+          onSeek(v);
+        }}
         aria-label={t("interactive.scrubTimeline")}
         className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-400"
       />
       <span className="tabular-readout w-12 shrink-0 text-right text-sm text-muted">
-        {Math.round(val * 100)}%
+        {percent.format(val)}
       </span>
     </div>
   );
 }
 
 export function Trajectory3D({ path }: { path: [number, number, number][] }) {
+  const t = useT();
   const { points } = useMemo(() => toScenePoints(path), [path]);
-  const state = useRef<PlayState>({ progress: 0, playing: true });
-  const [playing, setPlaying] = useState(true);
+  // Users who asked for less motion get the still trajectory first; Play
+  // (and the camera's auto-rotation with it) is theirs to start.
+  const reduceMotion = useReducedMotion() === true;
+  const state = useRef<PlayState>({ progress: 0, playing: !reduceMotion });
+  const [playing, setPlaying] = useState(!reduceMotion);
 
   // Playback mutation lives here, in the component that OWNS the ref — children
   // only call these callbacks (they never mutate the shared state directly).
@@ -237,14 +257,20 @@ export function Trajectory3D({ path }: { path: [number, number, number][] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="h-[440px] w-full overflow-hidden rounded-[calc(2rem-0.375rem)]">
+      {/* The WebGL canvas is opaque to assistive tech; the wrapper names it
+          and points at the timeline as the non-gesture way to explore it. */}
+      <div
+        role="img"
+        aria-label={t("interactive.trajectoryAriaLabel")}
+        className="h-[440px] w-full overflow-hidden rounded-[calc(2rem-0.375rem)]"
+      >
         <Canvas
           dpr={[1, 2]}
           camera={{ position: [SCENE_SIZE * 1.4, SCENE_SIZE * 1.1, SCENE_SIZE * 1.4], fov: 50 }}
         >
           <color attach="background" args={["#070709"]} />
           <fog attach="fog" args={["#070709", SCENE_SIZE * 3, SCENE_SIZE * 7]} />
-          <Scene points={points} advance={advance} />
+          <Scene points={points} advance={advance} autoRotate={playing} />
         </Canvas>
       </div>
       <Timeline state={state} playing={playing} onToggle={toggle} onSeek={seek} />

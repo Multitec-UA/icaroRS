@@ -30,6 +30,7 @@ import {
   signOut as firebaseSignOut,
 } from "@/lib/firebase";
 import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { cn, focusRing } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
@@ -51,6 +52,7 @@ export function useAuth(): AuthContextValue {
 type Status = "checking" | "authed" | "anonymous";
 
 export function AuthGate({ children }: { children: ReactNode }) {
+  const t = useT();
   const [status, setStatus] = useState<Status>("checking");
   const [identity, setIdentity] = useState<Identity | null>(null);
 
@@ -104,8 +106,21 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ identity, logout }}>
+      {/* Skip link: visually hidden until focused, first in tab order so
+          keyboard users can jump past the nav straight to the page content. */}
+      <a
+        href="#main"
+        className={cn(
+          "sr-only rounded-full bg-foreground px-4 py-2 text-sm font-medium text-[#050505] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50",
+          focusRing,
+        )}
+      >
+        {t("common.skipToContent")}
+      </a>
       <AppNav />
-      {children}
+      <main id="main" className="flex flex-1 flex-col">
+        {children}
+      </main>
     </AuthContext.Provider>
   );
 }
@@ -179,7 +194,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
       <Reveal className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-5 text-center">
           <Eyebrow>{t("auth.eyebrow")}</Eyebrow>
-          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-transparent">
+          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-balance text-transparent">
             {t("auth.title")}
           </h1>
           <p className="max-w-xs text-sm text-muted">
@@ -191,8 +206,11 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
             <Field label={t("auth.email")} htmlFor="email">
               <TextInput
                 id="email"
+                name="email"
                 type="email"
+                inputMode="email"
                 autoComplete="username"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -201,6 +219,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
             <Field label={t("auth.password")} htmlFor="pass">
               <TextInput
                 id="pass"
+                name="password"
                 type="password"
                 autoComplete="current-password"
                 value={pass}
@@ -213,7 +232,10 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 type="button"
                 onClick={forgotPassword}
                 disabled={reset === "sending"}
-                className="text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40"
+                className={cn(
+                  "rounded-sm text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40",
+                  focusRing,
+                )}
               >
                 {t("auth.forgotPassword")}
               </button>

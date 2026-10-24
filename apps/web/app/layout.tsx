@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { cookies, headers } from "next/headers";
@@ -52,6 +52,15 @@ export async function generateMetadata(): Promise<Metadata> {
     description: t("meta.description"),
   };
 }
+
+/**
+ * Dark is the only theme (see globals.css): the browser chrome colour and the
+ * UA colour scheme (scrollbars, native inputs) must match the page background.
+ */
+export const viewport: Viewport = {
+  themeColor: "#050505",
+  colorScheme: "dark",
+};
 
 export default async function RootLayout({
   children,

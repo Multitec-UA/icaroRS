@@ -12,11 +12,16 @@
  */
 
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { cn } from "@/lib/styles";
+import { cn, focusRing } from "@/lib/styles";
 
+/**
+ * `name` is the language autonym (not UI copy, never translated). It is read
+ * with the visible code so the accessible name contains what sighted users
+ * see (WCAG 2.5.3 Label in Name), and `lang` lets screen readers pronounce it.
+ */
 const LOCALES = [
-  { value: "es", label: "ES" },
-  { value: "en", label: "EN" },
+  { value: "es", label: "ES", name: "Español" },
+  { value: "en", label: "EN", name: "English" },
 ] as const;
 
 export function LanguageSwitch({ className }: { className?: string }) {
@@ -32,23 +37,25 @@ export function LanguageSwitch({ className }: { className?: string }) {
         className,
       )}
     >
-      {LOCALES.map(({ value, label }) => {
+      {LOCALES.map(({ value, label, name }) => {
         const active = locale === value;
         return (
           <button
             key={value}
             type="button"
-            aria-label={value === "es" ? "Español" : "English"}
+            lang={value}
+            aria-label={`${label} · ${name}`}
             aria-pressed={active}
             onClick={() => setLocale(value)}
             className={cn(
               "rounded-full px-3 py-1.5 text-xs font-medium tracking-wide transition-colors duration-300",
+              focusRing,
               active
                 ? "text-foreground"
                 : "text-muted hover:text-foreground",
             )}
           >
-            {label}
+            <span translate="no">{label}</span>
           </button>
         );
       })}

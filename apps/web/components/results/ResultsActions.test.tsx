@@ -19,17 +19,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 describe("ResultsActions (issue #52 — client island)", () => {
-  it("'Simulate again' sends the wizard to the basics step and navigates to /", async () => {
-    const push = vi.fn();
-    vi.mocked(useRouter).mockReturnValue({
-      push,
-      replace: vi.fn(),
-      back: vi.fn(),
-      forward: vi.fn(),
-      refresh: vi.fn(),
-      prefetch: vi.fn(),
-    });
-
+  it("'Simulate again' is a real link to / that also sends the wizard to the basics step", async () => {
     let capturedStep: string | undefined;
     function StepProbe() {
       const { step } = useWizard();
@@ -44,10 +34,14 @@ describe("ResultsActions (issue #52 — client island)", () => {
       </AppProviders>,
     );
 
-    fireEvent.click(await screen.findByText("Simulate again"));
+    // A navigation is a link (Cmd/Ctrl-click, middle-click, "open in new tab"
+    // all keep working), not a button that pushes the router.
+    const link = await screen.findByRole("link", { name: "Simulate again" });
+    expect(link).toHaveAttribute("href", "/");
+
+    fireEvent.click(link);
 
     expect(capturedStep).toBe("basics");
-    expect(push).toHaveBeenCalledWith("/");
   });
 
   it("'New rocket' resets the wizard and navigates to /", async () => {
@@ -82,9 +76,45 @@ describe("ResultsActions (issue #52 — client island)", () => {
     // changed anything (otherwise exportId is null both before and after).
     await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));
 
-    fireEvent.click(screen.getByText("New rocket"));
+    // Destructive: the first click only asks; nothing is discarded yet.
+    fireEvent.click(screen.getByRole("button", { name: "New rocket" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Discard this draft and start a new rocket?",
+    );
+    expect(capturedExportId).toBe("export-1");
+    expect(push).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
 
     expect(capturedExportId).toBeNull();
     expect(push).toHaveBeenCalledWith("/");
+  });
+
+  it("'New rocket' can be cancelled without losing the draft", async () => {
+    let capturedExportId: string | null | undefined;
+    function ExportProbe() {
+      const { state, setExport } = useWizard();
+      capturedExportId = state.exportId;
+      useEffect(() => {
+        setExport("export-1", {});
+      }, [setExport]);
+      return <span data-testid="export-id">{state.exportId ?? ""}</span>;
+    }
+
+    render(
+      <AppProviders>
+        <ExportProbe />
+        <ResultsActions />
+      </AppProviders>,
+    );
+    await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));
+
+    fireEvent.click(screen.getByRole("button", { name: "New rocket" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(capturedExportId).toBe("export-1");
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: "New rocket" })).toBeInTheDocument();
   });
 });

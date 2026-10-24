@@ -8,8 +8,9 @@
  * (Surface), the kinetic feel from CSS spring transitions + group-hover physics.
  * No state lives here.
  *
- * "use client" is required because InfoTip uses useT() (a React context hook)
- * to resolve glossary definitions from the active locale catalog.
+ * "use client" is required because Spinner uses useT() (a React context hook)
+ * to localize its label, and Field uses useId(). InfoTip, which does hold
+ * state, lives in ./InfoTip and is re-exported below.
  * All callers of this module are already client components.
  *
  * `cn` and `selectClass` live in lib/styles.ts (issue #50), not here — they're
@@ -17,9 +18,20 @@
  * be the only way to reach them.
  */
 
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { cn, inputBase } from "@/lib/styles";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useId,
+  type ButtonHTMLAttributes,
+  type ComponentProps,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
+import Link from "next/link";
+import { cn, focusRing, inputBase } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
+import { InfoTip } from "@/components/InfoTip";
 
 // ---------------------------------------------------------------------------
 // Surface — the Double-Bezel (Doppelrand): a glass plate sitting in a machined
@@ -108,7 +120,12 @@ export function Accordion({
       className="group rounded-2xl bg-white/[0.02] ring-1 ring-inset ring-white/10 [&_summary::-webkit-details-marker]:hidden"
       open={defaultOpen}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted transition-colors duration-300 hover:text-foreground">
+      <summary
+        className={cn(
+          "flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted transition-colors duration-300 hover:text-foreground",
+          focusRing,
+        )}
+      >
         <span>{title}</span>
         <span className="flex items-center gap-3 normal-case tracking-normal">
           {badge != null && <span className="text-[11px] text-muted">{badge}</span>}
@@ -142,10 +159,63 @@ function ArrowIcon() {
   );
 }
 
+type ButtonVariant = "primary" | "ghost" | "danger";
+
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ghost" | "danger";
+  variant?: ButtonVariant;
   withArrow?: boolean;
 };
+
+const BUTTON_VARIANTS = {
+  primary:
+    "bg-foreground text-[#050505] hover:shadow-[0_0_36px_-6px_rgba(34,211,238,0.55)]",
+  ghost:
+    "text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25",
+  danger: "bg-rose-500 text-white hover:bg-rose-400",
+} as const;
+
+const BUTTON_CIRCLE_TONE = {
+  primary: "bg-black/10",
+  ghost: "bg-white/10",
+  danger: "bg-black/15",
+} as const;
+
+/** The pill's classes, shared by Button and ButtonLink so both look identical. */
+function buttonClassName(variant: ButtonVariant, withArrow: boolean, className?: string) {
+  return cn(
+    "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full pl-6 text-sm font-medium transition-[background-color,box-shadow,color,transform,opacity] duration-500 ease-[var(--ease-spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+    focusRing,
+    withArrow ? "pr-2" : "pr-6",
+    BUTTON_VARIANTS[variant],
+    className,
+  );
+}
+
+function ButtonBody({
+  variant,
+  withArrow,
+  children,
+}: {
+  variant: ButtonVariant;
+  withArrow: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <span className="inline-flex items-center gap-2.5">{children}</span>
+      {withArrow && (
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-500 ease-[var(--ease-spring)] group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105",
+            BUTTON_CIRCLE_TONE[variant],
+          )}
+        >
+          <ArrowIcon />
+        </span>
+      )}
+    </>
+  );
+}
 
 export function Button({
   variant = "primary",
@@ -154,41 +224,44 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const base =
-    "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full pl-6 text-sm font-medium transition-all duration-500 ease-[var(--ease-spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
-  const pad = withArrow ? "pr-2" : "pr-6";
-  const variants = {
-    primary:
-      "bg-foreground text-[#050505] hover:shadow-[0_0_36px_-6px_rgba(34,211,238,0.55)]",
-    ghost:
-      "text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25",
-    danger: "bg-rose-500 text-white hover:bg-rose-400",
-  } as const;
-  const circleTone = {
-    primary: "bg-black/10",
-    ghost: "bg-white/10",
-    danger: "bg-black/15",
-  } as const;
-
   return (
-    <button className={cn(base, pad, variants[variant], className)} {...props}>
-      <span className="inline-flex items-center gap-2.5">{children}</span>
-      {withArrow && (
-        <span
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-500 ease-[var(--ease-spring)] group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105",
-            circleTone[variant],
-          )}
-        >
-          <ArrowIcon />
-        </span>
-      )}
+    <button className={buttonClassName(variant, withArrow, className)} {...props}>
+      <ButtonBody variant={variant} withArrow={withArrow}>
+        {children}
+      </ButtonBody>
     </button>
   );
 }
 
+/**
+ * ButtonLink — the same pill for navigation. Actions are buttons, destinations
+ * are links: a real <a> keeps Cmd/Ctrl-click, middle-click and "open in new
+ * tab" working, which `router.push` from a button cannot.
+ */
+export function ButtonLink({
+  variant = "primary",
+  withArrow = false,
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Link> & {
+  variant?: ButtonVariant;
+  withArrow?: boolean;
+}) {
+  return (
+    <Link className={buttonClassName(variant, withArrow, className)} {...props}>
+      <ButtonBody variant={variant} withArrow={withArrow}>
+        {children}
+      </ButtonBody>
+    </Link>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Field — label + control slot + inline error
+// Field — label + control slot + inline error. The hint and the error get
+// stable ids and are wired to the control (`aria-describedby` /
+// `aria-invalid`) so assistive tech reads them with the field; the error is
+// an alert so it is announced when validation inserts it.
 // ---------------------------------------------------------------------------
 
 export function Field({
@@ -206,15 +279,42 @@ export function Field({
   children: ReactNode;
   term?: string;
 }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
+  // Wire the first element child (the control) without asking every caller to
+  // repeat the ids; later siblings (adornments, buttons) are left alone.
+  // Explicit props on the child win, so a caller can still override.
+  const items = Children.toArray(children);
+  const controlIndex = items.findIndex((child) => isValidElement(child));
+  const control = items.map((child, index) =>
+    index === controlIndex && isValidElement<Record<string, unknown>>(child)
+      ? cloneElement(child, {
+          "aria-invalid": child.props["aria-invalid"] ?? (error ? true : undefined),
+          "aria-describedby": child.props["aria-describedby"] ?? describedBy,
+        })
+      : child,
+  );
+
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-sm font-medium text-foreground/80">
         {label}
         {term && <InfoTip term={term} />}
       </label>
-      {children}
-      {hint && !error && <p className="text-xs text-muted">{hint}</p>}
-      {error && <p className="text-xs font-medium text-rose-400">{error}</p>}
+      {control}
+      {hint && !error && (
+        <p id={hintId} className="text-xs text-muted">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errorId} role="alert" className="text-xs font-medium text-rose-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -242,8 +342,13 @@ export function Callout({
     error: "ring-rose-400/25 bg-rose-500/[0.07] text-rose-50",
     success: "ring-emerald-400/20 bg-emerald-400/[0.06] text-emerald-50",
   } as const;
+  // Callouts carry async outcomes (validation, fetch failures, confirmations),
+  // so they are live regions: errors interrupt, the rest wait politely.
   return (
-    <div className={cn("rounded-2xl px-4 py-3 text-sm ring-1 ring-inset", tones[tone])}>
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      className={cn("break-words rounded-2xl px-4 py-3 text-sm ring-1 ring-inset", tones[tone])}
+    >
       {title && <p className="font-semibold">{title}</p>}
       {children && <div className={cn(title && "mt-1 text-[0.92em] opacity-90")}>{children}</div>}
     </div>
@@ -254,12 +359,19 @@ export function Callout({
 // Spinner
 // ---------------------------------------------------------------------------
 
-export function Spinner({ className }: { className?: string }) {
+/**
+ * `decorative` hides the spinner from assistive tech. Use it whenever visible
+ * loading text sits next to the spinner, otherwise screen readers announce
+ * the state twice ("Loading…" from the label plus the text).
+ */
+export function Spinner({ className, decorative = false }: { className?: string; decorative?: boolean }) {
   const t = useT();
+  const a11y = decorative
+    ? ({ "aria-hidden": true } as const)
+    : ({ role: "status", "aria-label": t("common.loading") } as const);
   return (
     <span
-      role="status"
-      aria-label={t("common.loading")}
+      {...a11y}
       className={cn(
         "inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent",
         className,
@@ -268,26 +380,6 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// InfoTip — a tiny "i" badge with a native-title definition.
-// Definition text is resolved from the active locale catalog via useT()
-// (imported at the top of this file, alongside Spinner's own use of it).
-// ---------------------------------------------------------------------------
-
-export function InfoTip({ term }: { term: string }) {
-  const t = useT();
-  const key = `glossary.${term}`;
-  const def = t(key);
-  // If the key is missing (t returns the key itself), render nothing.
-  if (def === key) return null;
-  return (
-    <span
-      title={def}
-      tabIndex={0}
-      aria-label={def}
-      className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/60 transition-colors hover:bg-white/20 hover:text-white/90"
-    >
-      i
-    </span>
-  );
-}
+// InfoTip holds open/closed state, so it lives in its own module; re-exported
+// here so callers keep importing every primitive from one place.
+export { InfoTip };

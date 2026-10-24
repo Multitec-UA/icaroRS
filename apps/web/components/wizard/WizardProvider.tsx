@@ -31,6 +31,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useReducer,
   type ReactNode,
@@ -101,6 +102,25 @@ const INITIAL_STATE: WizardState = {
   runId: null,
   result: null,
 };
+
+/**
+ * True once any user-entered draft data differs from the initial state. The
+ * reducer only ever replaces these fields with new references (or resets
+ * them to the INITIAL_STATE values), so identity checks are both cheap and
+ * exact — no deep compare needed. `step` is deliberately excluded: moving
+ * between steps is not data.
+ */
+function isDraftDirty(state: WizardState): boolean {
+  return (
+    state.exportId !== INITIAL_STATE.exportId ||
+    state.name !== INITIAL_STATE.name ||
+    state.site !== INITIAL_STATE.site ||
+    state.launchDatetime !== INITIAL_STATE.launchDatetime ||
+    state.atmosphere !== INITIAL_STATE.atmosphere ||
+    state.rail !== INITIAL_STATE.rail ||
+    state.uncertainty !== INITIAL_STATE.uncertainty
+  );
+}
 
 function reducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
@@ -260,6 +280,22 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   }, [state.step]);
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
   const scenarioBody = useCallback(() => buildScenarioBody(state), [state]);
+
+  // The draft lives only in memory: warn before a reload/close would throw
+  // it away. Once a run exists the work is persisted server-side, so leaving
+  // is safe again. The listener is attached only while it matters, so a
+  // clean wizard never blocks navigation.
+  const warnOnUnload = state.runId === null && isDraftDirty(state);
+  useEffect(() => {
+    if (!warnOnUnload) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      // Legacy browsers only honor a (possibly empty) string return value.
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [warnOnUnload]);
 
   const navValue = useMemo<WizardNavContextValue>(
     () => ({

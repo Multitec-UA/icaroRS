@@ -13,11 +13,17 @@
  */
 
 import type { ReactNode } from "react";
-import { Button, Callout } from "@/components/ui";
+import { Button, ButtonLink, Callout } from "@/components/ui";
 
 interface ErrorFallbackAction {
   label: string;
   onClick: () => void;
+}
+
+/** A destination rather than an action: rendered as a real link. */
+interface ErrorFallbackLink {
+  label: string;
+  href: string;
 }
 
 export function ErrorFallback({
@@ -29,7 +35,7 @@ export function ErrorFallback({
   title: string;
   message: ReactNode;
   retry: ErrorFallbackAction;
-  secondaryAction?: ErrorFallbackAction;
+  secondaryAction?: ErrorFallbackAction | ErrorFallbackLink;
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-4 px-4 py-16 text-center">
@@ -42,11 +48,16 @@ export function ErrorFallback({
         <Button variant="ghost" onClick={retry.onClick}>
           {retry.label}
         </Button>
-        {secondaryAction && (
-          <Button variant="ghost" onClick={secondaryAction.onClick}>
-            {secondaryAction.label}
-          </Button>
-        )}
+        {secondaryAction &&
+          ("href" in secondaryAction ? (
+            <ButtonLink variant="ghost" href={secondaryAction.href}>
+              {secondaryAction.label}
+            </ButtonLink>
+          ) : (
+            <Button variant="ghost" onClick={secondaryAction.onClick}>
+              {secondaryAction.label}
+            </Button>
+          ))}
       </div>
     </div>
   );

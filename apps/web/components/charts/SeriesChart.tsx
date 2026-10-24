@@ -7,28 +7,41 @@
  * hover tooltip, zoom + pan (mouse wheel and a slider). ECharts, themed to the
  * dark "Ethereal Glass" look. Client-only; meant to be dynamically imported
  * (ssr:false) so echarts never runs during SSR and stays code-split.
+ *
+ * The canvas itself is opaque to assistive tech, so the container carries an
+ * accessible name that summarizes the selected series (metric + peak); the
+ * metric toggles expose their state with `aria-pressed`.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as echarts from "echarts";
+import { useReducedMotion } from "motion/react";
 import type { FlightSeries } from "@/lib/api";
-import { cn } from "@/lib/styles";
+import type { Locale, TranslateFn } from "@/lib/i18n";
+import { cn, focusRing } from "@/lib/styles";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 
 type MetricKey = "altitude" | "speed" | "mach" | "acceleration";
 
-const METRICS: { key: MetricKey; label: string; unit: string; color: string }[] = [
-  { key: "altitude", label: "Altitude", unit: "m", color: "#22d3ee" },
-  { key: "speed", label: "Speed", unit: "m/s", color: "#a78bfa" },
-  { key: "mach", label: "Mach", unit: "", color: "#34d399" },
-  { key: "acceleration", label: "Acceleration", unit: "m/s²", color: "#f472b6" },
+const METRICS: { key: MetricKey; labelKey: string; unit: string; color: string }[] = [
+  { key: "altitude", labelKey: "chart.altitude", unit: "m", color: "#22d3ee" },
+  { key: "speed", labelKey: "chart.speed", unit: "m/s", color: "#a78bfa" },
+  { key: "mach", labelKey: "chart.mach", unit: "", color: "#34d399" },
+  { key: "acceleration", labelKey: "chart.acceleration", unit: "m/s²", color: "#f472b6" },
 ];
 
 function buildOption(
   series: FlightSeries,
   metric: (typeof METRICS)[number],
+  {
+    t,
+    format,
+    reduceMotion,
+  }: { t: TranslateFn; format: Intl.NumberFormat; reduceMotion: boolean },
 ): echarts.EChartsCoreOption {
   const ys = (series[metric.key] ?? []) as number[];
   const data = series.t.map((t, i) => [t, ys[i]]);
+  const label = t(metric.labelKey);
   const axisColor = "rgba(255,255,255,0.15)";
   const splitColor = "rgba(255,255,255,0.05)";
   const muted = "#8b8f9c";
@@ -46,12 +59,12 @@ function buildOption(
       formatter: (params: unknown) => {
         const p = (params as { value: [number, number] }[])[0];
         const u = metric.unit ? ` ${metric.unit}` : "";
-        return `t = ${p.value[0].toFixed(2)} s<br/><b>${metric.label}: ${p.value[1].toFixed(2)}${u}</b>`;
+        return `t = ${format.format(p.value[0])} s<br/><b>${label}: ${format.format(p.value[1])}${u}</b>`;
       },
     },
     xAxis: {
       type: "value",
-      name: "Time (s)",
+      name: t("chart.timeAxis"),
       nameLocation: "middle",
       nameGap: 34,
       nameTextStyle: { color: muted },
@@ -61,7 +74,7 @@ function buildOption(
     },
     yAxis: {
       type: "value",
-      name: metric.unit ? `${metric.label} (${metric.unit})` : metric.label,
+      name: metric.unit ? `${label} (${metric.unit})` : label,
       nameTextStyle: { color: muted },
       scale: true,
       axisLine: { lineStyle: { color: axisColor } },
@@ -98,12 +111,30 @@ function buildOption(
         },
       },
     ],
+    // The draw-in animation is skipped for users who asked for less motion.
+    animation: !reduceMotion,
     animationDuration: 600,
     animationEasing: "cubicOut",
   };
 }
 
+/** Peak of a series, formatted for the accessible name ("—" when empty). */
+function formatPeak(values: number[], format: Intl.NumberFormat): string {
+  const finite = values.filter((v) => Number.isFinite(v));
+  return finite.length > 0 ? format.format(Math.max(...finite)) : "—";
+}
+
+/** Tooltip + accessible-name number format: the app locale, two decimals max. */
+function makeNumberFormat(locale: Locale): Intl.NumberFormat {
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+}
+
 export function SeriesChart({ series }: { series: FlightSeries }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const reduceMotion = useReducedMotion() === true;
+  const format = useMemo(() => makeNumberFormat(locale), [locale]);
+
   const available = METRICS.filter(
     (m) => Array.isArray(series[m.key]) && (series[m.key] as number[]).length > 0,
   );
@@ -127,10 +158,16 @@ export function SeriesChart({ series }: { series: FlightSeries }) {
   useEffect(() => {
     const metric = METRICS.find((m) => m.key === active);
     if (!chartRef.current || !metric) return;
-    chartRef.current.setOption(buildOption(series, metric), true);
-  }, [active, series]);
+    chartRef.current.setOption(buildOption(series, metric, { t, format, reduceMotion }), true);
+  }, [active, series, t, format, reduceMotion]);
 
   if (available.length === 0) return null;
+
+  const activeMetric = METRICS.find((m) => m.key === active) ?? available[0];
+  const chartName = t("chart.ariaLabel", {
+    metric: t(activeMetric.labelKey),
+    max: formatPeak((series[activeMetric.key] ?? []) as number[], format),
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -139,9 +176,11 @@ export function SeriesChart({ series }: { series: FlightSeries }) {
           <button
             key={m.key}
             type="button"
+            aria-pressed={active === m.key}
             onClick={() => setActive(m.key)}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset transition-all duration-500 ease-[var(--ease-spring)]",
+              "rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset transition-[background-color,box-shadow,color] duration-500 ease-[var(--ease-spring)]",
+              focusRing,
               active === m.key
                 ? "text-foreground ring-white/25"
                 : "text-muted ring-white/10 hover:text-foreground hover:ring-white/20",
@@ -152,11 +191,11 @@ export function SeriesChart({ series }: { series: FlightSeries }) {
                 : undefined
             }
           >
-            {m.label}
+            {t(m.labelKey)}
           </button>
         ))}
       </div>
-      <div ref={containerRef} className="h-[360px] w-full" />
+      <div ref={containerRef} role="img" aria-label={chartName} className="h-[360px] w-full" />
     </div>
   );
 }

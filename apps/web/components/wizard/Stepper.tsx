@@ -5,7 +5,7 @@
 
 import { useWizardNav } from "./WizardProvider";
 import { STEP_ORDER, type WizardStep } from "@/lib/domain/scenario";
-import { cn } from "@/lib/styles";
+import { cn, focusRing } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
 // Steps shown in the wizard shell (results is its own page).
@@ -20,44 +20,56 @@ export function Stepper() {
   const currentIndex = STEP_ORDER.indexOf(step);
 
   return (
-    <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-      {VISIBLE.map((s, i) => {
-        const idx = STEP_ORDER.indexOf(s);
-        const isCurrent = s === step;
-        const isDone = idx < currentIndex;
-        // Allow jumping back to any reached step; never skip ahead.
-        const reachable = idx <= currentIndex && exportId !== null;
-        return (
-          <li key={s} className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={!reachable || isCurrent}
-              onClick={() => goto(s)}
-              className={cn(
-                "flex items-center gap-2 rounded-full px-3 py-1.5 font-medium transition-all duration-500 ease-[var(--ease-spring)]",
-                isCurrent &&
-                  "bg-white/[0.06] text-foreground ring-1 ring-inset ring-white/15 shadow-[0_0_24px_-8px_rgba(34,211,238,0.5)]",
-                isDone && "text-cyan-300/80 hover:bg-white/[0.04]",
-                !isCurrent && !isDone && "text-white/30",
-                reachable && !isCurrent && "cursor-pointer",
-              )}
-            >
-              <span
+    <nav aria-label={t("stepper.label")}>
+      <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+        {VISIBLE.map((s, i) => {
+          const idx = STEP_ORDER.indexOf(s);
+          const isCurrent = s === step;
+          const isDone = idx < currentIndex;
+          // Allow jumping back to any reached step; never skip ahead.
+          const reachable = idx <= currentIndex && exportId !== null;
+          return (
+            <li key={s} className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={!reachable || isCurrent}
+                aria-current={isCurrent ? "step" : undefined}
+                onClick={() => goto(s)}
                 className={cn(
-                  "flex h-5 w-5 items-center justify-center rounded-full text-[11px] ring-1 transition-all duration-500 ease-[var(--ease-spring)]",
-                  isCurrent && "ring-cyan-400/60 text-cyan-300",
-                  isDone && "bg-cyan-400/90 text-[#050505] ring-transparent",
-                  !isCurrent && !isDone && "ring-white/15",
+                  "flex items-center gap-2 rounded-full px-3 py-1.5 font-medium transition-[background-color,color,box-shadow] duration-500 ease-[var(--ease-spring)]",
+                  focusRing,
+                  isCurrent &&
+                    "bg-white/[0.06] text-foreground ring-1 ring-inset ring-white/15 shadow-[0_0_24px_-8px_rgba(34,211,238,0.5)]",
+                  isDone && "text-cyan-300/80 hover:bg-white/[0.04]",
+                  !isCurrent && !isDone && "text-white/30",
+                  reachable && !isCurrent && "cursor-pointer",
                 )}
               >
-                {isDone ? "✓" : i + 1}
-              </span>
-              {t(`stepper.${s}`)}
-            </button>
-            {i < VISIBLE.length - 1 && <span className="text-white/15">→</span>}
-          </li>
-        );
-      })}
-    </ol>
+                {/* The badge repeats the list position (or a check glyph) —
+                    purely visual; the <ol> already conveys the order. */}
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    "flex h-5 w-5 items-center justify-center rounded-full text-[11px] ring-1 transition-[background-color,color,box-shadow] duration-500 ease-[var(--ease-spring)]",
+                    isCurrent && "ring-cyan-400/60 text-cyan-300",
+                    isDone && "bg-cyan-400/90 text-[#050505] ring-transparent",
+                    !isCurrent && !isDone && "ring-white/15",
+                  )}
+                >
+                  {isDone ? "✓" : i + 1}
+                </span>
+                {t(`stepper.${s}`)}
+                {isDone && <span className="sr-only">{t("stepper.completed")}</span>}
+              </button>
+              {i < VISIBLE.length - 1 && (
+                <span aria-hidden="true" className="text-white/15">
+                  →
+                </span>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
   );
 }

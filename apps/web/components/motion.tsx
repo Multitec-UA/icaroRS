@@ -3,7 +3,8 @@
 /**
  * Motion choreography helpers (issue #10), built on `motion` (ex–Framer Motion).
  * All curves are spring/soft cubic-beziers — never linear/ease-in-out — and all
- * animation rides transform/opacity/filter only (GPU-safe). Each helper honours
+ * animation rides transform/opacity only (compositor-friendly; `filter` was
+ * dropped because blur repaints every frame). Each helper honours
  * prefers-reduced-motion via the global media query and motion's own reducer.
  */
 
@@ -13,7 +14,7 @@ import { animate, motion, useInView, useReducedMotion } from "motion/react";
 const SOFT = [0.16, 1, 0.3, 1] as const;
 
 /**
- * Reveal — gentle heavy fade-up + de-blur as the element enters the viewport.
+ * Reveal — gentle heavy fade-up as the element enters the viewport.
  * Fires once. With reduced motion it renders statically (no initial offset).
  */
 export function Reveal({
@@ -29,8 +30,8 @@ export function Reveal({
   return (
     <motion.div
       className={className}
-      initial={reduce ? false : { opacity: 0, y: 24, filter: "blur(8px)" }}
-      whileInView={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={reduce ? false : { opacity: 0, y: 24 }}
+      whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-80px" }}
       transition={{ duration: 0.8, delay, ease: SOFT }}
     >
@@ -48,8 +49,8 @@ export function FadeSwap({ children, className }: { children: ReactNode; classNa
   return (
     <motion.div
       className={className}
-      initial={reduce ? false : { opacity: 0, y: 12, filter: "blur(6px)" }}
-      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      initial={reduce ? false : { opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: SOFT }}
     >
       {children}
@@ -73,12 +74,17 @@ export function CountUp({
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, margin: "-40px" });
   const reduce = useReducedMotion();
-  const [display, setDisplay] = useState(reduce ? value : 0);
+  // Always start at 0: `reduce` is null during SSR, so seeding from it would
+  // hydrate a different string on reduced-motion clients. The effect below
+  // jumps straight to the final value for them.
+  const [display, setDisplay] = useState(0);
 
   useEffect(() => {
-    if (!inView || reduce) return;
+    // Reduced motion: settle on the final value at once (duration 0) without
+    // waiting for the viewport; otherwise count up once in view.
+    if (!inView && !reduce) return;
     const controls = animate(0, value, {
-      duration: 1.1,
+      duration: reduce ? 0 : 1.1,
       ease: SOFT,
       onUpdate: (v) => setDisplay(v),
     });

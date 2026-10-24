@@ -249,3 +249,37 @@ describe("WizardProvider — render isolation (issue #50)", () => {
     expect(navRenders).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("WizardProvider — unsaved-changes warning", () => {
+  function fireBeforeUnload(): boolean {
+    const event = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(event);
+    return event.defaultPrevented;
+  }
+
+  it("does not warn while the draft is untouched", () => {
+    setup();
+    expect(fireBeforeUnload()).toBe(false);
+  });
+
+  it("warns once the draft is dirty and stops after a run exists", () => {
+    const { result, unmount } = setup();
+
+    act(() => result.current.setExport("export-1", { name: "My rocket" }));
+    expect(fireBeforeUnload()).toBe(true);
+
+    act(() =>
+      result.current.setResult({ run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] }),
+    );
+    expect(fireBeforeUnload()).toBe(false);
+
+    act(() => result.current.reset());
+    expect(fireBeforeUnload()).toBe(false);
+
+    act(() => result.current.setName("renamed"));
+    expect(fireBeforeUnload()).toBe(true);
+
+    unmount();
+    expect(fireBeforeUnload()).toBe(false);
+  });
+});

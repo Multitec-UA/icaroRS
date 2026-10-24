@@ -8,7 +8,7 @@
  * translated strings in as props.
  */
 
-import Link from "next/link";
+import { ButtonLink } from "@/components/ui";
 
 export function NotFoundContent({
   title,
@@ -22,14 +22,11 @@ export function NotFoundContent({
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">404</p>
-      <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+      <h1 className="text-2xl font-semibold text-balance text-foreground">{title}</h1>
       <p className="max-w-sm text-sm text-muted">{message}</p>
-      <Link
-        href="/"
-        className="mt-4 inline-flex h-11 items-center justify-center rounded-full bg-foreground px-6 text-sm font-medium text-[#050505] transition-opacity hover:opacity-90"
-      >
+      <ButtonLink href="/" className="mt-4">
         {backLabel}
-      </Link>
+      </ButtonLink>
     </div>
   );
 }

@@ -160,3 +160,35 @@ describe("ReviewStep — launch time in the user's time zone", () => {
     });
   });
 });
+
+describe("ReviewStep — locale-aware numbers", () => {
+  function WithSite({ children }: { children: ReactNode }) {
+    const { setExport, setSite, state } = useWizard();
+    useEffect(() => {
+      setExport("export-1", { name: "acme-1" });
+      setSite({ latitude: 38.3452, longitude: -0.4815, elevation: 1234.4 });
+    }, [setExport, setSite]);
+    return (
+      <>
+        <span data-testid="export-id">{state.exportId ?? ""}</span>
+        {children}
+      </>
+    );
+  }
+
+  it("formats the site through Intl.NumberFormat with a non-breaking space before the unit", async () => {
+    render(
+      <AppProviders>
+        <WithSite>
+          <ReviewStep />
+        </WithSite>
+      </AppProviders>,
+    );
+
+    await waitForExportSeeded();
+    // Exact textContent: the default text matcher folds the non-breaking
+    // space into a plain one, which is precisely what this pins down.
+    const value = screen.getByText("Site").nextElementSibling;
+    expect(value?.textContent).toBe("38.3452, -0.4815 · 1,234.4 m");
+  });
+});

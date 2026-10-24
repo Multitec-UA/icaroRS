@@ -6,7 +6,11 @@
 
   "common": {
     "technicalEnglishNote": "Technical messages are shown in English.",
-    "loading": "Loading"
+    "loading": "Loading…",
+    "skipToContent": "Skip to main content",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "moreInfo": "More information"
   },
 
   "auth": {
@@ -55,7 +59,9 @@
     "basics": "Launch site & time",
     "advanced": "Fine-tuning",
     "review": "Review",
-    "results": "Results"
+    "results": "Results",
+    "label": "Simulation steps",
+    "completed": "completed"
   },
 
   "rocket": {
@@ -70,7 +76,8 @@
     "continue": "Continue",
     "errorNotOrk": "That isn't an OpenRocket file. Please choose a .ork file.",
     "errorGeneric": "Conversion failed.",
-    "defaultRocketName": "your rocket"
+    "defaultRocketName": "your rocket",
+    "fileInputLabel": "OpenRocket .ork file"
   },
 
   "basics": {
@@ -99,7 +106,15 @@
     "loadingMap": "Loading map…",
     "searchPlaceholder": "Search a place (e.g. Alicante, Spain)…",
     "searchError": "Couldn't search for that place. Please try again in a moment.",
-    "helperText": "Click anywhere on the map to drop the launch point, or search for a place above."
+    "helperText": "Click anywhere on the map to drop the launch point, or search for a place above.",
+    "searchLabel": "Search launch site",
+    "noResults": "No places match “{query}”.",
+    "resultsCount": {
+      "one": "1 result",
+      "other": "{count} results"
+    },
+    "mapLabel": "Launch site map",
+    "markerTitle": "Launch site at {lat}, {lon}"
   },
 
   "models": {
@@ -144,7 +159,12 @@
       "wind_factor": "Wind factor",
       "thrust": "Thrust",
       "rail_length": "Rail length"
-    }
+    },
+    "uncertaintyPresetLegend": "Uncertainty preset",
+    "stdDevFor": "Standard deviation for {param}",
+    "kindFor": "Kind for {param}",
+    "stationPlaceholder": "72493…",
+    "era5Placeholder": "/data/era5/2024-06.nc…"
   },
 
   "review": {
@@ -185,7 +205,9 @@
     "plotsBadge": {
       "one": "1 plot",
       "other": "{count} plots"
-    }
+    },
+    "summaryCaption": "Run summary",
+    "newRocketConfirm": "Discard this draft and start a new rocket?"
   },
 
   "interactive": {
@@ -197,7 +219,17 @@
     "telemetryEyebrow": "Telemetry",
     "play": "Play",
     "pause": "Pause",
-    "scrubTimeline": "Scrub flight timeline"
+    "scrubTimeline": "Scrub flight timeline",
+    "trajectoryAriaLabel": "3D flight trajectory. Use the timeline slider to scrub the flight."
+  },
+
+  "chart": {
+    "altitude": "Altitude",
+    "speed": "Speed",
+    "mach": "Mach",
+    "acceleration": "Acceleration",
+    "timeAxis": "Time (s)",
+    "ariaLabel": "{metric} over time, peak {max}"
   },
 
   "scalars": {
@@ -283,7 +315,8 @@
     "statusError": "Error",
     "viewDetails": "View details",
     "reRun": "Re-run",
-    "backToWizard": "← Back to wizard"
+    "backToWizard": "← Back to wizard",
+    "reRunUnavailable": "Re-run is unavailable for failed runs."
   },
 
   "glossary": {

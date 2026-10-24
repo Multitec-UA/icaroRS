@@ -6,7 +6,7 @@
  * success we navigate to the shareable results page.
  */
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, type FieldError } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
@@ -19,8 +19,8 @@ import { useT, useLocale } from "@/components/i18n/LocaleProvider";
 function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex justify-between gap-4 border-b border-white/[0.06] py-2.5 text-sm last:border-0">
-      <span className="text-muted">{label}</span>
-      <span className={cn("text-right font-medium text-foreground", mono && "tabular-readout")}>
+      <span className="shrink-0 text-muted">{label}</span>
+      <span className={cn("min-w-0 break-words text-right font-medium text-foreground", mono && "tabular-readout")}>
         {value}
       </span>
     </div>
@@ -63,6 +63,21 @@ export function ReviewStep() {
   const date = toLaunchDate(state.launchDatetime);
   const site = state.site;
 
+  // Locale-aware number formats: coordinates keep exactly 4 decimals and no
+  // grouping (a grouped latitude reads as nonsense); the rest group as the
+  // locale does.
+  const { coordFormat, numberFormat } = useMemo(
+    () => ({
+      coordFormat: new Intl.NumberFormat(locale, {
+        minimumFractionDigits: 4,
+        maximumFractionDigits: 4,
+        useGrouping: false,
+      }),
+      numberFormat: new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }),
+    }),
+    [locale],
+  );
+
   // Show the UTC launch hour back in the user's own time zone (with its
   // name), so the summary reads in the same clock the picker was filled in.
   function formatLaunchTime(): string {
@@ -73,7 +88,12 @@ export function ReviewStep() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <Eyebrow>{t("review.eyebrow")}</Eyebrow>
-        <h2 className="text-2xl font-semibold tracking-tight">{t("review.heading")}</h2>
+        <h2
+          tabIndex={-1}
+          className="text-balance text-2xl font-semibold tracking-tight outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+        >
+          {t("review.heading")}
+        </h2>
         <p className="text-sm text-muted">
           {t("review.description")}
         </p>
@@ -86,8 +106,8 @@ export function ReviewStep() {
           label={t("review.rowSite")}
           value={
             site && Number.isFinite(site.latitude)
-              ? `${site.latitude.toFixed(4)}, ${site.longitude.toFixed(4)}${
-                  site.elevation !== null ? ` · ${site.elevation} m` : ""
+              ? `${coordFormat.format(site.latitude)}, ${coordFormat.format(site.longitude)}${
+                  site.elevation !== null ? ` · ${numberFormat.format(site.elevation)}\u00a0m` : ""
                 }`
               : "—"
           }
@@ -100,7 +120,11 @@ export function ReviewStep() {
         <Row label={t("review.rowAtmosphere")} value={t(`models.${state.atmosphere.model}`)} />
         <Row
           label={t("review.rowUncertaintyParams")}
-          value={state.uncertainty ? String(Object.keys(state.uncertainty).length) : t("review.uncertaintyDefault")}
+          value={
+            state.uncertainty
+              ? numberFormat.format(Object.keys(state.uncertainty).length)
+              : t("review.uncertaintyDefault")
+          }
         />
       </div>
 
@@ -119,13 +143,13 @@ export function ReviewStep() {
       {fatal && <Callout tone="error">{fatal}</Callout>}
 
       <div className="flex items-center justify-end gap-3">
-        {busy && (
-          <span className="text-sm text-muted">
-            {t("review.running")}
-          </span>
-        )}
+        {/* Always mounted so the "running…" status is announced when it
+            appears, not only if the region happened to exist beforehand. */}
+        <span aria-live="polite" className="text-sm text-muted">
+          {busy && t("review.running")}
+        </span>
         <Button onClick={run} disabled={busy}>
-          {busy && <Spinner />}
+          {busy && <Spinner decorative />}
           {busy ? t("review.simulating") : t("review.runSimulation")}
         </Button>
       </div>

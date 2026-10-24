@@ -26,6 +26,19 @@ import { SitePicker } from "@/components/map/SitePicker";
 import { Button, Callout, Eyebrow, Field, InfoTip, Spinner, TextInput } from "@/components/ui";
 import { useT } from "@/components/i18n/LocaleProvider";
 
+// Scenario field path → input id for every input on this step, in DOM
+// order, so a failed validation can focus the first one that errored.
+const FIELD_INPUTS: ReadonlyArray<readonly [path: string, inputId: string]> = [
+  ["site.latitude", "lat"],
+  ["site.longitude", "lon"],
+  ["site.elevation", "elev"],
+  ["date", "dt"],
+];
+
+function matchesField(prefix: string, field: string): boolean {
+  return field === prefix || field.startsWith(`${prefix}.`);
+}
+
 export function BasicsStep() {
   const { state, setSite, setLaunchDatetime, setAtmosphere, next, scenarioBody } =
     useWizard();
@@ -40,8 +53,13 @@ export function BasicsStep() {
   const site = state.site;
 
   const errorFor = (prefix: string) =>
-    errors.find((e) => e.field === prefix || e.field.startsWith(`${prefix}.`))?.message;
+    errors.find((e) => matchesField(prefix, e.field))?.message;
   const generalErrors = errors.filter((e) => e.field === "");
+
+  function focusFirstError(fieldErrors: FieldError[]) {
+    const first = FIELD_INPUTS.find(([path]) => fieldErrors.some((e) => matchesField(path, e.field)));
+    if (first) document.getElementById(first[1])?.focus();
+  }
 
   // --- site picking + elevation ----------------------------------------
   const pickPoint = useCallback(
@@ -103,7 +121,9 @@ export function BasicsStep() {
     } catch (err) {
       if (err instanceof ApiError && err.isUnauthorized) return logout();
       if (err instanceof ApiError && err.isValidation) {
-        setErrors(err.fieldErrors ?? []);
+        const fieldErrors = err.fieldErrors ?? [];
+        setErrors(fieldErrors);
+        focusFirstError(fieldErrors);
       } else {
         setErrors([
           { loc: [], field: "", message: err instanceof Error ? err.message : t("basics.errorValidationFailed") },
@@ -125,7 +145,12 @@ export function BasicsStep() {
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-3">
         <Eyebrow>{t("basics.eyebrow")}</Eyebrow>
-        <h2 className="text-2xl font-semibold tracking-tight">{t("basics.heading")}</h2>
+        <h2
+          tabIndex={-1}
+          className="text-balance text-2xl font-semibold tracking-tight outline-none focus-visible:rounded-md focus-visible:ring-2 focus-visible:ring-cyan-400/40"
+        >
+          {t("basics.heading")}
+        </h2>
         <p className="text-sm text-muted">
           {t("basics.description")}
         </p>
@@ -137,11 +162,17 @@ export function BasicsStep() {
         onPick={pickPoint}
       />
 
+      {/* Coordinates stay type="number" (lat/lon need the minus sign, which a
+          numeric keypad lacks); inputMode="decimal" picks the right mobile
+          keyboard. autoComplete="off" keeps password managers away. */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Field label={t("basics.fieldLatitude")} htmlFor="lat" error={errorFor("site.latitude")}>
           <TextInput
             id="lat"
+            name="latitude"
             type="number"
+            inputMode="decimal"
+            autoComplete="off"
             step="any"
             value={site && Number.isFinite(site.latitude) ? site.latitude : ""}
             onChange={(e) => updateSiteField("latitude", e.target.value)}
@@ -150,26 +181,40 @@ export function BasicsStep() {
         <Field label={t("basics.fieldLongitude")} htmlFor="lon" error={errorFor("site.longitude")}>
           <TextInput
             id="lon"
+            name="longitude"
             type="number"
+            inputMode="decimal"
+            autoComplete="off"
             step="any"
             value={site && Number.isFinite(site.longitude) ? site.longitude : ""}
             onChange={(e) => updateSiteField("longitude", e.target.value)}
           />
         </Field>
-        <Field
-          label={t("basics.fieldElevation")}
-          htmlFor="elev"
-          hint={elevationNote ?? t("basics.elevationHint")}
-          error={errorFor("site.elevation")}
-        >
-          <TextInput
-            id="elev"
-            type="number"
-            step="any"
-            value={site && site.elevation !== null ? site.elevation : ""}
-            onChange={(e) => updateSiteField("elevation", e.target.value)}
-          />
-        </Field>
+        <div className="flex flex-col gap-1.5">
+          <Field
+            label={t("basics.fieldElevation")}
+            htmlFor="elev"
+            hint={elevationNote ? undefined : t("basics.elevationHint")}
+            error={errorFor("site.elevation")}
+          >
+            <TextInput
+                id="elev"
+              name="elevation"
+              type="number"
+              inputMode="decimal"
+              autoComplete="off"
+              step="any"
+              value={site && site.elevation !== null ? site.elevation : ""}
+              onChange={(e) => updateSiteField("elevation", e.target.value)}
+            />
+          </Field>
+          {/* The DEM lookup resolves asynchronously after a map click, so its
+              note is a live region (always mounted) rather than the static
+              hint — screen readers hear "Looking up…" → "Auto-filled…". */}
+          <p aria-live="polite" className="text-xs text-muted">
+            {elevationNote}
+          </p>
+        </div>
       </div>
 
       <Field
@@ -181,6 +226,8 @@ export function BasicsStep() {
       >
         <TextInput
           id="dt"
+          name="launch-datetime"
+          autoComplete="off"
           type="datetime-local"
           // The domain LaunchDate is hour-granular (no minutes) — step=3600s
           // constrains the picker to whole hours so the UI never invites a
@@ -215,7 +262,7 @@ export function BasicsStep() {
 
       <div className="flex justify-end">
         <Button onClick={onContinue} disabled={validating} withArrow={!validating}>
-          {validating && <Spinner />}
+          {validating && <Spinner decorative />}
           {validating ? t("basics.checking") : t("basics.continue")}
         </Button>
       </div>

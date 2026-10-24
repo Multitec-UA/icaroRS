@@ -69,7 +69,7 @@ describe("AccountMenu", () => {
     renderSignedIn();
     await openMenu();
 
-    fireEvent.click(screen.getByRole("button", { name: "Español" }));
+    fireEvent.click(screen.getByRole("button", { name: /Español/ }));
 
     expect(await screen.findByText("Organización")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cuenta" })).toBeInTheDocument();
