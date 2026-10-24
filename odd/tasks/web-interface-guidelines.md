@@ -14,15 +14,18 @@ Rules source: https://raw.githubusercontent.com/vercel-labs/web-interface-guidel
 
 ## Tasks
 
-- [ ] T1 — S1, S5 — route: inline (shared primitives, must land before T2–T4) — commit: pending
-- [ ] T2 — S2, S5 — route: inline (shell; ~15 small edits across files) — commit: pending
-- [ ] T3 — S3, S5 — route: delegated writer (parallel with T4, disjoint surfaces: `components/wizard/**`, `components/map/**`) — commit: pending
-- [ ] T4 — S4, S5 — route: delegated writer (parallel with T3, disjoint surfaces: `components/results/**`, `components/charts/**`, `components/history/**`, `components/rockets/**`) — commit: pending
-- [ ] T5 — S5 — route: inline — catalog keys owned by the parent (added before T3/T4 launch), seam check (`lint`, `i18n:check`, `test`), PR — commit: pending
+- [x] T1 — S1, S5 — route: inline (shared primitives, must land before T2–T4) — commit: d5bb9ce (tsc/lint/i18n:check OK, 200 tests green)
+- [x] T2 — S2, S5 — route: inline (shell; ~15 small edits across files) — commit: ef221a3 (RED observed: 5 new/changed tests failed before the change; focused run 44/44 green after)
+- [x] T3 — S3, S5 — route: delegated writer (parallel with T4, disjoint surfaces: `components/wizard/**`, `components/map/**`) — commit: 7cb990d (writer: 13 RED tests observed then GREEN; tsc/lint/i18n OK; 8 files / 41 tests; parent surface check: all paths in surface)
+- [x] T4 — S4, S5 — route: delegated writer (parallel with T3, disjoint surfaces: `components/results/**`, `components/charts/**`, `components/history/**`, `components/rockets/**`) — commit: 12cad6d (writer: 18 RED assertions then GREEN; 12 files / 31 tests; parent spot check re-ran the focused suite: 31/31) + 8bf9476 ("New rocket" confirmation, parent inline, RED 2 → GREEN 3)
+- [x] T5 — S5 — route: inline — seam check on 7cb990d: `tsc` 0, `lint` 0, `i18n:check` 252 keys OK, `vitest run` 42 files / 234 tests green, `next build` OK — PR: see Log
 
 ## Log
 
 - L1 (2026-10-24, user, verbatim): "Vale genial, ahora pasa esta skill a la web que tenemos y arregla todos los problemas de ui us que tenga, hazlo en una rama aparte y cuando termines abre PR"
 - L2 (2026-10-24): baseline on `main` before changes: `npm run lint` exit 0, `vitest run` 32 files / 200 tests passing. Audit done by three read-only explorers (shell, wizard+map, results/charts/lists); their `file:line` findings are the source of S1–S4.
-- L3 (2026-10-24): skill install committed first as `b051971 chore(web): add web-design-guidelines skill`.
+- L3 (2026-10-24): skill install committed first as `5412b6e chore(web): add web-design-guidelines skill`.
 - L4 (2026-10-24): shared file policy — `messages/*.json` are owned by the parent; writers use existing keys only and report missing ones.
+- L5 (2026-10-24): T1 dropped the `filter: blur()` from Reveal/FadeSwap (compositor-only rule) — a visible change to the "Ethereal Glass" entrance; reversible, flagged in the PR. T2 widened `LanguageSwitch` accessible names to "ES · Español"/"EN · English" (label-in-name); `AccountMenu.test` updated to a regex on purpose. T3 and T4 launched as parallel writers (disjoint surfaces) after T2.
+- L6 (2026-10-24): T4 could not add the "New rocket" confirmation (no catalog keys); the parent added `common.confirm`, `common.cancel`, `results.newRocketConfirm` and implemented the two-step confirm inline (8bf9476). T4 also hand-composed the ghost link classes (it did not know about `ButtonLink` from T2); replaced by `ButtonLink` in the same commit.
+- L7 (2026-10-24): native assess over `main..HEAD` (committed-only, untracked `.pi/` excluded): `risk: high`, reason `hot_path apps/web/components/auth/AccountMenu.tsx (signal: auth)`; the AccountMenu diff is focus classes + `translate="no"` only. Parent Risk line for the feature: `Risk: none` by the Task Size list (no data, auth logic, public API, concurrency or delivery change; every behavior change is pinned by a test). Review preflight run per RDD; consent relayed to the user.
