@@ -9,7 +9,8 @@
     "loading": "Cargando…",
     "skipToContent": "Saltar al contenido principal",
     "confirm": "Confirmar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "moreInfo": "Más información"
   },
 
   "auth": {

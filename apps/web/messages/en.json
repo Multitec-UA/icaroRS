@@ -9,7 +9,8 @@
     "loading": "Loading…",
     "skipToContent": "Skip to main content",
     "confirm": "Confirm",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "moreInfo": "More information"
   },
 
   "auth": {

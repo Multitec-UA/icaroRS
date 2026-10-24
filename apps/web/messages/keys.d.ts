@@ -9,6 +9,7 @@ export type MessageKey =
   | "common.skipToContent"
   | "common.confirm"
   | "common.cancel"
+  | "common.moreInfo"
   | "auth.eyebrow"
   | "auth.title"
   | "auth.subtitle"

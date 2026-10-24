@@ -8,8 +8,9 @@
  * (Surface), the kinetic feel from CSS spring transitions + group-hover physics.
  * No state lives here.
  *
- * "use client" is required because InfoTip uses useT() (a React context hook)
- * to resolve glossary definitions from the active locale catalog.
+ * "use client" is required because Spinner uses useT() (a React context hook)
+ * to localize its label, and Field uses useId(). InfoTip, which does hold
+ * state, lives in ./InfoTip and is re-exported below.
  * All callers of this module are already client components.
  *
  * `cn` and `selectClass` live in lib/styles.ts (issue #50), not here — they're
@@ -30,6 +31,7 @@ import {
 import Link from "next/link";
 import { cn, focusRing, inputBase } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
+import { InfoTip } from "@/components/InfoTip";
 
 // ---------------------------------------------------------------------------
 // Surface — the Double-Bezel (Doppelrand): a glass plate sitting in a machined
@@ -378,31 +380,6 @@ export function Spinner({ className, decorative = false }: { className?: string;
   );
 }
 
-// ---------------------------------------------------------------------------
-// InfoTip — a tiny "i" badge with a native-title definition.
-// Definition text is resolved from the active locale catalog via useT()
-// (imported at the top of this file, alongside Spinner's own use of it).
-// It is a real button so keyboard and screen-reader users get a focusable,
-// named control (a bare span with aria-label is not reliably announced).
-// ---------------------------------------------------------------------------
-
-export function InfoTip({ term }: { term: string }) {
-  const t = useT();
-  const key = `glossary.${term}`;
-  const def = t(key);
-  // If the key is missing (t returns the key itself), render nothing.
-  if (def === key) return null;
-  return (
-    <button
-      type="button"
-      title={def}
-      aria-label={def}
-      className={cn(
-        "inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/60 transition-colors hover:bg-white/20 hover:text-white/90",
-        focusRing,
-      )}
-    >
-      <span aria-hidden="true">i</span>
-    </button>
-  );
-}
+// InfoTip holds open/closed state, so it lives in its own module; re-exported
+// here so callers keep importing every primitive from one place.
+export { InfoTip };
