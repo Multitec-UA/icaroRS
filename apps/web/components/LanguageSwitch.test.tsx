@@ -20,6 +20,21 @@ describe("LanguageSwitch (issue #54 — group aria-label localization)", () => {
     expect(screen.getByRole("group", { name: "Language" })).toBeInTheDocument();
   });
 
+  it("names each button with its visible code and tags it with its language", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <LanguageSwitch />
+      </LocaleProvider>,
+    );
+
+    // WCAG 2.5.3 Label in Name: the accessible name must contain the visible
+    // text ("ES"), and `lang` lets screen readers pronounce the autonym.
+    const es = screen.getByRole("button", { name: /ES.*Español/ });
+    const en = screen.getByRole("button", { name: /EN.*English/ });
+    expect(es).toHaveAttribute("lang", "es");
+    expect(en).toHaveAttribute("lang", "en");
+  });
+
   it("localizes the group aria-label in Spanish", () => {
     render(
       <LocaleProvider initialLocale="es">

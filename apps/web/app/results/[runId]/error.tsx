@@ -8,11 +8,10 @@
  * screen — see issue #49.
  *
  * Nested inside app/layout.tsx's provider stack like every other page, so
- * useT() and useRouter() are safe here.
+ * useT() is safe here.
  */
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { ErrorFallback } from "@/components/boundaries/ErrorFallback";
 
@@ -24,7 +23,6 @@ export default function ResultsError({
   reset: () => void;
 }) {
   const t = useT();
-  const router = useRouter();
 
   useEffect(() => {
     console.error(error);
@@ -35,10 +33,7 @@ export default function ResultsError({
       title={t("errors.boundaryTitle")}
       message={t("errors.resultsBoundaryMessage")}
       retry={{ label: t("errors.tryAgain"), onClick: reset }}
-      secondaryAction={{
-        label: t("results.backToStart"),
-        onClick: () => router.push("/"),
-      }}
+      secondaryAction={{ label: t("results.backToStart"), href: "/" }}
     />
   );
 }

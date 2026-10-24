@@ -194,7 +194,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
       <Reveal className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-5 text-center">
           <Eyebrow>{t("auth.eyebrow")}</Eyebrow>
-          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-transparent">
+          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-balance text-transparent">
             {t("auth.title")}
           </h1>
           <p className="max-w-xs text-sm text-muted">
@@ -206,8 +206,11 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
             <Field label={t("auth.email")} htmlFor="email">
               <TextInput
                 id="email"
+                name="email"
                 type="email"
+                inputMode="email"
                 autoComplete="username"
+                spellCheck={false}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -216,6 +219,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
             <Field label={t("auth.password")} htmlFor="pass">
               <TextInput
                 id="pass"
+                name="password"
                 type="password"
                 autoComplete="current-password"
                 value={pass}
@@ -228,7 +232,10 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 type="button"
                 onClick={forgotPassword}
                 disabled={reset === "sending"}
-                className="text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40"
+                className={cn(
+                  "rounded-sm text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40",
+                  focusRing,
+                )}
               >
                 {t("auth.forgotPassword")}
               </button>

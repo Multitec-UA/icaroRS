@@ -13,7 +13,8 @@ describe("GlobalErrorContent", () => {
       />,
     );
 
-    expect(screen.getByText("Something went wrong")).toBeInTheDocument();
+    // The page has nothing else, so the title is its only heading.
+    expect(screen.getByRole("heading", { level: 1, name: "Something went wrong" })).toBeInTheDocument();
     expect(
       screen.getByText(
         "A critical error occurred and the application could not recover.",

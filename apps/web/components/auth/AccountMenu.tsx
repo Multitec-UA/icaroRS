@@ -22,7 +22,7 @@ import { useAuth } from "@/components/auth/AuthGate";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { sendPasswordReset } from "@/lib/firebase";
-import { cn } from "@/lib/styles";
+import { cn, focusRing } from "@/lib/styles";
 
 type ResetStatus = "idle" | "sending" | "sent" | "failed";
 
@@ -36,8 +36,10 @@ function AvatarIcon({ className }: { className?: string }) {
   );
 }
 
-const actionClassName =
-  "w-full rounded-xl px-3 py-2 text-left text-sm transition-colors duration-300 ease-[var(--ease-spring)] hover:bg-white/[0.06] disabled:pointer-events-none disabled:opacity-40";
+const actionClassName = cn(
+  "w-full rounded-xl px-3 py-2 text-left text-sm transition-colors duration-300 ease-[var(--ease-spring)] hover:bg-white/[0.06] disabled:pointer-events-none disabled:opacity-40",
+  focusRing,
+);
 
 export function AccountMenu() {
   const t = useT();
@@ -88,7 +90,10 @@ export function AccountMenu() {
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ring-white/15 transition-all duration-300 ease-[var(--ease-spring)] hover:ring-white/30 active:scale-[0.96]"
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ring-white/15 transition-[box-shadow,transform] duration-300 ease-[var(--ease-spring)] hover:ring-white/30 active:scale-[0.96]",
+          focusRing,
+        )}
       >
         <AvatarIcon className="h-8 w-8" />
       </button>
@@ -102,13 +107,15 @@ export function AccountMenu() {
             <AvatarIcon className="h-10 w-10 shrink-0" />
             <div className="flex min-w-0 flex-col gap-0.5">
               {identity.email && (
-                <span className="truncate text-sm font-medium text-foreground">
+                <span translate="no" className="truncate text-sm font-medium text-foreground">
                   {identity.email}
                 </span>
               )}
               <span className="flex min-w-0 items-baseline gap-1.5 text-xs">
                 <span className="text-muted">{t("account.organization")}</span>
-                <span className="truncate font-medium text-foreground">{identity.org_id}</span>
+                <span translate="no" className="truncate font-medium text-foreground">
+                  {identity.org_id}
+                </span>
               </span>
             </div>
           </div>

@@ -14,7 +14,7 @@
  * being hardcoded here.
  */
 
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import "./globals.css";
 import { makeT, registerCatalog, type Locale } from "@/lib/i18n";
 import enMessages from "@/messages/en.json";
@@ -28,10 +28,15 @@ registerCatalog("en", enMessages as Record<string, unknown>);
 registerCatalog("es", esMessages as Record<string, unknown>);
 
 function readLocale(): Locale {
-  if (typeof document === "undefined") return "en";
   const match = document.cookie.match(/(?:^|;\s*)NEXT_LOCALE=([^;]+)/);
   return match?.[1] === "es" ? "es" : "en";
 }
+
+// The cookie never changes while this screen is up; the store exists so the
+// server snapshot ("en") and the client snapshot (the cookie) are reconciled
+// by React instead of producing a hydration mismatch.
+const subscribe = () => () => {};
+const getServerLocale = (): Locale => "en";
 
 export default function GlobalError({
   error,
@@ -40,7 +45,7 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const locale = readLocale();
+  const locale = useSyncExternalStore(subscribe, readLocale, getServerLocale);
   const t = makeT(locale);
 
   useEffect(() => {

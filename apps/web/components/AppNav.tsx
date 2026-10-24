@@ -22,11 +22,12 @@
  *   no overflow, no hamburger complexity, stays premium on touch.
  */
 
-import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useWizardNav } from "@/components/wizard/WizardProvider";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { useT } from "@/components/i18n/LocaleProvider";
-import { cn } from "@/lib/styles";
+import { cn, focusRing } from "@/lib/styles";
 
 interface NavItem {
   key: "simulate" | "rockets" | "history";
@@ -37,16 +38,15 @@ interface NavItem {
 export function AppNav() {
   const t = useT();
   const pathname = usePathname();
-  const router = useRouter();
   // Nav-only (issue #50) — see Stepper.tsx for why this matters.
   const { reset } = useWizardNav();
 
-  function handleNav(href: string) {
+  function handleNav() {
     // Leaving the results screen ends the current run — clear the wizard form so
     // returning to the wizard lands on the initial .ork upload step rather than
-    // the spent run's state.
+    // the spent run's state. The Link itself does the navigation, so modified
+    // clicks (new tab) still work and simply skip the reset.
     if (pathname.startsWith("/results")) reset();
-    router.push(href);
   }
 
   const items: NavItem[] = [
@@ -76,20 +76,21 @@ export function AppNav() {
         {items.map(({ href, label }) => {
           const active = isActive(href);
           return (
-            <button
+            <Link
               key={href}
-              type="button"
-              onClick={() => handleNav(href)}
+              href={href}
+              onClick={handleNav}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "relative rounded-full px-4 py-1.5 text-sm font-medium transition-all duration-500 ease-[var(--ease-spring)] active:scale-[0.98]",
+                "relative rounded-full px-4 py-1.5 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-500 ease-[var(--ease-spring)] active:scale-[0.98]",
+                focusRing,
                 active
                   ? "bg-white/[0.12] text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-inset ring-white/15"
                   : "text-muted hover:text-foreground",
               )}
             >
               {label}
-            </button>
+            </Link>
           );
         })}
       </nav>

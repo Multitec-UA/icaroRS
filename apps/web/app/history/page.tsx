@@ -16,7 +16,7 @@ export default async function HistoryPage() {
     <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-12">
       <header className="flex flex-col gap-3">
         <Eyebrow>{t("history.eyebrow")}</Eyebrow>
-        <h1 className="text-4xl font-semibold tracking-tight">
+        <h1 className="text-4xl font-semibold tracking-tight text-balance">
           {t("history.heading")}
         </h1>
         <p className="text-sm text-muted">{t("history.description")}</p>

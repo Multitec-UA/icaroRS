@@ -23,9 +23,11 @@ import {
   isValidElement,
   useId,
   type ButtonHTMLAttributes,
+  type ComponentProps,
   type InputHTMLAttributes,
   type ReactNode,
 } from "react";
+import Link from "next/link";
 import { cn, focusRing, inputBase } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
@@ -155,10 +157,63 @@ function ArrowIcon() {
   );
 }
 
+type ButtonVariant = "primary" | "ghost" | "danger";
+
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
-  variant?: "primary" | "ghost" | "danger";
+  variant?: ButtonVariant;
   withArrow?: boolean;
 };
+
+const BUTTON_VARIANTS = {
+  primary:
+    "bg-foreground text-[#050505] hover:shadow-[0_0_36px_-6px_rgba(34,211,238,0.55)]",
+  ghost:
+    "text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25",
+  danger: "bg-rose-500 text-white hover:bg-rose-400",
+} as const;
+
+const BUTTON_CIRCLE_TONE = {
+  primary: "bg-black/10",
+  ghost: "bg-white/10",
+  danger: "bg-black/15",
+} as const;
+
+/** The pill's classes, shared by Button and ButtonLink so both look identical. */
+function buttonClassName(variant: ButtonVariant, withArrow: boolean, className?: string) {
+  return cn(
+    "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full pl-6 text-sm font-medium transition-[background-color,box-shadow,color,transform,opacity] duration-500 ease-[var(--ease-spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+    focusRing,
+    withArrow ? "pr-2" : "pr-6",
+    BUTTON_VARIANTS[variant],
+    className,
+  );
+}
+
+function ButtonBody({
+  variant,
+  withArrow,
+  children,
+}: {
+  variant: ButtonVariant;
+  withArrow: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <span className="inline-flex items-center gap-2.5">{children}</span>
+      {withArrow && (
+        <span
+          className={cn(
+            "flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-500 ease-[var(--ease-spring)] group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105",
+            BUTTON_CIRCLE_TONE[variant],
+          )}
+        >
+          <ArrowIcon />
+        </span>
+      )}
+    </>
+  );
+}
 
 export function Button({
   variant = "primary",
@@ -167,38 +222,36 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const base = cn(
-    "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full pl-6 text-sm font-medium transition-[background-color,box-shadow,color,transform,opacity] duration-500 ease-[var(--ease-spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
-    focusRing,
-  );
-  const pad = withArrow ? "pr-2" : "pr-6";
-  const variants = {
-    primary:
-      "bg-foreground text-[#050505] hover:shadow-[0_0_36px_-6px_rgba(34,211,238,0.55)]",
-    ghost:
-      "text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25",
-    danger: "bg-rose-500 text-white hover:bg-rose-400",
-  } as const;
-  const circleTone = {
-    primary: "bg-black/10",
-    ghost: "bg-white/10",
-    danger: "bg-black/15",
-  } as const;
-
   return (
-    <button className={cn(base, pad, variants[variant], className)} {...props}>
-      <span className="inline-flex items-center gap-2.5">{children}</span>
-      {withArrow && (
-        <span
-          className={cn(
-            "flex h-8 w-8 items-center justify-center rounded-full transition-transform duration-500 ease-[var(--ease-spring)] group-hover:translate-x-1 group-hover:-translate-y-[1px] group-hover:scale-105",
-            circleTone[variant],
-          )}
-        >
-          <ArrowIcon />
-        </span>
-      )}
+    <button className={buttonClassName(variant, withArrow, className)} {...props}>
+      <ButtonBody variant={variant} withArrow={withArrow}>
+        {children}
+      </ButtonBody>
     </button>
+  );
+}
+
+/**
+ * ButtonLink — the same pill for navigation. Actions are buttons, destinations
+ * are links: a real <a> keeps Cmd/Ctrl-click, middle-click and "open in new
+ * tab" working, which `router.push` from a button cannot.
+ */
+export function ButtonLink({
+  variant = "primary",
+  withArrow = false,
+  className,
+  children,
+  ...props
+}: ComponentProps<typeof Link> & {
+  variant?: ButtonVariant;
+  withArrow?: boolean;
+}) {
+  return (
+    <Link className={buttonClassName(variant, withArrow, className)} {...props}>
+      <ButtonBody variant={variant} withArrow={withArrow}>
+        {children}
+      </ButtonBody>
+    </Link>
   );
 }
 
