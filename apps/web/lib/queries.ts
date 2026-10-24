@@ -14,14 +14,17 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
+  ApiError,
   getHistory,
   getRockets,
+  getExport,
   getRocket,
   getResult,
   getSeries,
   getScenarioTemplate,
   simulate,
   type ResultEnvelope,
+  type ExportDetail,
   type RocketDetail,
   type ScenarioTemplate,
   type SimulateResult,
@@ -88,14 +91,24 @@ export function useSimulateMutation() {
 }
 
 /**
- * GET /api/rockets/{rocketId} — fetches the manifest for "Use this rocket"
- * (issue #50). Previously an inline `import("@/lib/api").then(...)` with no
- * `.catch()` and no loading state, so a failing request did nothing visible
- * at all; going through useMutation gives both for free, plus the shared
- * 401 handling every other call in this file already gets.
+ * "Use this rocket" (issue #50): GET /api/rockets/{rocketId} for the rocket's
+ * exports, then GET /api/exports/{exportId} of the newest one for its
+ * manifest. A rocket with no exports yet rejects with an ApiError(404) so the
+ * card shows its inline error instead of silently doing nothing. Going
+ * through useMutation gives loading + error state plus the shared 401
+ * handling every other call in this file already gets.
  */
-export function useRocketDetailMutation() {
-  return useMutation<RocketDetail, unknown, string>({
-    mutationFn: (rocketId) => getRocket(rocketId),
+export function useRocketLatestExportMutation() {
+  return useMutation<{ rocket: RocketDetail; export: ExportDetail }, unknown, string>({
+    mutationFn: async (rocketId) => {
+      const rocket = await getRocket(rocketId);
+      const newest = rocket.exports[0];
+      if (!newest) {
+        throw new ApiError(404, `Rocket '${rocketId}' has no exports yet.`, {
+          code: "requestFailed",
+        });
+      }
+      return { rocket, export: await getExport(newest.export_id) };
+    },
   });
 }

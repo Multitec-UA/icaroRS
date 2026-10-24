@@ -316,6 +316,7 @@
     "viewDetails": "Ver detalles",
     "reRun": "Volver a lanzar",
     "backToWizard": "← Volver al asistente",
+    "reRunNoExport": "No se puede repetir una simulación guardada antes de registrar su archivo.",
     "reRunUnavailable": "No se puede repetir una ejecución fallida."
   },
 

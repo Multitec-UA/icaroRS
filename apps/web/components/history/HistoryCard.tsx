@@ -10,10 +10,12 @@
  * (/results/{simulation_id}) — nothing is recomputed: the simulation id is
  * the run id the results page reads from storage.
  *
- * "Re-run" triggers re-launch flow A: submits the stored (rocket_id,
+ * "Re-run" triggers re-launch flow A: submits the stored (export_id,
  * scenario) verbatim to /api/simulate and navigates to the new result page —
  * the original simulation document is NOT mutated. Owns its own mutation
  * state (issue #48) so re-running one entry never affects any other card.
+ * Runs written before the Rocket/Export split carry no export_id, so they
+ * cannot be re-run (the stored rocket_id is a group, not a file).
  *
  * Dates and numbers go through Intl with the app locale and a fixed UTC
  * zone: the card is server-rendered first, so the string must not depend on
@@ -60,11 +62,15 @@ export function HistoryCard({ item, index = 0 }: { item: SimulationSummary; inde
   const isUnauthorizedError = rerun.error instanceof ApiError && rerun.error.isUnauthorized;
   const hasError = rerun.isError && !isUnauthorizedError;
   const errorHttpStatus = rerun.error instanceof ApiError ? rerun.error.status : 0;
-  const reRunUnavailable = item.status === "error";
+  const reRunUnavailable = item.status === "error" || !item.export_id;
+  const reRunUnavailableReason = !item.export_id
+    ? t("history.reRunNoExport")
+    : t("history.reRunUnavailable");
 
   function handleReRun() {
+    if (!item.export_id) return;
     rerun.mutate(
-      { exportId: item.rocket_id, scenario: item.scenario },
+      { exportId: item.export_id, scenario: item.scenario },
       {
         onSuccess: (result) => router.push(`/results/${encodeURIComponent(result.run_id)}`),
       },
@@ -77,8 +83,14 @@ export function HistoryCard({ item, index = 0 }: { item: SimulationSummary; inde
       <Card innerClassName="flex flex-col gap-5 p-5 sm:p-6">
         {/* Top row: name + status chip */}
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <span className="min-w-0 break-words text-base font-medium text-foreground">
-            {item.name}
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span className="break-words text-base font-medium text-foreground">{item.name}</span>
+            {item.ork_filename && (
+              // A file name: never machine-translated.
+              <span translate="no" className="break-words font-mono text-xs text-muted">
+                {item.ork_filename}
+              </span>
+            )}
           </span>
           <span
             className={cn(
@@ -140,13 +152,13 @@ export function HistoryCard({ item, index = 0 }: { item: SimulationSummary; inde
             variant="ghost"
             withArrow={!isRunning}
             disabled={isRunning || reRunUnavailable}
-            title={reRunUnavailable ? t("history.reRunUnavailable") : undefined}
+            title={reRunUnavailable ? reRunUnavailableReason : undefined}
             onClick={handleReRun}
           >
             {isRunning && <Spinner className="text-cyan-400" />}
             {t("history.reRun")}
             {/* A disabled button gives no reason on its own; say it for assistive tech. */}
-            {reRunUnavailable && <span className="sr-only">{t("history.reRunUnavailable")}</span>}
+            {reRunUnavailable && <span className="sr-only">{reRunUnavailableReason}</span>}
           </Button>
         </div>
       </Card>

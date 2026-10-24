@@ -37,8 +37,8 @@ export function RocketStep() {
     setFilename(file.name);
     setStatus("loading");
     try {
-      const { export_id, manifest } = await convert(file);
-      setExport(export_id, manifest);
+      const { export_id, rocket_id, manifest } = await convert(file);
+      setExport(export_id, manifest, rocket_id);
       setStatus("done");
     } catch (err) {
       setStatus("error");

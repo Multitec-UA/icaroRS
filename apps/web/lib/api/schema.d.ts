@@ -112,12 +112,16 @@ export interface paths {
          * @description Convert a .ork file to an export directory and persist artifacts.
          *
          *     Multipart upload → ``convert_ork`` → upload export dir to Storage
-         *     under ``orgs/{org_id}/exports/{run_id}/`` → save RocketRecord to Db →
-         *     returns ``{export_id, manifest}`` where ``export_id`` is a logical
-         *     run_id slug.
+         *     under ``orgs/{org_id}/exports/{run_id}/`` → save ExportRecord (and a new
+         *     RocketRecord unless ``rocket_id`` was given) to Db → returns
+         *     ``{export_id, rocket_id, manifest}`` where both ids are logical run_id slugs.
+         *
+         *     Every file becomes its own rocket unless the user explicitly picks one of
+         *     the org's rockets with ``rocket_id``; nothing is inferred from the filename.
          *
          *     On ``ConvertUnavailableError``: 503 with the install hint verbatim.
          *     On non-.ork file: 422.
+         *     On unknown / other-org ``rocket_id``: 404, before the conversion runs.
          *     Never returns a Python traceback (RG-9.4).
          *
          *     Satisfies RG-2.1, AC-RG-2.1, AC-RG-2.2, REQ-01.1, REQ-02.1, REQ-03.1.
@@ -154,6 +158,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/exports/{export_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Export
+         * @description Return the export record including its manifest.
+         *
+         *     Returns 404 if the export_id is not found OR not owned by the caller's org.
+         */
+        get: operations["get_export_api_exports__export_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/history": {
         parameters: {
             query?: never;
@@ -165,8 +191,8 @@ export interface paths {
          * List History
          * @description Return a paginated list of simulations in reverse-chronological order.
          *
-         *     Each item includes a denormalized rocket ``name`` fetched via
-         *     ``db.get_rocket`` (join-on-read — see module docstring for rationale).
+         *     Each item includes the denormalized rocket ``name`` and the simulated
+         *     export's ``ork_filename`` (join-on-read — see module docstring).
          *
          *     Parameters
          *     ----------
@@ -174,6 +200,8 @@ export interface paths {
          *         Maximum number of records (default: 20, max: 100).
          *     before : datetime | None
          *         Cursor — return only simulations created before this timestamp.
+         *     rocket_id : str | None
+         *         If given, only the runs of that rocket (any of its exports).
          *
          *     Satisfies REQ-05.1, REQ-05.2, REQ-05.3.
          */
@@ -286,7 +314,7 @@ export interface paths {
         };
         /**
          * List Rockets
-         * @description Return a paginated list of saved rockets in reverse-chronological order.
+         * @description Return a paginated list of the org's rockets in reverse-chronological order.
          *
          *     Parameters
          *     ----------
@@ -295,7 +323,7 @@ export interface paths {
          *     before : datetime | None
          *         Cursor — return only rockets created before this timestamp (ISO 8601).
          *
-         *     Satisfies REQ-04.1, REQ-04.2, REQ-04.3.
+         *     Satisfies REQ-04.1, REQ-04.3.
          */
         get: operations["list_rockets_api_rockets_get"];
         put?: never;
@@ -315,16 +343,11 @@ export interface paths {
         };
         /**
          * Get Rocket
-         * @description Return the full rocket record including manifest and gcs_ref.
+         * @description Return the rocket and its exports (newest first).
          *
-         *     The ``manifest`` is the single source of truth in object storage
-         *     (``parameters.json`` under the export prefix), NOT Firestore — it can
-         *     contain nested arrays that Firestore Native rejects (see
-         *     ``FirestoreDb.save_rocket``). It is loaded here from Storage and degrades to
-         *     ``{}`` if the blob is missing, so the endpoint never 500s on a stale record.
-         *
+         *     Both lookups are scoped to the caller's org in the ``Db`` layer, so a
+         *     rocket_id that exists in another org is indistinguishable from a missing one.
          *     Returns 404 if the rocket_id is not found OR not owned by the caller's org.
-         *     Satisfies REQ-04.4.
          */
         get: operations["get_rocket_api_rockets__rocket_id__get"];
         put?: never;
@@ -471,6 +494,11 @@ export interface components {
              * @description OpenRocket .ork file
              */
             file: string;
+            /**
+             * Rocket Id
+             * @description Attach the file to this existing rocket. Omit to create a new rocket named after the file's manifest.
+             */
+            rocket_id?: string | null;
         };
         /**
          * ConvertResult
@@ -483,6 +511,8 @@ export interface components {
             manifest: {
                 [key: string]: unknown;
             };
+            /** Rocket Id */
+            rocket_id: string;
         };
         /**
          * Dispersion
@@ -518,6 +548,58 @@ export interface components {
              * @constant
              */
             source: "dem";
+        };
+        /**
+         * ExportDetail
+         * @description Response body for GET /api/exports/{export_id} — summary plus manifest.
+         */
+        ExportDetail: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Export Id */
+            export_id: string;
+            /** Export Prefix */
+            export_prefix: string;
+            /** Gcs Ref */
+            gcs_ref: string;
+            /** Has Source Ork */
+            has_source_ork: boolean;
+            /** Manifest */
+            manifest: {
+                [key: string]: unknown;
+            };
+            /** Name */
+            name: string;
+            /** Ork Filename */
+            ork_filename: string | null;
+            /** Rocket Id */
+            rocket_id: string;
+        };
+        /**
+         * ExportSummary
+         * @description One export (converted ``.ork``) as listed inside a rocket detail.
+         */
+        ExportSummary: {
+            /** Created At */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Export Id */
+            export_id: string;
+            /** Export Prefix */
+            export_prefix: string;
+            /** Gcs Ref */
+            gcs_ref: string;
+            /** Has Source Ork */
+            has_source_ork: boolean;
+            /** Name */
+            name: string;
+            /** Ork Filename */
+            ork_filename: string | null;
+            /** Rocket Id */
+            rocket_id: string;
         };
         /**
          * FlightSeries
@@ -607,27 +689,17 @@ export interface components {
         };
         /**
          * RocketDetail
-         * @description Response body for GET /api/rockets/{rocket_id} — a RocketSummary plus its manifest.
+         * @description Response body for GET /api/rockets/{rocket_id} — the rocket plus its exports.
          */
         RocketDetail: {
             /** Created At */
             created_at: string;
             /** Created By */
             created_by: string;
-            /** Export Prefix */
-            export_prefix: string;
-            /** Gcs Ref */
-            gcs_ref: string;
-            /** Has Source Ork */
-            has_source_ork: boolean;
-            /** Manifest */
-            manifest: {
-                [key: string]: unknown;
-            };
+            /** Exports */
+            exports: components["schemas"]["ExportSummary"][];
             /** Name */
             name: string;
-            /** Ork Filename */
-            ork_filename: string | null;
             /** Rocket Id */
             rocket_id: string;
         };
@@ -640,16 +712,8 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by: string;
-            /** Export Prefix */
-            export_prefix: string;
-            /** Gcs Ref */
-            gcs_ref: string;
-            /** Has Source Ork */
-            has_source_ork: boolean;
             /** Name */
             name: string;
-            /** Ork Filename */
-            ork_filename: string | null;
             /** Rocket Id */
             rocket_id: string;
         };
@@ -770,10 +834,14 @@ export interface components {
             created_at: string;
             /** Created By */
             created_by: string;
+            /** Export Id */
+            export_id: string;
             /** Has Series */
             has_series: boolean;
             /** Name */
             name: string;
+            /** Ork Filename */
+            ork_filename: string | null;
             /** Plot Names */
             plot_names: string[];
             /** Result Prefix */
@@ -1010,11 +1078,43 @@ export interface operations {
             };
         };
     };
+    get_export_api_exports__export_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                export_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExportDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_history_api_history_get: {
         parameters: {
             query?: {
                 limit?: number;
                 before?: string | null;
+                rocket_id?: string | null;
             };
             header?: never;
             path?: never;

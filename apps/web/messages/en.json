@@ -316,7 +316,8 @@
     "viewDetails": "View details",
     "reRun": "Re-run",
     "backToWizard": "← Back to wizard",
-    "reRunUnavailable": "Re-run is unavailable for failed runs."
+    "reRunUnavailable": "Re-run is unavailable for failed runs.",
+    "reRunNoExport": "Re-run is unavailable for runs saved before their file was tracked."
   },
 
   "glossary": {
