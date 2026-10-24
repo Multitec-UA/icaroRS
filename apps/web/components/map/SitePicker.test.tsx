@@ -164,3 +164,90 @@ describe("SitePicker (issues #55 — geocode proxy, #54 — i18n leak sweep)", (
     );
   });
 });
+
+describe("SitePicker — results list a11y (Web Interface Guidelines)", () => {
+  function searchBox() {
+    return screen.getByRole("searchbox", { name: "Search launch site" });
+  }
+
+  it("labels the search input and announces the result count", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    geocodeSearchMock.mockResolvedValueOnce([
+      { place_id: 1, lat: "38.34", lon: "-0.48", display_name: "Alicante, Spain" },
+      { place_id: 2, lat: "38.40", lon: "-0.50", display_name: "Alicante (province), Spain" },
+    ]);
+
+    render(
+      <Providers>
+        <SitePicker lat={null} lon={null} onPick={vi.fn()} />
+      </Providers>,
+    );
+
+    const input = searchBox();
+    expect(input).toHaveAttribute("name", "site-search");
+    expect(input).toHaveAttribute("autocomplete", "off");
+    expect(input).toHaveAttribute("spellcheck", "false");
+
+    fireEvent.change(input, { target: { value: "Alicante" } });
+    await vi.advanceTimersByTimeAsync(400);
+    vi.useRealTimers();
+
+    const count = await screen.findByText("2 results");
+    expect(count.closest("[aria-live='polite']")).not.toBeNull();
+  });
+
+  it("shows an empty state when a completed search has no hits", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    geocodeSearchMock.mockResolvedValueOnce([]);
+
+    render(
+      <Providers>
+        <SitePicker lat={null} lon={null} onPick={vi.fn()} />
+      </Providers>,
+    );
+
+    fireEvent.change(searchBox(), { target: { value: "Nowhereville" } });
+    await vi.advanceTimersByTimeAsync(400);
+    vi.useRealTimers();
+
+    expect(await screen.findByText("No places match “Nowhereville”.")).toBeInTheDocument();
+  });
+
+  it("closes the results with Escape", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    geocodeSearchMock.mockResolvedValueOnce([
+      { place_id: 1, lat: "38.34", lon: "-0.48", display_name: "Alicante, Spain" },
+    ]);
+
+    render(
+      <Providers>
+        <SitePicker lat={null} lon={null} onPick={vi.fn()} />
+      </Providers>,
+    );
+
+    const input = searchBox();
+    fireEvent.change(input, { target: { value: "Alicante" } });
+    await vi.advanceTimersByTimeAsync(400);
+    vi.useRealTimers();
+
+    expect(await screen.findByText("Alicante, Spain")).toBeInTheDocument();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(screen.queryByText("Alicante, Spain")).not.toBeInTheDocument();
+  });
+
+  it("clears a pending debounced search on unmount", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { unmount } = render(
+      <Providers>
+        <SitePicker lat={null} lon={null} onPick={vi.fn()} />
+      </Providers>,
+    );
+
+    fireEvent.change(searchBox(), { target: { value: "Alicante" } });
+    unmount();
+    await vi.advanceTimersByTimeAsync(400);
+    vi.useRealTimers();
+
+    expect(geocodeSearchMock).not.toHaveBeenCalled();
+  });
+});
