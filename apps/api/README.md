@@ -35,7 +35,11 @@ interactive API docs.
 | `POST` | `/api/scenario/validate` | Validate/normalize a scenario → `422` with field errors |
 | `GET` | `/api/atmosphere/suggest?date=` | Best atmosphere model for a date (GFS window check) |
 | `GET` | `/api/elevation?lat=&lon=` | Ground elevation (best-effort; `503` if unavailable) |
-| `POST` | `/api/convert` | Multipart `.ork` upload → `{export_id, manifest}` |
+| `POST` | `/api/convert` | Multipart `.ork` upload (+ optional `rocket_id` form field to attach it to an existing rocket) → `{export_id, rocket_id, manifest}` |
+| `GET` | `/api/rockets` | The org's rockets (a rocket groups the `.ork` files uploaded for it) |
+| `GET` | `/api/rockets/{rocket_id}` | Rocket + its exports, newest first |
+| `GET` | `/api/exports/{export_id}` | One converted `.ork` with its manifest |
+| `GET` | `/api/history?rocket_id=` | Simulation history, optionally one rocket's |
 | `POST` | `/api/simulate` | `{export_id, scenario}` → `{run_id, scalars, plot_urls, warnings}` |
 | `GET` | `/api/results/{run_id}` | Result envelope `{run_id, status, result}` |
 | `GET` | `/api/results/{run_id}/series` | Resampled flight time-series `{t, altitude, speed, mach, acceleration, path3d}` for interactive charts (404 for runs predating the feature) |
@@ -77,6 +81,10 @@ its dev proxy.
 - `icaro_api/scripts/backfill_org_id.py` — idempotent backfill that stamps
   `org_id` onto pre-existing `rockets`/`simulations` Firestore documents. See
   [`DEPLOY.md` → Backfill org_id](../../DEPLOY.md#backfill-org_id-on-existing-documents).
+- `icaro_api/scripts/migrate_rocket_exports.py` — idempotent split of the
+  legacy per-file `rockets` documents into `rockets` (groups) + `exports`
+  (converted files), and `export_id` on simulations. See
+  [`DEPLOY.md` → Migrate rockets](../../DEPLOY.md#migrate-rockets--rockets--exports).
 
 ## Tests
 

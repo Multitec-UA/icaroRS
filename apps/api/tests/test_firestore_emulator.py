@@ -197,8 +197,8 @@ class TestPR28NestedArrayRegression:
         reads back the raw doc via the underlying client to confirm the field
         was stripped — not just that the adapter suppressed the error.
         """
-        rec = _rocket(
-            "r-pr28-raw",
+        rec = _export(
+            "e-pr28-raw",
             manifest={
                 "name": "FreeformRocket",
                 "freeform_fins": [
@@ -225,8 +225,8 @@ class TestPR28NestedArrayRegression:
         Stripping the manifest must not silently drop other fields like
         ``name``, ``export_prefix``, ``gcs_ref``, or ``created_by``.
         """
-        rec = _rocket(
-            "r-pr28-meta",
+        rec = _export(
+            "e-pr28-meta",
             manifest={"name": "FreeformRocket", "freeform_fins": [{"shape_points": [[0.0, 0.0]]}]},
         )
         db.save_export(rec, org_id=_ORG)

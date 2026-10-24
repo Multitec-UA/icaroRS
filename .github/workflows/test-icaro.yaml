@@ -131,6 +131,8 @@ jobs:
           uv run --no-sync pytest
           -m integration
           tests/test_firestore_emulator.py
+          tests/test_backfill_org_id_emulator.py
+          tests/test_migrate_rocket_exports_emulator.py
           -v
 
   # ---------------------------------------------------------------------------

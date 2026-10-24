@@ -83,7 +83,7 @@ env vars below.
 gcloud storage buckets create gs://PROJECT-icaro-runs \
   --location REGION --uniform-bucket-level-access
 
-# 2. Firestore (Native mode) — metadata: `rockets` + `simulations` collections
+# 2. Firestore (Native mode) — metadata: `rockets` + `exports` + `simulations` collections
 gcloud firestore databases create --location REGION   # creates the "(default)" db
 
 # 3. IAM on the API's runtime service account (SA_EMAIL = what the API runs as)
@@ -114,26 +114,32 @@ gcloud run services update icaro-api --region REGION \
 > moving simulate off the request path) — not done yet. Keep
 > `min-instances = max-instances = 1`.
 
-### Composite indexes (org_id + created_at)
+### Composite indexes (org_id [+ rocket_id] + created_at)
 
-Once organizations land (issue #41/#43), `list_rockets`/`list_simulations`
-filter by `org_id` **and** order by `created_at DESC`. Firestore requires a
-composite index for that combination — declared in
+Every list query filters by `org_id` **and** orders by `created_at DESC`;
+`list_exports` / `list_simulations` can also filter by `rocket_id` (the files
+and runs of one rocket). Firestore requires a composite index for each
+combination — declared in
 [`apps/api/firestore.indexes.json`](apps/api/firestore.indexes.json) — or the
 query fails at **runtime** (not at deploy). Create them once per project:
 
 ```bash
-gcloud firestore indexes composite create \
-  --collection-group=rockets \
-  --field-config field-path=org_id,order=ascending \
-  --field-config field-path=created_at,order=descending \
-  --project=PROJECT
+for group in rockets exports simulations; do
+  gcloud firestore indexes composite create \
+    --collection-group=$group \
+    --field-config field-path=org_id,order=ascending \
+    --field-config field-path=created_at,order=descending \
+    --project=PROJECT
+done
 
-gcloud firestore indexes composite create \
-  --collection-group=simulations \
-  --field-config field-path=org_id,order=ascending \
-  --field-config field-path=created_at,order=descending \
-  --project=PROJECT
+for group in exports simulations; do
+  gcloud firestore indexes composite create \
+    --collection-group=$group \
+    --field-config field-path=org_id,order=ascending \
+    --field-config field-path=rocket_id,order=ascending \
+    --field-config field-path=created_at,order=descending \
+    --project=PROJECT
+done
 ```
 
 Index builds are asynchronous — check status with
@@ -156,6 +162,26 @@ It is idempotent and reports `scanned` / `updated` / `already_stamped` counts
 per collection — safe to re-run, including after a partial/interrupted run.
 Pass `--dry-run` to preview counts without writing. It does **not** create the
 organization in Identity Platform (#41's responsibility) — pass its id in.
+
+### Migrate rockets → rockets + exports
+
+**Must run before deploying the API that reads the `exports` collection.**
+Before the split, every converted `.ork` was one `rockets` document. Now a
+*rocket* groups the files a team uploads and each converted file is an
+*export* (`exports` collection, attached through `rocket_id`); simulations
+reference the export they ran (`export_id`) and keep `rocket_id` for
+per-rocket listings.
+
+```bash
+ICARO_FIRESTORE_PROJECT=PROJECT \
+  uv run python -m icaro_api.scripts.migrate_rocket_exports [--dry-run]
+```
+
+For each legacy `rockets/{id}` it writes `exports/{id}` (same id, so existing
+`simulations.rocket_id` values stay valid and old links keep working) and
+rewrites `rockets/{id}` to the group shape; simulations without `export_id`
+get `export_id = rocket_id`. Idempotent — already-migrated documents are
+counted and skipped. Create the `exports` indexes above first.
 
 ---
 
