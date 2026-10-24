@@ -30,6 +30,7 @@ import {
   signOut as firebaseSignOut,
 } from "@/lib/firebase";
 import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { cn, focusRing } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
@@ -51,6 +52,7 @@ export function useAuth(): AuthContextValue {
 type Status = "checking" | "authed" | "anonymous";
 
 export function AuthGate({ children }: { children: ReactNode }) {
+  const t = useT();
   const [status, setStatus] = useState<Status>("checking");
   const [identity, setIdentity] = useState<Identity | null>(null);
 
@@ -104,8 +106,21 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={{ identity, logout }}>
+      {/* Skip link: visually hidden until focused, first in tab order so
+          keyboard users can jump past the nav straight to the page content. */}
+      <a
+        href="#main"
+        className={cn(
+          "sr-only rounded-full bg-foreground px-4 py-2 text-sm font-medium text-[#050505] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50",
+          focusRing,
+        )}
+      >
+        {t("common.skipToContent")}
+      </a>
       <AppNav />
-      {children}
+      <main id="main" className="flex flex-1 flex-col">
+        {children}
+      </main>
     </AuthContext.Provider>
   );
 }

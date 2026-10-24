@@ -6,7 +6,8 @@
 
   "common": {
     "technicalEnglishNote": "Los mensajes técnicos se muestran en inglés.",
-    "loading": "Cargando"
+    "loading": "Cargando…",
+    "skipToContent": "Saltar al contenido principal"
   },
 
   "auth": {
@@ -55,7 +56,9 @@
     "basics": "Sitio y hora de lanzamiento",
     "advanced": "Ajuste fino",
     "review": "Revisión",
-    "results": "Resultados"
+    "results": "Resultados",
+    "label": "Pasos de la simulación",
+    "completed": "completado"
   },
 
   "rocket": {
@@ -70,7 +73,8 @@
     "continue": "Continuar",
     "errorNotOrk": "Ese no es un archivo de OpenRocket. Por favor selecciona un archivo .ork.",
     "errorGeneric": "Falló la conversión.",
-    "defaultRocketName": "tu cohete"
+    "defaultRocketName": "tu cohete",
+    "fileInputLabel": "Archivo .ork de OpenRocket"
   },
 
   "basics": {
@@ -99,7 +103,15 @@
     "loadingMap": "Cargando mapa…",
     "searchPlaceholder": "Busca un lugar (p. ej., Alicante, España)…",
     "searchError": "No se pudo buscar ese lugar. Inténtalo de nuevo en un momento.",
-    "helperText": "Haz clic en cualquier punto del mapa para marcar el punto de lanzamiento, o busca un lugar arriba."
+    "helperText": "Haz clic en cualquier punto del mapa para marcar el punto de lanzamiento, o busca un lugar arriba.",
+    "searchLabel": "Buscar sitio de lanzamiento",
+    "noResults": "Ningún lugar coincide con «{query}».",
+    "resultsCount": {
+      "one": "1 resultado",
+      "other": "{count} resultados"
+    },
+    "mapLabel": "Mapa del sitio de lanzamiento",
+    "markerTitle": "Sitio de lanzamiento en {lat}, {lon}"
   },
 
   "models": {
@@ -144,7 +156,12 @@
       "wind_factor": "Factor de viento",
       "thrust": "Empuje",
       "rail_length": "Longitud del riel"
-    }
+    },
+    "uncertaintyPresetLegend": "Preajuste de incertidumbre",
+    "stdDevFor": "Desviación estándar de {param}",
+    "kindFor": "Tipo de {param}",
+    "stationPlaceholder": "72493…",
+    "era5Placeholder": "/data/era5/2024-06.nc…"
   },
 
   "review": {
@@ -185,7 +202,8 @@
     "plotsBadge": {
       "one": "1 gráfica",
       "other": "{count} gráficas"
-    }
+    },
+    "summaryCaption": "Resumen de la ejecución"
   },
 
   "interactive": {
@@ -197,7 +215,17 @@
     "telemetryEyebrow": "Telemetría",
     "play": "Reproducir",
     "pause": "Pausar",
-    "scrubTimeline": "Avanzar en la línea de tiempo del vuelo"
+    "scrubTimeline": "Avanzar en la línea de tiempo del vuelo",
+    "trajectoryAriaLabel": "Trayectoria de vuelo 3D. Usa el deslizador de la línea de tiempo para recorrer el vuelo."
+  },
+
+  "chart": {
+    "altitude": "Altitud",
+    "speed": "Velocidad",
+    "mach": "Mach",
+    "acceleration": "Aceleración",
+    "timeAxis": "Tiempo (s)",
+    "ariaLabel": "{metric} en el tiempo, máximo {max}"
   },
 
   "scalars": {
@@ -283,7 +311,8 @@
     "statusError": "Error",
     "viewDetails": "Ver detalles",
     "reRun": "Volver a lanzar",
-    "backToWizard": "← Volver al asistente"
+    "backToWizard": "← Volver al asistente",
+    "reRunUnavailable": "No se puede repetir una ejecución fallida."
   },
 
   "glossary": {

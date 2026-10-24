@@ -17,8 +17,16 @@
  * be the only way to reach them.
  */
 
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
-import { cn, inputBase } from "@/lib/styles";
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useId,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
+import { cn, focusRing, inputBase } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 
 // ---------------------------------------------------------------------------
@@ -108,7 +116,12 @@ export function Accordion({
       className="group rounded-2xl bg-white/[0.02] ring-1 ring-inset ring-white/10 [&_summary::-webkit-details-marker]:hidden"
       open={defaultOpen}
     >
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted transition-colors duration-300 hover:text-foreground">
+      <summary
+        className={cn(
+          "flex cursor-pointer list-none items-center justify-between gap-3 rounded-2xl px-5 py-4 text-xs font-semibold uppercase tracking-[0.2em] text-muted transition-colors duration-300 hover:text-foreground",
+          focusRing,
+        )}
+      >
         <span>{title}</span>
         <span className="flex items-center gap-3 normal-case tracking-normal">
           {badge != null && <span className="text-[11px] text-muted">{badge}</span>}
@@ -154,8 +167,10 @@ export function Button({
   children,
   ...props
 }: ButtonProps) {
-  const base =
-    "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full pl-6 text-sm font-medium transition-all duration-500 ease-[var(--ease-spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
+  const base = cn(
+    "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full pl-6 text-sm font-medium transition-[background-color,box-shadow,color,transform,opacity] duration-500 ease-[var(--ease-spring)] active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40",
+    focusRing,
+  );
   const pad = withArrow ? "pr-2" : "pr-6";
   const variants = {
     primary:
@@ -188,7 +203,10 @@ export function Button({
 }
 
 // ---------------------------------------------------------------------------
-// Field — label + control slot + inline error
+// Field — label + control slot + inline error. The hint and the error get
+// stable ids and are wired to the control (`aria-describedby` /
+// `aria-invalid`) so assistive tech reads them with the field; the error is
+// an alert so it is announced when validation inserts it.
 // ---------------------------------------------------------------------------
 
 export function Field({
@@ -206,15 +224,39 @@ export function Field({
   children: ReactNode;
   term?: string;
 }) {
+  const id = useId();
+  const hintId = `${id}-hint`;
+  const errorId = `${id}-error`;
+  const describedBy = error ? errorId : hint ? hintId : undefined;
+
+  // Wire the control without asking every caller to repeat the ids. Explicit
+  // props on the child win, so a caller can still override.
+  const control = Children.map(children, (child) =>
+    isValidElement<Record<string, unknown>>(child)
+      ? cloneElement(child, {
+          "aria-invalid": child.props["aria-invalid"] ?? (error ? true : undefined),
+          "aria-describedby": child.props["aria-describedby"] ?? describedBy,
+        })
+      : child,
+  );
+
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-sm font-medium text-foreground/80">
         {label}
         {term && <InfoTip term={term} />}
       </label>
-      {children}
-      {hint && !error && <p className="text-xs text-muted">{hint}</p>}
-      {error && <p className="text-xs font-medium text-rose-400">{error}</p>}
+      {control}
+      {hint && !error && (
+        <p id={hintId} className="text-xs text-muted">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errorId} role="alert" className="text-xs font-medium text-rose-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -242,8 +284,13 @@ export function Callout({
     error: "ring-rose-400/25 bg-rose-500/[0.07] text-rose-50",
     success: "ring-emerald-400/20 bg-emerald-400/[0.06] text-emerald-50",
   } as const;
+  // Callouts carry async outcomes (validation, fetch failures, confirmations),
+  // so they are live regions: errors interrupt, the rest wait politely.
   return (
-    <div className={cn("rounded-2xl px-4 py-3 text-sm ring-1 ring-inset", tones[tone])}>
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      className={cn("break-words rounded-2xl px-4 py-3 text-sm ring-1 ring-inset", tones[tone])}
+    >
       {title && <p className="font-semibold">{title}</p>}
       {children && <div className={cn(title && "mt-1 text-[0.92em] opacity-90")}>{children}</div>}
     </div>
@@ -254,12 +301,19 @@ export function Callout({
 // Spinner
 // ---------------------------------------------------------------------------
 
-export function Spinner({ className }: { className?: string }) {
+/**
+ * `decorative` hides the spinner from assistive tech. Use it whenever visible
+ * loading text sits next to the spinner, otherwise screen readers announce
+ * the state twice ("Loading…" from the label plus the text).
+ */
+export function Spinner({ className, decorative = false }: { className?: string; decorative?: boolean }) {
   const t = useT();
+  const a11y = decorative
+    ? ({ "aria-hidden": true } as const)
+    : ({ role: "status", "aria-label": t("common.loading") } as const);
   return (
     <span
-      role="status"
-      aria-label={t("common.loading")}
+      {...a11y}
       className={cn(
         "inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent",
         className,
@@ -272,6 +326,8 @@ export function Spinner({ className }: { className?: string }) {
 // InfoTip — a tiny "i" badge with a native-title definition.
 // Definition text is resolved from the active locale catalog via useT()
 // (imported at the top of this file, alongside Spinner's own use of it).
+// It is a real button so keyboard and screen-reader users get a focusable,
+// named control (a bare span with aria-label is not reliably announced).
 // ---------------------------------------------------------------------------
 
 export function InfoTip({ term }: { term: string }) {
@@ -281,13 +337,16 @@ export function InfoTip({ term }: { term: string }) {
   // If the key is missing (t returns the key itself), render nothing.
   if (def === key) return null;
   return (
-    <span
+    <button
+      type="button"
       title={def}
-      tabIndex={0}
       aria-label={def}
-      className="inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/60 transition-colors hover:bg-white/20 hover:text-white/90"
+      className={cn(
+        "inline-flex h-4 w-4 cursor-help items-center justify-center rounded-full bg-white/10 text-[10px] font-bold text-white/60 transition-colors hover:bg-white/20 hover:text-white/90",
+        focusRing,
+      )}
     >
-      i
-    </span>
+      <span aria-hidden="true">i</span>
+    </button>
   );
 }
