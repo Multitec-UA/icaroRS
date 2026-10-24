@@ -9,21 +9,32 @@
  * setExport(rocket_id, manifest) in WizardProvider then navigates to the
  * wizard root — NO .ork re-upload. Owns its own mutation state (issue #50)
  * so a failure shows an inline error without affecting any other card.
+ *
+ * The date goes through Intl with the app locale and a fixed UTC zone: the
+ * card is server-rendered first, so the string must not depend on the
+ * browser's zone or hydration would mismatch.
  */
 
+import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, type RocketSummary } from "@/lib/api";
 import { useRocketDetailMutation } from "@/lib/queries";
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { Button, Card, Spinner } from "@/components/ui";
 import { Reveal } from "@/components/motion";
-import { useT } from "@/components/i18n/LocaleProvider";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 
 export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index?: number }) {
   const t = useT();
+  const { locale } = useLocale();
   const router = useRouter();
   const { setExport, goto } = useWizard();
   const useRocket = useRocketDetailMutation();
+
+  const dateFormat = useMemo(
+    () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }),
+    [locale],
+  );
 
   const isLoadingDetail = useRocket.isPending;
   const isUnauthorizedError = useRocket.error instanceof ApiError && useRocket.error.isUnauthorized;
@@ -40,10 +51,11 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
   }
 
   return (
-    <Reveal delay={index * 0.04}>
+    // Stagger is capped so a long list doesn't keep its last rows waiting.
+    <Reveal delay={Math.min(index, 10) * 0.04}>
       <Card innerClassName="flex flex-col gap-5 p-5 sm:p-6">
         {/* Top row: rocket name prominent */}
-        <span className="text-base font-medium text-foreground">
+        <span className="break-words text-base font-medium text-foreground">
           {rocket.name}
         </span>
 
@@ -54,7 +66,8 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
             <span className="text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
               {t("rockets.colBy")}
             </span>
-            <span className="text-sm text-foreground">
+            {/* An identifier (email / user id): never machine-translated. */}
+            <span translate="no" className="break-words text-sm text-foreground">
               {rocket.created_by}
             </span>
           </div>
@@ -65,14 +78,16 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
               {t("rockets.colDate")}
             </span>
             <span className="tabular-readout text-sm text-foreground">
-              {new Date(rocket.created_at).toLocaleDateString()}
+              {dateFormat.format(new Date(rocket.created_at))}
             </span>
           </div>
         </div>
 
         {/* Use-this-rocket error inline */}
         {hasError && (
-          <p className="text-xs text-rose-400">{t("rockets.errorUseFailed")}</p>
+          <p aria-live="polite" className="text-xs text-rose-400">
+            {t("rockets.errorUseFailed")}
+          </p>
         )}
 
         {/* Action row */}

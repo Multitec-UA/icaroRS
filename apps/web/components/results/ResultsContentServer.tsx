@@ -24,6 +24,7 @@ import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
 import { ApiError } from "@/lib/api";
 import { getResultServer } from "@/lib/server-api";
 import { plural, type Locale, type TranslateFn } from "@/lib/i18n";
+import { cn, focusRing } from "@/lib/styles";
 import { Accordion, Callout, Eyebrow } from "@/components/ui";
 import { ScalarsGrid } from "./ScalarsGrid";
 import { PlotCard } from "./PlotCard";
@@ -32,8 +33,28 @@ import { InteractiveResultsLazy } from "./InteractiveResultsLazy";
 
 // Matches components/ui.tsx's Button ghost variant (no `withArrow`) — a
 // server-rendered <Link> needs no client onClick, unlike Button itself.
-const backLinkClassName =
-  "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full px-6 text-sm font-medium transition-all duration-500 ease-[var(--ease-spring)] active:scale-[0.98] text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25";
+const backLinkClassName = cn(
+  "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full px-6 text-sm font-medium transition-[background-color,box-shadow,color,transform,opacity] duration-500 ease-[var(--ease-spring)] active:scale-[0.98] text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25",
+  focusRing,
+);
+
+/**
+ * "Run {runId}" with only the id itself marked `translate="no"`, so a
+ * browser auto-translation can localize the label but never garble the
+ * identifier. The catalog string is interpolated first and then split on
+ * the id, which keeps the wording (and the placeholder position) in the
+ * catalog's hands.
+ */
+function RunIdLine({ runId, t }: { runId: string; t: TranslateFn }) {
+  const [before, after] = t("results.runId", { runId }).split(runId);
+  return (
+    <p className="tabular-readout text-sm text-muted">
+      {before}
+      <span translate="no">{runId}</span>
+      {after}
+    </p>
+  );
+}
 
 export async function ResultsContentServer({
   runId,
@@ -83,8 +104,8 @@ export async function ResultsContentServer({
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-3">
           <Eyebrow>{t("results.eyebrow")}</Eyebrow>
-          <h1 className="text-4xl font-semibold tracking-tight">{t("results.heading")}</h1>
-          <p className="tabular-readout text-sm text-muted">{t("results.runId", { runId })}</p>
+          <h1 className="text-balance text-4xl font-semibold tracking-tight">{t("results.heading")}</h1>
+          <RunIdLine runId={runId} t={t} />
         </div>
         <ResultsActions />
       </header>
@@ -94,7 +115,9 @@ export async function ResultsContentServer({
           {/* API warnings are English verbatim per RG-6.1 */}
           <ul className="list-disc pl-5">
             {warnings.map((w, i) => (
-              <li key={i}>{w}</li>
+              <li key={i} className="break-words">
+                {w}
+              </li>
             ))}
           </ul>
           {/* Localized note per AC-6.3/6.4 */}
@@ -117,10 +140,13 @@ export async function ResultsContentServer({
         >
           <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/10">
             <table className="w-full text-sm">
+              <caption className="sr-only">{t("results.summaryCaption")}</caption>
               <tbody>
                 {details.map((spec) => (
                   <tr key={spec.key} className="border-t border-white/[0.06] first:border-0">
-                    <td className="px-4 py-3 text-muted">{t(`scalars.${spec.key}`)}</td>
+                    <th scope="row" className="px-4 py-3 text-left font-normal text-muted">
+                      {t(`scalars.${spec.key}`)}
+                    </th>
                     <td className="tabular-readout px-4 py-3 text-right font-medium text-foreground">
                       {formatScalar(scalars[spec.key], spec.unit, locale)}
                     </td>

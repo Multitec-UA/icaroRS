@@ -18,11 +18,17 @@ import { Eyebrow, Spinner, Surface } from "@/components/ui";
 import { Reveal } from "@/components/motion";
 import { useT } from "@/components/i18n/LocaleProvider";
 
+// Each loading state is one live region: the visible text is what gets
+// announced, so the spinner beside it is decorative (no double "Loading…").
 function Trajectory3DLoadingFallback() {
   const t = useT();
   return (
-    <div className="flex h-[440px] items-center justify-center text-muted">
-      <Spinner /> <span className="ml-2">{t("interactive.loading3d")}</span>
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex h-[440px] items-center justify-center text-muted"
+    >
+      <Spinner decorative /> <span className="ml-2">{t("interactive.loading3d")}</span>
     </div>
   );
 }
@@ -56,8 +62,12 @@ export function InteractiveResults({ runId }: { runId: string }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-12 text-muted">
-        <Spinner /> {t("interactive.loadingFlightData")}
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex items-center justify-center gap-2 py-12 text-muted"
+      >
+        <Spinner decorative /> {t("interactive.loadingFlightData")}
       </div>
     );
   }
@@ -69,7 +79,7 @@ export function InteractiveResults({ runId }: { runId: string }) {
 
   return (
     <section className="flex flex-col gap-6">
-      <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">
+      <h2 className="text-balance text-xs font-semibold uppercase tracking-[0.2em] text-muted">
         {t("interactive.sectionHeading")}
       </h2>
 

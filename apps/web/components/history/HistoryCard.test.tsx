@@ -35,6 +35,18 @@ vi.mock("@/lib/api", async (importOriginal) => {
   };
 });
 
+// The global motion stub never ticks `animate`, so CountUp would sit at 0
+// forever; render its settled value so the card's own formatter is observable.
+vi.mock("@/components/motion", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/motion")>();
+  return {
+    ...actual,
+    CountUp: ({ value, format }: { value: number; format: (n: number) => string }) => (
+      <span>{format(value)}</span>
+    ),
+  };
+});
+
 afterEach(() => {
   simulateMock.mockReset();
 });
@@ -92,7 +104,36 @@ describe("HistoryCard (issue #52 — client island in the server-rendered /histo
 
     fireEvent.click(await screen.findByText("Re-run"));
 
-    expect(await screen.findByText("The request failed (code 500).")).toBeInTheDocument();
+    const error = await screen.findByText("The request failed (code 500).");
+    expect(error).toHaveAttribute("aria-live", "polite");
+  });
+});
+
+describe("HistoryCard — locale-aware, hydration-safe formatting", () => {
+  it("formats the date with the app locale in UTC and the apogee with Intl grouping", async () => {
+    render(
+      <AppProviders>
+        <HistoryCard item={historyItem} />
+      </AppProviders>,
+    );
+
+    // en + UTC: the server and every client render the same string, whatever
+    // the browser's own zone is.
+    expect(await screen.findByText("Jan 1, 2026, 12:00 AM")).toBeInTheDocument();
+    expect(screen.getByText("1,000")).toBeInTheDocument();
+  });
+
+  it("explains why Re-run is unavailable on a failed entry", async () => {
+    render(
+      <AppProviders>
+        <HistoryCard item={{ ...historyItem, status: "error" }} />
+      </AppProviders>,
+    );
+
+    const button = await screen.findByRole("button", { name: /Re-run/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAttribute("title", "Re-run is unavailable for failed runs.");
+    expect(button).toHaveTextContent("Re-run is unavailable for failed runs.");
   });
 });
 

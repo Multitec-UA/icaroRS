@@ -88,8 +88,20 @@ describe("RocketCard (issue #52 — client island in the server-rendered /rocket
 
     fireEvent.click(await screen.findByText("Use this rocket"));
 
-    expect(
-      await screen.findByText("Could not use this rocket. Please try again."),
-    ).toBeInTheDocument();
+    const error = await screen.findByText("Could not use this rocket. Please try again.");
+    expect(error).toHaveAttribute("aria-live", "polite");
+  });
+});
+
+describe("RocketCard — locale-aware, hydration-safe formatting", () => {
+  it("formats the saved-on date with the app locale in UTC and never translates the author", async () => {
+    render(
+      <AppProviders>
+        <RocketCard rocket={rocketSummary} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByText("Jan 1, 2026")).toBeInTheDocument();
+    expect(screen.getByText("pilot@multitec.dev")).toHaveAttribute("translate", "no");
   });
 });

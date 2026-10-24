@@ -19,17 +19,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 describe("ResultsActions (issue #52 — client island)", () => {
-  it("'Simulate again' sends the wizard to the basics step and navigates to /", async () => {
-    const push = vi.fn();
-    vi.mocked(useRouter).mockReturnValue({
-      push,
-      replace: vi.fn(),
-      back: vi.fn(),
-      forward: vi.fn(),
-      refresh: vi.fn(),
-      prefetch: vi.fn(),
-    });
-
+  it("'Simulate again' is a real link to / that also sends the wizard to the basics step", async () => {
     let capturedStep: string | undefined;
     function StepProbe() {
       const { step } = useWizard();
@@ -44,10 +34,14 @@ describe("ResultsActions (issue #52 — client island)", () => {
       </AppProviders>,
     );
 
-    fireEvent.click(await screen.findByText("Simulate again"));
+    // A navigation is a link (Cmd/Ctrl-click, middle-click, "open in new tab"
+    // all keep working), not a button that pushes the router.
+    const link = await screen.findByRole("link", { name: "Simulate again" });
+    expect(link).toHaveAttribute("href", "/");
+
+    fireEvent.click(link);
 
     expect(capturedStep).toBe("basics");
-    expect(push).toHaveBeenCalledWith("/");
   });
 
   it("'New rocket' resets the wizard and navigates to /", async () => {

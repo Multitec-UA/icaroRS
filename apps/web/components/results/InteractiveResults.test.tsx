@@ -51,6 +51,21 @@ describe("InteractiveResults (issue #48 — server-state layer)", () => {
     await vi.waitFor(() => expect(container).toBeEmptyDOMElement());
   });
 
+  it("announces the loading state exactly once (text in a status region, spinner decorative)", async () => {
+    getSeriesMock.mockReturnValueOnce(new Promise(() => {}));
+
+    const { container } = render(
+      <Providers>
+        <InteractiveResults runId="run-pending" />
+      </Providers>,
+    );
+
+    const statuses = await screen.findAllByRole("status");
+    expect(statuses).toHaveLength(1);
+    expect(statuses[0]).toHaveTextContent("Loading interactive flight data…");
+    expect(container.querySelector(".animate-spin")).toHaveAttribute("aria-hidden", "true");
+  });
+
   it("renders the telemetry section once the series resolves", async () => {
     getSeriesMock.mockResolvedValueOnce({ t: [0, 1, 2], altitude: [0, 10, 20] });
 
