@@ -22,6 +22,7 @@
  *   no overflow, no hamburger complexity, stays premium on touch.
  */
 
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWizardNav } from "@/components/wizard/WizardProvider";
@@ -41,11 +42,13 @@ export function AppNav() {
   // Nav-only (issue #50) — see Stepper.tsx for why this matters.
   const { reset } = useWizardNav();
 
-  function handleNav() {
+  function handleNav(event: MouseEvent<HTMLAnchorElement>) {
+    // A modified click (new tab/window) leaves this tab on the results screen,
+    // so the draft must survive; onClick still fires for those, hence the guard.
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     // Leaving the results screen ends the current run — clear the wizard form so
     // returning to the wizard lands on the initial .ork upload step rather than
-    // the spent run's state. The Link itself does the navigation, so modified
-    // clicks (new tab) still work and simply skip the reset.
+    // the spent run's state. The Link itself does the navigation.
     if (pathname.startsWith("/results")) reset();
   }
 

@@ -91,7 +91,7 @@ export function RocketStep() {
         onDrop={onDrop}
         className={cn(
           "flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-6 py-14 text-center transition-[border-color,background-color,box-shadow] duration-500 ease-[var(--ease-spring)]",
-          "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-cyan-400/60 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-[#050505]",
+          "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-cyan-400/60 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background",
           dragging
             ? "border-cyan-400/60 bg-cyan-400/[0.06] shadow-[0_0_40px_-12px_rgba(34,211,238,0.5)]"
             : "border-white/15 bg-white/[0.02] hover:border-white/25 hover:bg-white/[0.04]",

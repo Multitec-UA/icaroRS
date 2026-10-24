@@ -23,7 +23,7 @@ export { inputBase };
  * (buttons, links, summaries). Pair it with `outline-none`.
  */
 export const focusRing =
-  "outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-[#050505]";
+  "outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 /**
  * Shared class for native <select> elements so they match TextInput. Options

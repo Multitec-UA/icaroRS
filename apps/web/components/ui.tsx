@@ -282,10 +282,13 @@ export function Field({
   const errorId = `${id}-error`;
   const describedBy = error ? errorId : hint ? hintId : undefined;
 
-  // Wire the control without asking every caller to repeat the ids. Explicit
-  // props on the child win, so a caller can still override.
-  const control = Children.map(children, (child) =>
-    isValidElement<Record<string, unknown>>(child)
+  // Wire the first element child (the control) without asking every caller to
+  // repeat the ids; later siblings (adornments, buttons) are left alone.
+  // Explicit props on the child win, so a caller can still override.
+  const items = Children.toArray(children);
+  const controlIndex = items.findIndex((child) => isValidElement(child));
+  const control = items.map((child, index) =>
+    index === controlIndex && isValidElement<Record<string, unknown>>(child)
       ? cloneElement(child, {
           "aria-invalid": child.props["aria-invalid"] ?? (error ? true : undefined),
           "aria-describedby": child.props["aria-describedby"] ?? describedBy,

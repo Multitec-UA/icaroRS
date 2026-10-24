@@ -1,7 +1,9 @@
+import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { usePathname } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
+import { useWizard } from "@/components/wizard/WizardProvider";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -38,5 +40,44 @@ describe("AppNav", () => {
     const active = await screen.findByRole("link", { name: "History" });
     expect(active).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("link", { name: "Simulate" })).not.toHaveAttribute("aria-current");
+  });
+
+  describe("leaving /results", () => {
+    function ExportProbe() {
+      const { state, setExport } = useWizard();
+      useEffect(() => {
+        setExport("export-1", {});
+      }, [setExport]);
+      return <span data-testid="export-id">{state.exportId ?? ""}</span>;
+    }
+
+    async function renderOnResults() {
+      vi.mocked(usePathname).mockReturnValue("/results/run-1");
+      render(
+        <AppProviders>
+          <ExportProbe />
+        </AppProviders>,
+      );
+      await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));
+      return screen.getByRole("link", { name: "Simulate" });
+    }
+
+    it("resets the wizard draft on a plain click", async () => {
+      const link = await renderOnResults();
+
+      fireEvent.click(link);
+
+      expect(screen.getByTestId("export-id")).toHaveTextContent("");
+    });
+
+    it("keeps the wizard draft on a modified click (new tab stays a navigation only)", async () => {
+      const link = await renderOnResults();
+
+      fireEvent.click(link, { metaKey: true });
+      fireEvent.click(link, { ctrlKey: true });
+      fireEvent.click(link, { button: 1 });
+
+      expect(screen.getByTestId("export-id")).toHaveTextContent("export-1");
+    });
   });
 });
