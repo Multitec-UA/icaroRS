@@ -30,6 +30,9 @@ vi.mock("@/lib/api", async (importOriginal) => {
     suggestAtmosphere: (...args: Parameters<typeof actual.suggestAtmosphere>) =>
       suggestAtmosphereMock(...args),
     getElevation: (...args: Parameters<typeof actual.getElevation>) => getElevationMock(...args),
+    // An empty org: the results column shows only the drop zone (S8/A1), so
+    // these shell tests stay about the shell's own wiring.
+    getRockets: vi.fn().mockResolvedValue([]),
   };
 });
 
@@ -280,6 +283,34 @@ describe("WorkbenchShell — running in place (S7)", () => {
     fireEvent.click(run);
 
     expect(await screen.findByText("Java is not installed on the server.")).toBeInTheDocument();
+  });
+});
+
+describe("WorkbenchShell — behaviour kept from T6 while T7 touched the shared code", () => {
+  it("keeps the Run button reading 'Run simulation' while the results are up to date", async () => {
+    arm();
+    simulateMock.mockResolvedValueOnce(RESULT);
+    const run = await seedReady();
+
+    fireEvent.click(run);
+
+    expect(await screen.findByText("Up to date · run run-7f3a")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Run simulation/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Run this file/ })).toBeNull();
+  });
+
+  it("keeps the results placeholder, and no status pill, once an export is active before the first run", async () => {
+    arm();
+    await renderShell();
+
+    fireEvent.click(screen.getByText("seed-export"));
+
+    expect(
+      await screen.findByText("Results, the 3D replay and plots appear here after the first run."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Drop your OpenRocket file here")).toBeNull();
+    expect(screen.queryByText(/Up to date/)).toBeNull();
+    expect(screen.queryByText(/Results are from/)).toBeNull();
   });
 });
 
