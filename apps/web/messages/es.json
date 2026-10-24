@@ -328,5 +328,11 @@
     "forecast": "Pronóstico meteorológico real (GFS) para la fecha y el lugar de lanzamiento. Disponible para fechas dentro de aproximadamente 16 días desde ahora.",
     "standard_atmosphere": "Una atmósfera promedio teórica. Se usa cuando no hay pronóstico real disponible — útil para una estimación rápida y reproducible.",
     "uncertainty": "Cuánto puede variar en la realidad cada dato de entrada (masa, viento, empuje…). Alimenta el análisis de dispersión y la predicción de zona de impacto."
+  },
+
+  "theme": {
+    "label": "Tema",
+    "switchToDark": "Cambiar al modo oscuro",
+    "switchToLight": "Cambiar al modo claro"
   }
 }

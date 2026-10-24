@@ -1,29 +1,168 @@
 @import "tailwindcss";
 
 /*
- * icaro — "Ethereal Glass" dark theme (issue #10).
- * Deepest OLED black canvas, light-on-dark hierarchy, cyan/violet glow accents.
- * Dark is the ONLY theme: the whole UI is designed dark-first, so no `dark:`
- * variants are needed downstream — base styles already are the dark styles.
+ * icaro — two soft palettes, one token set.
+ *
+ * Light is pastel (lavender-tinted greys, periwinkle accent); dark is soft
+ * (deep indigo-grey, never OLED black). Neither theme uses pure #000 or #fff.
+ * Components style against the tokens below (`bg-surface`, `text-ink`,
+ * `border-divider`, …) and never against a literal colour, so both themes
+ * stay in sync by construction.
+ *
+ * Theme selection: `data-theme="light|dark"` on <html> wins (set by the root
+ * layout from the `icaro-theme` cookie and by ThemeProvider on toggle);
+ * without it the OS preference decides via `prefers-color-scheme`.
  */
 
 :root {
-  --background: #050505; /* deepest OLED black */
-  --foreground: #ededf2; /* near-white, never pure #fff */
-  --muted: #8b8f9c; /* secondary text on dark */
+  /* --- light (default) --- */
+  --bg: #f3f1f8;
+  --surface: #fbfafd;
+  --surface-2: #f0edf6;
+  --border: #e2ddec;
+  --divider: #ebe7f2;
+  --ink: #2b2840;
+  --ink-2: #4a4662;
+  --muted: #6e6987;
+  --axis: #c9c3da;
+  --accent: #6b7fe0;
+  --accent-ink: #4757b8;
+  --accent-soft: #e3e7fb;
+  --primary: #5b6cd6;
+  --on-primary: #fbfafd;
+  --chip: #ece8f4;
+  --ok: #5fb38d;
+  --ok-soft: #dff3ea;
+  --ok-ink: #2d6a50;
+  --warn: #e3a857;
+  --warn-soft: #fcefd9;
+  --warn-ink: #7a5420;
+  --bad: #e07b86;
+  --bad-soft: #fbe3e6;
+  --bad-ink: #9e3a47;
+  --peach: #ee9a72;
+  --scrim: rgba(43, 40, 64, 0.28);
+  --shadow: 0 1px 2px rgba(43, 40, 64, 0.04), 0 8px 24px -12px rgba(43, 40, 64, 0.14);
+  --shadow-lg: 0 12px 40px -16px rgba(43, 40, 64, 0.28);
+  --orb-a: rgba(107, 127, 224, 0.18);
+  --orb-b: rgba(238, 154, 114, 0.14);
 
-  --accent-cyan: #22d3ee;
-  --accent-violet: #a78bfa;
+  /* Legacy aliases — older components still read these; they now resolve to
+     the token palette so nothing is left on the retired OLED-black theme. */
+  --background: var(--bg);
+  --foreground: var(--ink);
+  --accent-cyan: var(--accent);
+  --accent-violet: var(--accent-ink);
 
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1e1d2a;
+    --surface: #262535;
+    --surface-2: #2e2d3f;
+    --border: #3a384d;
+    --divider: #33324a;
+    --ink: #e6e3f2;
+    --ink-2: #c4c0d8;
+    --muted: #9a96b2;
+    --axis: #4b4961;
+    --accent: #8e9cf2;
+    --accent-ink: #aeb8f7;
+    --accent-soft: #34385c;
+    --primary: #8e9cf2;
+    --on-primary: #1e1d2a;
+    --chip: #34324a;
+    --ok: #6fc79f;
+    --ok-soft: #27402f;
+    --ok-ink: #a9e3c6;
+    --warn: #e8b86a;
+    --warn-soft: #4a3a22;
+    --warn-ink: #f2d39a;
+    --bad: #e8909a;
+    --bad-soft: #4a2a30;
+    --bad-ink: #f3b6bd;
+    --peach: #f2ae8b;
+    --scrim: rgba(14, 13, 22, 0.55);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
+    --orb-a: rgba(142, 156, 242, 0.16);
+    --orb-b: rgba(242, 174, 139, 0.1);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1e1d2a;
+  --surface: #262535;
+  --surface-2: #2e2d3f;
+  --border: #3a384d;
+  --divider: #33324a;
+  --ink: #e6e3f2;
+  --ink-2: #c4c0d8;
+  --muted: #9a96b2;
+  --axis: #4b4961;
+  --accent: #8e9cf2;
+  --accent-ink: #aeb8f7;
+  --accent-soft: #34385c;
+  --primary: #8e9cf2;
+  --on-primary: #1e1d2a;
+  --chip: #34324a;
+  --ok: #6fc79f;
+  --ok-soft: #27402f;
+  --ok-ink: #a9e3c6;
+  --warn: #e8b86a;
+  --warn-soft: #4a3a22;
+  --warn-ink: #f2d39a;
+  --bad: #e8909a;
+  --bad-soft: #4a2a30;
+  --bad-ink: #f3b6bd;
+  --peach: #f2ae8b;
+  --scrim: rgba(14, 13, 22, 0.55);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
+  --orb-a: rgba(142, 156, 242, 0.16);
+  --orb-b: rgba(242, 174, 139, 0.1);
   color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
-  --color-accent-cyan: var(--accent-cyan);
-  --color-accent-violet: var(--accent-violet);
+  --color-axis: var(--axis);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-chip: var(--chip);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-ink: var(--bad-ink);
+  --color-peach: var(--peach);
+
+  /* Legacy names kept for components not yet moved to the token set. */
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-accent-cyan: var(--accent);
+  --color-accent-violet: var(--accent-ink);
+
+  --shadow-soft: var(--shadow);
+  --shadow-soft-lg: var(--shadow-lg);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
@@ -33,10 +172,10 @@
 }
 
 html {
-  background: var(--background);
+  background: var(--bg);
   /* Remove the 300ms double-tap-to-zoom delay without disabling pinch zoom. */
   touch-action: manipulation;
-  /* The glass surfaces draw their own press feedback; no grey tap flash. */
+  /* The surfaces draw their own press feedback; no grey tap flash. */
   -webkit-tap-highlight-color: transparent;
   /* The sticky AppNav is ~4.5rem tall: keep focused/anchored targets below it. */
   scroll-padding-top: 5rem;
@@ -51,10 +190,12 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Numbers line up in tables and KPI readouts everywhere. */
+  font-variant-numeric: tabular-nums;
   /* No accidental horizontal scroll from the ambient blobs. */
   overflow-x: hidden;
   /* Full-bleed layout: keep content clear of notches and home indicators. */

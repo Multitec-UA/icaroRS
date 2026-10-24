@@ -328,5 +328,11 @@
     "forecast": "Real weather forecast (GFS) for your launch date and place. Available for dates within about 16 days from now.",
     "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate.",
     "uncertainty": "How much each input (mass, wind, thrust…) might vary in reality. It feeds the dispersion / landing-spread analysis."
+  },
+
+  "theme": {
+    "label": "Theme",
+    "switchToDark": "Switch to dark mode",
+    "switchToLight": "Switch to light mode"
   }
 }

@@ -20,6 +20,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthGate";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { sendPasswordReset } from "@/lib/firebase";
 import { cn, focusRing } from "@/lib/styles";
@@ -125,6 +126,11 @@ export function AccountMenu() {
           <div className="flex items-center justify-between px-3 py-2 text-sm">
             <span className="text-muted">{t("nav.language")}</span>
             <LanguageSwitch />
+          </div>
+
+          <div className="flex items-center justify-between px-3 py-2 text-sm">
+            <span className="text-muted">{t("theme.label")}</span>
+            <ThemeToggle />
           </div>
 
           <div className="my-1 h-px bg-white/10" />

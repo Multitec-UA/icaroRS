@@ -14,7 +14,7 @@ export function cn(...parts: (string | false | null | undefined)[]): string {
  * replaces it; transitions list their properties explicitly (no `transition-all`).
  */
 const inputBase =
-  "h-12 w-full rounded-xl bg-white/[0.03] px-4 text-sm text-foreground outline-none ring-1 ring-inset ring-white/10 transition-[background-color,box-shadow,color] duration-300 ease-[var(--ease-spring)] placeholder:text-white/25 focus-visible:bg-white/[0.05] focus-visible:ring-2 focus-visible:ring-cyan-400/40";
+  "h-12 w-full rounded-xl bg-surface px-4 text-sm text-ink outline-none ring-1 ring-inset ring-border transition-[background-color,box-shadow,color] duration-300 ease-[var(--ease-spring)] placeholder:text-muted/70 focus-visible:bg-surface-2 focus-visible:ring-2 focus-visible:ring-accent/50";
 
 export { inputBase };
 
@@ -23,7 +23,7 @@ export { inputBase };
  * (buttons, links, summaries). Pair it with `outline-none`.
  */
 export const focusRing =
-  "outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/60 focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+  "outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg";
 
 /**
  * Shared class for native <select> elements so they match TextInput. Options
@@ -32,5 +32,5 @@ export const focusRing =
  */
 export const selectClass = cn(
   inputBase,
-  "cursor-pointer appearance-none [&>option]:bg-[#0b0b0e] [&>option]:text-foreground",
+  "cursor-pointer appearance-none [&>option]:bg-surface [&>option]:text-ink",
 );

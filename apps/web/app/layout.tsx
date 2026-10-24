@@ -7,8 +7,10 @@ import { WizardProvider } from "@/components/wizard/WizardProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { resolveLocale, type Locale } from "@/lib/i18n";
 import { getServerT } from "@/lib/server-i18n";
+import { THEME_COOKIE, resolveThemePreference, themeColorFor, type ThemePreference } from "@/lib/theme";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -53,25 +55,38 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** The theme preference lives in a cookie the client writes (ThemeProvider). */
+async function requestTheme(): Promise<ThemePreference> {
+  const cookieStore = await cookies();
+  return resolveThemePreference(cookieStore.get(THEME_COOKIE)?.value);
+}
+
 /**
- * Dark is the only theme (see globals.css): the browser chrome colour and the
- * UA colour scheme (scrollbars, native inputs) must match the page background.
+ * Browser chrome colour and UA colour scheme (scrollbars, native inputs) must
+ * match the page background, which depends on the theme preference — so this
+ * is per request. "system" emits both media-scoped theme-color metas.
  */
-export const viewport: Viewport = {
-  themeColor: "#050505",
-  colorScheme: "dark",
-};
+export async function generateViewport(): Promise<Viewport> {
+  const preference = await requestTheme();
+  return {
+    themeColor: themeColorFor(preference),
+    colorScheme: preference === "system" ? "light dark" : preference,
+  };
+}
 
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await requestLocale();
+  const [locale, theme] = await Promise.all([requestLocale(), requestTheme()]);
 
   return (
     <html
       lang={locale}
+      // An explicit preference is rendered here so the first paint is already
+      // in the right theme; "system" renders no attribute and CSS follows the OS.
+      data-theme={theme === "system" ? undefined : theme}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-[100dvh] flex flex-col">
@@ -84,13 +99,15 @@ export default async function RootLayout({
               initialLocale is fully resolved server-side (cookie → Accept-Language
               → "en"), so the first render is already in the right language. */}
           <LocaleProvider initialLocale={locale}>
-            {/* Auth + wizard state live at the root so they persist across the
-                wizard (/) and the results page (/results/[runId]). WizardProvider
-                wraps AuthGate so the shared nav (AppNav) can reset the wizard form
-                when leaving the results screen. */}
-            <WizardProvider>
-              <AuthGate>{children}</AuthGate>
-            </WizardProvider>
+            <ThemeProvider initialPreference={theme}>
+              {/* Auth + wizard state live at the root so they persist across the
+                  wizard (/) and the results page (/results/[runId]). WizardProvider
+                  wraps AuthGate so the shared nav (AppNav) can reset the wizard form
+                  when leaving the results screen. */}
+              <WizardProvider>
+                <AuthGate>{children}</AuthGate>
+              </WizardProvider>
+            </ThemeProvider>
           </LocaleProvider>
         </QueryProvider>
       </body>

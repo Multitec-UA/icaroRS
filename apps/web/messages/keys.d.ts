@@ -255,4 +255,7 @@ export type MessageKey =
   | "glossary.stability_margin"
   | "glossary.forecast"
   | "glossary.standard_atmosphere"
-  | "glossary.uncertainty";
+  | "glossary.uncertainty"
+  | "theme.label"
+  | "theme.switchToDark"
+  | "theme.switchToLight";
