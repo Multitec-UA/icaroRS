@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
-from icaro_api.services.db import InMemoryDb, RocketRecord, SimRecord
+from icaro_api.services.db import ExportRecord, InMemoryDb, RocketRecord, SimRecord
 
 _TEST_SESSION_COOKIE = "test-session-token"
 
@@ -54,7 +54,6 @@ def _rocket(rocket_id: str, name: str, org_id: str = _ORG) -> RocketRecord:
         created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
         created_by="test",
         org_id=org_id,
-        export_prefix=f"exports/{rocket_id}/",
     )
 
 
@@ -68,10 +67,12 @@ def _sim(
     warnings: list[str] | None = None,
     plot_names: list[str] | None = None,
     has_series: bool = False,
+    export_id: str = "",
 ) -> SimRecord:
     return SimRecord(
         simulation_id=sim_id,
         rocket_id=rocket_id,
+        export_id=export_id,
         scenario={},
         created_at=created_at,
         created_by="test",
@@ -185,7 +186,9 @@ class TestHistoryList:
         assert set(item.keys()) == {
             "simulation_id",
             "rocket_id",
+            "export_id",
             "name",
+            "ork_filename",
             "created_at",
             "created_by",
             "status",
@@ -433,3 +436,70 @@ class TestHistoryScenarioField:
             raise AssertionError(
                 f"Returned scenario failed Pydantic validation → would cause 422 on replay: {exc}"
             ) from exc
+
+
+# ---------------------------------------------------------------------------
+# Rocket/Export split (S4): export_id + ork_filename per row, ?rocket_id filter
+# ---------------------------------------------------------------------------
+
+
+def _export(export_id: str, rocket_id: str, ork_filename: str | None = "file.ork") -> ExportRecord:
+    return ExportRecord(
+        export_id=export_id,
+        rocket_id=rocket_id,
+        name="TestRocket",
+        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        created_by="test",
+        org_id=_ORG,
+        export_prefix=f"exports/{export_id}/",
+        ork_filename=ork_filename,
+    )
+
+
+class TestHistoryExports:
+    def test_row_includes_export_id_and_ork_filename(self):
+        """Each run names the file it simulated, not only the rocket."""
+        db = InMemoryDb()
+        db.save_rocket(_rocket("rk-1", "Icarus"), org_id=_ORG)
+        db.save_export(_export("e-1", "rk-1", ork_filename="icarus_v2.ork"), org_id=_ORG)
+        db.save_simulation(_sim("s-1", "rk-1", _T1, export_id="e-1"), org_id=_ORG)
+
+        item = _make_client(db).get("/api/history", headers=_auth()).json()[0]
+
+        assert item["rocket_id"] == "rk-1"
+        assert item["name"] == "Icarus"
+        assert item["export_id"] == "e-1"
+        assert item["ork_filename"] == "icarus_v2.ork"
+
+    def test_legacy_row_without_export_degrades_to_empty(self):
+        """Pre-split runs carry export_id='' and no filename — never a 500."""
+        db = InMemoryDb()
+        db.save_rocket(_rocket("rk-legacy", "Old"), org_id=_ORG)
+        db.save_simulation(_sim("s-legacy", "rk-legacy", _T1), org_id=_ORG)
+
+        item = _make_client(db).get("/api/history", headers=_auth()).json()[0]
+
+        assert item["export_id"] == ""
+        assert item["ork_filename"] is None
+
+    def test_rocket_id_query_filters_runs(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("rk-a", "A"), org_id=_ORG)
+        db.save_rocket(_rocket("rk-b", "B"), org_id=_ORG)
+        db.save_simulation(_sim("s-a1", "rk-a", _T1), org_id=_ORG)
+        db.save_simulation(_sim("s-b1", "rk-b", _T2), org_id=_ORG)
+        db.save_simulation(_sim("s-a2", "rk-a", _T3), org_id=_ORG)
+
+        resp = _make_client(db).get("/api/history?rocket_id=rk-a", headers=_auth())
+
+        assert resp.status_code == 200
+        assert [i["simulation_id"] for i in resp.json()] == ["s-a2", "s-a1"]
+
+    def test_without_rocket_id_returns_all_runs(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("rk-a", "A"), org_id=_ORG)
+        db.save_rocket(_rocket("rk-b", "B"), org_id=_ORG)
+        db.save_simulation(_sim("s-a1", "rk-a", _T1), org_id=_ORG)
+        db.save_simulation(_sim("s-b1", "rk-b", _T2), org_id=_ORG)
+
+        assert len(_make_client(db).get("/api/history", headers=_auth()).json()) == 2

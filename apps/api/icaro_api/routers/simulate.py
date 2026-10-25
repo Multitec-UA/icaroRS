@@ -6,7 +6,7 @@ SimRecord to Db — all after _SIMULATE_LOCK is released.
 
 Workflow:
 1. Validate the scenario dict → 422 on failure.
-2. Resolve export_id to its RocketRecord (org-owned, 404 otherwise) and
+2. Resolve export_id to its ExportRecord (org-owned, 404 otherwise) and
    download its export_prefix via Storage.download_dir into a temp dir
    (pre-lock).
 3. Acquire _SIMULATE_LOCK.
@@ -54,7 +54,7 @@ class SimulateRequest(BaseModel):
     """Request body for POST /api/simulate."""
 
     export_id: str
-    """Logical rocket id returned by POST /api/convert (opaque string, not a path)."""
+    """Logical export id returned by POST /api/convert (opaque string, not a path)."""
 
     scenario: dict[str, Any]
     """Scenario dict (validated by Scenario.model_validate before use)."""
@@ -104,19 +104,19 @@ def run_simulate(
     # --- 2. Resolve export artifacts via Storage seam (pre-lock) ---
     # REQ-01.3: NO Path(export_id).exists() — the storage seam is authoritative.
     # Issue #45: export_prefix is NEVER reconstructed — it is read from the
-    # RocketRecord, which is the only source of truth for where an export
+    # ExportRecord, which is the only source of truth for where an export
     # actually lives (old flat layout or new org-scoped layout). This also
     # gives export resolution the same cross-org 404 as results.py (#44):
     # an export_id that exists but belongs to another org is indistinguishable
     # from one that doesn't exist at all.
     run_id = make_run_id()
-    rocket = db.get_rocket(body.export_id, org_id=identity.org_id)
-    if rocket is None:
+    export = db.get_export(body.export_id, org_id=identity.org_id)
+    if export is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Rocket '{body.export_id}' not found.",
+            detail=f"Export '{body.export_id}' not found.",
         )
-    export_prefix = rocket.export_prefix
+    export_prefix = export.export_prefix
 
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp_export = Path(tmp_str) / "export"
@@ -140,7 +140,8 @@ def run_simulate(
             # REQ-03.2 failure path: record an error SimRecord even when simulation fails.
             error_rec = SimRecord(
                 simulation_id=run_id,
-                rocket_id=body.export_id,
+                rocket_id=export.rocket_id,
+                export_id=body.export_id,
                 scenario=body.scenario,
                 created_at=datetime.now(timezone.utc),
                 created_by=identity.user_id,
@@ -191,7 +192,8 @@ def run_simulate(
 
     sim_rec = SimRecord(
         simulation_id=run_id,
-        rocket_id=body.export_id,
+        rocket_id=export.rocket_id,
+        export_id=body.export_id,
         scenario=body.scenario,
         created_at=datetime.now(timezone.utc),
         created_by=identity.user_id,
