@@ -166,18 +166,31 @@ export type SimulateResult = components["schemas"]["SimulateResult"];
 
 /**
  * One item from GET /api/rockets, from `response_model=list[RocketSummary]`.
- * This is the drift issue #70 fixes: the old hand-written shape was missing
- * `export_prefix`, `gcs_ref`, `ork_filename`, and `has_source_ork`, which the
- * router has returned for a while — the generated type now correctly
- * includes them.
+ * A rocket is the group a team uploads `.ork` files into: metadata only
+ * (`rocket_id`, `name`, `created_at`, `created_by`). The files themselves are
+ * exports (see `ExportSummary`).
  */
 export type RocketSummary = components["schemas"]["RocketSummary"];
 
 /**
- * Full rocket detail from GET /api/rockets/{rocket_id}, from
- * `response_model=RocketDetail`.
+ * Rocket detail from GET /api/rockets/{rocket_id}, from
+ * `response_model=RocketDetail`: the summary plus its `exports`, newest first.
  */
 export type RocketDetail = components["schemas"]["RocketDetail"];
+
+/**
+ * One converted `.ork` (an export) as listed inside a rocket detail, from
+ * `ExportSummary`. Carries the storage fields (`export_prefix`, `gcs_ref`,
+ * `ork_filename`, `has_source_ork`) that used to live on the rocket.
+ */
+export type ExportSummary = components["schemas"]["ExportSummary"];
+
+/**
+ * Export detail from GET /api/exports/{export_id}, from
+ * `response_model=ExportDetail`: the summary plus the manifest served from
+ * object storage.
+ */
+export type ExportDetail = components["schemas"]["ExportDetail"];
 
 /**
  * One item from GET /api/history, from `response_model=list[SimulationSummary]`.
@@ -444,9 +457,15 @@ export function getElevation(lat: number, lon: number): Promise<ElevationRespons
   return request<ElevationResponse>(`/api/elevation?${q}`);
 }
 
-export function convert(file: File): Promise<ConvertResponse> {
+/**
+ * POST /api/convert. Every file becomes its own rocket unless `rocketId`
+ * names one of the org's rockets to attach it to — the user's explicit
+ * choice; nothing is inferred from the file name.
+ */
+export function convert(file: File, rocketId?: string | null): Promise<ConvertResponse> {
   const form = new FormData();
   form.append("file", file);
+  if (rocketId) form.append("rocket_id", rocketId);
   return request<ConvertResponse>("/api/convert", { method: "POST", body: form });
 }
 
@@ -496,9 +515,14 @@ export function getRockets(
   return request<RocketSummary[]>(`/api/rockets?${q}`);
 }
 
-/** GET /api/rockets/{rocketId} — full rocket detail including manifest. */
+/** GET /api/rockets/{rocketId} — the rocket plus its exports, newest first. */
 export function getRocket(rocketId: string): Promise<RocketDetail> {
   return request<RocketDetail>(`/api/rockets/${encodeURIComponent(rocketId)}`);
+}
+
+/** GET /api/exports/{exportId} — one converted .ork including its manifest. */
+export function getExport(exportId: string): Promise<ExportDetail> {
+  return request<ExportDetail>(`/api/exports/${encodeURIComponent(exportId)}`);
 }
 
 /** GET /api/history?limit=&before= — reverse-chronological simulation history. */

@@ -248,6 +248,7 @@ export type MessageKey =
   | "history.reRun"
   | "history.backToWizard"
   | "history.reRunUnavailable"
+  | "history.reRunNoExport"
   | "glossary.apogee"
   | "glossary.mach"
   | "glossary.rail_departure"

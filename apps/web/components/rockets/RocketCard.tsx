@@ -5,10 +5,12 @@
  * /rockets list (issue #52). Extracted out of RocketsList.tsx so a Server
  * Component can render the (static) list shell and drop this in per row.
  *
- * "Use this rocket" triggers re-launch flow B: calls
- * setExport(rocket_id, manifest) in WizardProvider then navigates to the
- * wizard root — NO .ork re-upload. Owns its own mutation state (issue #50)
- * so a failure shows an inline error without affecting any other card.
+ * "Use this rocket" triggers re-launch flow B: loads the rocket's newest
+ * export (a rocket groups the .ork files uploaded for it), calls
+ * setExport(export_id, manifest, rocket_id) in WizardProvider and navigates
+ * to the wizard root — NO .ork re-upload. Owns its own mutation state
+ * (issue #50) so a failure shows an inline error without affecting any
+ * other card.
  *
  * The date goes through Intl with the app locale and a fixed UTC zone: the
  * card is server-rendered first, so the string must not depend on the
@@ -18,7 +20,7 @@
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, type RocketSummary } from "@/lib/api";
-import { useRocketDetailMutation } from "@/lib/queries";
+import { useRocketLatestExportMutation } from "@/lib/queries";
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { Button, Card, Spinner } from "@/components/ui";
 import { Reveal } from "@/components/motion";
@@ -29,7 +31,7 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
   const { locale } = useLocale();
   const router = useRouter();
   const { setExport, goto } = useWizard();
-  const useRocket = useRocketDetailMutation();
+  const useRocket = useRocketLatestExportMutation();
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }),
@@ -42,8 +44,8 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
 
   function handleUseRocket() {
     useRocket.mutate(rocket.rocket_id, {
-      onSuccess: (detail) => {
-        setExport(detail.rocket_id, detail.manifest);
+      onSuccess: ({ rocket: detail, export: exp }) => {
+        setExport(exp.export_id, exp.manifest, detail.rocket_id);
         goto("basics");
         router.push("/");
       },

@@ -59,8 +59,10 @@ const DEFAULT_ATMOSPHERE: Atmosphere = {
 interface WizardState {
   step: WizardStep;
 
-  // Step 1 — rocket (from /api/convert).
+  // Step 1 — the export (converted .ork) from /api/convert, and the rocket it
+  // belongs to (null for responses that predate the Rocket/Export split).
   exportId: string | null;
+  rocketId: string | null;
   manifest: Record<string, unknown> | null;
 
   // The scenario draft.
@@ -78,7 +80,12 @@ interface WizardState {
 }
 
 type WizardAction =
-  | { type: "SET_EXPORT"; exportId: string; manifest: Record<string, unknown> }
+  | {
+      type: "SET_EXPORT";
+      exportId: string;
+      manifest: Record<string, unknown>;
+      rocketId: string | null;
+    }
   | { type: "SET_NAME"; name: string }
   | { type: "SET_SITE"; site: Site | null }
   | { type: "SET_LAUNCH_DATETIME"; value: string | null }
@@ -92,6 +99,7 @@ type WizardAction =
 const INITIAL_STATE: WizardState = {
   step: "rocket",
   exportId: null,
+  rocketId: null,
   manifest: null,
   name: "my_scenario",
   site: null,
@@ -125,7 +133,12 @@ function isDraftDirty(state: WizardState): boolean {
 function reducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case "SET_EXPORT":
-      return { ...state, exportId: action.exportId, manifest: action.manifest };
+      return {
+        ...state,
+        exportId: action.exportId,
+        rocketId: action.rocketId,
+        manifest: action.manifest,
+      };
     case "SET_NAME":
       return { ...state, name: action.name };
     case "SET_SITE":
@@ -187,7 +200,12 @@ interface WizardDraftContextValue {
   /** True when the current step's local guard is satisfied. */
   canAdvance: boolean;
   needsDate: boolean;
-  setExport: (exportId: string, manifest: Record<string, unknown>) => void;
+  /** Record the converted export (and, when known, the rocket it belongs to). */
+  setExport: (
+    exportId: string,
+    manifest: Record<string, unknown>,
+    rocketId?: string | null,
+  ) => void;
   setName: (name: string) => void;
   setSite: (site: Site | null) => void;
   setLaunchDatetime: (value: string | null) => void;
@@ -231,8 +249,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 
   const setExport = useCallback(
-    (exportId: string, manifest: Record<string, unknown>) =>
-      dispatch({ type: "SET_EXPORT", exportId, manifest }),
+    (exportId: string, manifest: Record<string, unknown>, rocketId?: string | null) =>
+      dispatch({ type: "SET_EXPORT", exportId, manifest, rocketId: rocketId ?? null }),
     [],
   );
   const setName = useCallback(

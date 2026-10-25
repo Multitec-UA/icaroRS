@@ -80,6 +80,18 @@
             "description": "OpenRocket .ork file",
             "title": "File",
             "type": "string"
+          },
+          "rocket_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Attach the file to this existing rocket. Omit to create a new rocket named after the file's manifest.",
+            "title": "Rocket Id"
           }
         },
         "required": [
@@ -99,10 +111,15 @@
             "additionalProperties": true,
             "title": "Manifest",
             "type": "object"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
           }
         },
         "required": [
           "export_id",
+          "rocket_id",
           "manifest"
         ],
         "title": "ConvertResult",
@@ -149,6 +166,134 @@
           "source"
         ],
         "title": "ElevationLookupResult",
+        "type": "object"
+      },
+      "ExportDetail": {
+        "description": "Response body for GET /api/exports/{export_id} \u2014 summary plus manifest.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "export_prefix": {
+            "title": "Export Prefix",
+            "type": "string"
+          },
+          "gcs_ref": {
+            "title": "Gcs Ref",
+            "type": "string"
+          },
+          "has_source_ork": {
+            "title": "Has Source Ork",
+            "type": "boolean"
+          },
+          "manifest": {
+            "additionalProperties": true,
+            "title": "Manifest",
+            "type": "object"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ork_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Filename"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "rocket_id",
+          "name",
+          "created_at",
+          "created_by",
+          "export_prefix",
+          "gcs_ref",
+          "ork_filename",
+          "has_source_ork",
+          "manifest"
+        ],
+        "title": "ExportDetail",
+        "type": "object"
+      },
+      "ExportSummary": {
+        "description": "One export (converted ``.ork``) as listed inside a rocket detail.",
+        "properties": {
+          "created_at": {
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "export_prefix": {
+            "title": "Export Prefix",
+            "type": "string"
+          },
+          "gcs_ref": {
+            "title": "Gcs Ref",
+            "type": "string"
+          },
+          "has_source_ork": {
+            "title": "Has Source Ork",
+            "type": "boolean"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "ork_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Filename"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "export_id",
+          "rocket_id",
+          "name",
+          "created_at",
+          "created_by",
+          "export_prefix",
+          "gcs_ref",
+          "ork_filename",
+          "has_source_ork"
+        ],
+        "title": "ExportSummary",
         "type": "object"
       },
       "FlightSeries": {
@@ -378,7 +523,7 @@
         "type": "object"
       },
       "RocketDetail": {
-        "description": "Response body for GET /api/rockets/{rocket_id} \u2014 a RocketSummary plus its manifest.",
+        "description": "Response body for GET /api/rockets/{rocket_id} \u2014 the rocket plus its exports.",
         "properties": {
           "created_at": {
             "title": "Created At",
@@ -388,37 +533,16 @@
             "title": "Created By",
             "type": "string"
           },
-          "export_prefix": {
-            "title": "Export Prefix",
-            "type": "string"
-          },
-          "gcs_ref": {
-            "title": "Gcs Ref",
-            "type": "string"
-          },
-          "has_source_ork": {
-            "title": "Has Source Ork",
-            "type": "boolean"
-          },
-          "manifest": {
-            "additionalProperties": true,
-            "title": "Manifest",
-            "type": "object"
+          "exports": {
+            "items": {
+              "$ref": "#/components/schemas/ExportSummary"
+            },
+            "title": "Exports",
+            "type": "array"
           },
           "name": {
             "title": "Name",
             "type": "string"
-          },
-          "ork_filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ork Filename"
           },
           "rocket_id": {
             "title": "Rocket Id",
@@ -430,11 +554,7 @@
           "name",
           "created_at",
           "created_by",
-          "export_prefix",
-          "gcs_ref",
-          "ork_filename",
-          "has_source_ork",
-          "manifest"
+          "exports"
         ],
         "title": "RocketDetail",
         "type": "object"
@@ -450,32 +570,9 @@
             "title": "Created By",
             "type": "string"
           },
-          "export_prefix": {
-            "title": "Export Prefix",
-            "type": "string"
-          },
-          "gcs_ref": {
-            "title": "Gcs Ref",
-            "type": "string"
-          },
-          "has_source_ork": {
-            "title": "Has Source Ork",
-            "type": "boolean"
-          },
           "name": {
             "title": "Name",
             "type": "string"
-          },
-          "ork_filename": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Ork Filename"
           },
           "rocket_id": {
             "title": "Rocket Id",
@@ -486,11 +583,7 @@
           "rocket_id",
           "name",
           "created_at",
-          "created_by",
-          "export_prefix",
-          "gcs_ref",
-          "ork_filename",
-          "has_source_ork"
+          "created_by"
         ],
         "title": "RocketSummary",
         "type": "object"
@@ -707,6 +800,10 @@
             "title": "Created By",
             "type": "string"
           },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
           "has_series": {
             "title": "Has Series",
             "type": "boolean"
@@ -714,6 +811,17 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "ork_filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Filename"
           },
           "plot_names": {
             "items": {
@@ -763,7 +871,9 @@
         "required": [
           "simulation_id",
           "rocket_id",
+          "export_id",
           "name",
+          "ork_filename",
           "created_at",
           "created_by",
           "status",
@@ -975,7 +1085,7 @@
     },
     "/api/convert": {
       "post": {
-        "description": "Convert a .ork file to an export directory and persist artifacts.\n\nMultipart upload \u2192 ``convert_ork`` \u2192 upload export dir to Storage\nunder ``orgs/{org_id}/exports/{run_id}/`` \u2192 save RocketRecord to Db \u2192\nreturns ``{export_id, manifest}`` where ``export_id`` is a logical\nrun_id slug.\n\nOn ``ConvertUnavailableError``: 503 with the install hint verbatim.\nOn non-.ork file: 422.\nNever returns a Python traceback (RG-9.4).\n\nSatisfies RG-2.1, AC-RG-2.1, AC-RG-2.2, REQ-01.1, REQ-02.1, REQ-03.1.",
+        "description": "Convert a .ork file to an export directory and persist artifacts.\n\nMultipart upload \u2192 ``convert_ork`` \u2192 upload export dir to Storage\nunder ``orgs/{org_id}/exports/{run_id}/`` \u2192 save ExportRecord (and a new\nRocketRecord unless ``rocket_id`` was given) to Db \u2192 returns\n``{export_id, rocket_id, manifest}`` where both ids are logical run_id slugs.\n\nEvery file becomes its own rocket unless the user explicitly picks one of\nthe org's rockets with ``rocket_id``; nothing is inferred from the filename.\n\nOn ``ConvertUnavailableError``: 503 with the install hint verbatim.\nOn non-.ork file: 422.\nOn unknown / other-org ``rocket_id``: 404, before the conversion runs.\nNever returns a Python traceback (RG-9.4).\n\nSatisfies RG-2.1, AC-RG-2.1, AC-RG-2.2, REQ-01.1, REQ-02.1, REQ-03.1.",
         "operationId": "post_convert_api_convert_post",
         "requestBody": {
           "content": {
@@ -1071,9 +1181,52 @@
         ]
       }
     },
+    "/api/exports/{export_id}": {
+      "get": {
+        "description": "Return the export record including its manifest.\n\nReturns 404 if the export_id is not found OR not owned by the caller's org.",
+        "operationId": "get_export_api_exports__export_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "export_id",
+            "required": true,
+            "schema": {
+              "title": "Export Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Export",
+        "tags": [
+          "exports"
+        ]
+      }
+    },
     "/api/history": {
       "get": {
-        "description": "Return a paginated list of simulations in reverse-chronological order.\n\nEach item includes a denormalized rocket ``name`` fetched via\n``db.get_rocket`` (join-on-read \u2014 see module docstring for rationale).\n\nParameters\n----------\nlimit : int\n    Maximum number of records (default: 20, max: 100).\nbefore : datetime | None\n    Cursor \u2014 return only simulations created before this timestamp.\n\nSatisfies REQ-05.1, REQ-05.2, REQ-05.3.",
+        "description": "Return a paginated list of simulations in reverse-chronological order.\n\nEach item includes the denormalized rocket ``name`` and the simulated\nexport's ``ork_filename`` (join-on-read \u2014 see module docstring).\n\nParameters\n----------\nlimit : int\n    Maximum number of records (default: 20, max: 100).\nbefore : datetime | None\n    Cursor \u2014 return only simulations created before this timestamp.\nrocket_id : str | None\n    If given, only the runs of that rocket (any of its exports).\n\nSatisfies REQ-05.1, REQ-05.2, REQ-05.3.",
         "operationId": "list_history_api_history_get",
         "parameters": [
           {
@@ -1101,6 +1254,22 @@
                 }
               ],
               "title": "Before"
+            }
+          },
+          {
+            "in": "query",
+            "name": "rocket_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Rocket Id"
             }
           }
         ],
@@ -1274,7 +1443,7 @@
     },
     "/api/rockets": {
       "get": {
-        "description": "Return a paginated list of saved rockets in reverse-chronological order.\n\nParameters\n----------\nlimit : int\n    Maximum number of records (default: 20, max: 100).\nbefore : datetime | None\n    Cursor \u2014 return only rockets created before this timestamp (ISO 8601).\n\nSatisfies REQ-04.1, REQ-04.2, REQ-04.3.",
+        "description": "Return a paginated list of the org's rockets in reverse-chronological order.\n\nParameters\n----------\nlimit : int\n    Maximum number of records (default: 20, max: 100).\nbefore : datetime | None\n    Cursor \u2014 return only rockets created before this timestamp (ISO 8601).\n\nSatisfies REQ-04.1, REQ-04.3.",
         "operationId": "list_rockets_api_rockets_get",
         "parameters": [
           {
@@ -1339,7 +1508,7 @@
     },
     "/api/rockets/{rocket_id}": {
       "get": {
-        "description": "Return the full rocket record including manifest and gcs_ref.\n\nThe ``manifest`` is the single source of truth in object storage\n(``parameters.json`` under the export prefix), NOT Firestore \u2014 it can\ncontain nested arrays that Firestore Native rejects (see\n``FirestoreDb.save_rocket``). It is loaded here from Storage and degrades to\n``{}`` if the blob is missing, so the endpoint never 500s on a stale record.\n\nReturns 404 if the rocket_id is not found OR not owned by the caller's org.\nSatisfies REQ-04.4.",
+        "description": "Return the rocket and its exports (newest first).\n\nBoth lookups are scoped to the caller's org in the ``Db`` layer, so a\nrocket_id that exists in another org is indistinguishable from a missing one.\nReturns 404 if the rocket_id is not found OR not owned by the caller's org.",
         "operationId": "get_rocket_api_rockets__rocket_id__get",
         "parameters": [
           {

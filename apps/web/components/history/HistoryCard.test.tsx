@@ -8,7 +8,9 @@ import { HistoryCard } from "./HistoryCard";
 const historyItem = {
   simulation_id: "sim-1",
   rocket_id: "rocket-1",
+  export_id: "export-1",
   name: "acme-1",
+  ork_filename: "acme-1_v2.ork",
   created_at: "2026-01-01T00:00:00Z",
   created_by: "pilot@multitec.dev",
   status: "done" as const,
@@ -88,7 +90,7 @@ describe("HistoryCard (issue #52 — client island in the server-rendered /histo
     fireEvent.click(await screen.findByText("Re-run"));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/results/run-2"));
-    expect(simulateMock).toHaveBeenCalledWith("rocket-1", historyItem.scenario);
+    expect(simulateMock).toHaveBeenCalledWith("export-1", historyItem.scenario);
   });
 
   it("shows an inline error when re-running fails", async () => {
@@ -159,5 +161,32 @@ describe("HistoryCard — view stored results without re-running", () => {
 
     expect(await screen.findByText("acme-1")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /View details/ })).not.toBeInTheDocument();
+  });
+});
+
+
+describe("HistoryCard — Rocket/Export split", () => {
+  it("shows which file of the rocket was simulated", async () => {
+    render(
+      <AppProviders>
+        <HistoryCard item={historyItem} />
+      </AppProviders>,
+    );
+
+    expect(await screen.findByText("acme-1_v2.ork")).toBeInTheDocument();
+  });
+
+  it("disables re-run for a legacy run that has no export id", async () => {
+    render(
+      <AppProviders>
+        <HistoryCard item={{ ...historyItem, export_id: "", ork_filename: null }} />
+      </AppProviders>,
+    );
+
+    const button = await screen.findByRole("button", { name: /Re-run/ });
+    expect(button).toBeDisabled();
+    expect(button).toHaveAccessibleName(/saved before/);
+    fireEvent.click(button);
+    expect(simulateMock).not.toHaveBeenCalled();
   });
 });

@@ -34,6 +34,19 @@ describe("WizardProvider — canAdvance per step", () => {
     expect(result.current.state.exportId).toBe("export-1");
   });
 
+  it("setExport stores the export's rocket when given, and clears it when not", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", { name: "R" }, "rocket-1"));
+    expect(result.current.state.rocketId).toBe("rocket-1");
+
+    act(() => result.current.setExport("export-2", {}));
+    expect(result.current.state.exportId).toBe("export-2");
+    expect(result.current.state.rocketId).toBeNull();
+
+    act(() => result.current.reset());
+    expect(result.current.state.rocketId).toBeNull();
+  });
+
   it("basics: requires a finite site, and a launch date only when the atmosphere model needs one", () => {
     const { result } = setup();
     act(() => result.current.setExport("export-1", {}));
