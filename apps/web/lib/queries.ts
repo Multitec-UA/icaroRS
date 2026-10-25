@@ -12,7 +12,7 @@
  * user out in one place instead of each consumer repeating the check.
  */
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiError,
   convert,
@@ -36,7 +36,10 @@ import {
 } from "./api";
 
 export const queryKeys = {
+  /** Prefix of every history list; invalidating it refreshes all of them. */
   history: ["history"] as const,
+  /** One page of runs: the whole org's (`null`) or one rocket's. */
+  historyList: (rocketId: string | null, limit: number) => ["history", rocketId ?? "all", limit] as const,
   rockets: ["rockets"] as const,
   /** One rocket with its exports. Shares the `rockets` prefix so one invalidation refreshes list and details. */
   rocket: (rocketId: string) => ["rockets", rocketId] as const,
@@ -45,10 +48,36 @@ export const queryKeys = {
   scenarioTemplate: ["scenario", "template"] as const,
 };
 
-export function useHistoryQuery() {
+/**
+ * GET /api/history, newest first. `rocketId` narrows it to one rocket's runs
+ * (the /runs page); `enabled: false` keeps a list idle until its inputs are
+ * known (for example the rocket to default to).
+ */
+export function useHistoryQuery(options?: { rocketId?: string | null; limit?: number; enabled?: boolean }) {
+  const rocketId = options?.rocketId ?? null;
+  const limit = options?.limit ?? 20;
   return useQuery<SimulationSummary[]>({
-    queryKey: queryKeys.history,
-    queryFn: () => getHistory(),
+    queryKey: queryKeys.historyList(rocketId, limit),
+    queryFn: () => getHistory(limit, undefined, rocketId),
+    enabled: options?.enabled ?? true,
+  });
+}
+
+/** The API's maximum history page — the widest net one request can cast. */
+const RUN_LOOKUP_LIMIT = 100;
+
+/**
+ * The history row of one run (rocket name, file, author, scenario) for the
+ * run report. `GET /api/results/{run_id}` carries only the numbers, and the
+ * API has no per-run metadata endpoint, so this reads the org's most recent
+ * runs and picks the one asked for; `null` means the run is older than that
+ * page (or not the org's) and the report shows what it has without a name.
+ */
+export function useRunSummaryQuery(runId: string) {
+  return useQuery<SimulationSummary[], Error, SimulationSummary | null>({
+    queryKey: queryKeys.historyList(null, RUN_LOOKUP_LIMIT),
+    queryFn: () => getHistory(RUN_LOOKUP_LIMIT),
+    select: (rows) => rows.find((row) => row.simulation_id === runId) ?? null,
   });
 }
 
@@ -90,6 +119,21 @@ export function useSeriesQuery(runId: string) {
   return useQuery<FlightSeries>({
     queryKey: queryKeys.series(runId),
     queryFn: () => getSeries(runId),
+  });
+}
+
+/**
+ * The series of several runs at once (the /runs overlay). Same key and fetch
+ * as useSeriesQuery, so a run already opened elsewhere costs no new request
+ * and a 404 means "no series" exactly as it does there. Results come back in
+ * the order of `runIds`.
+ */
+export function useSeriesQueries(runIds: string[]) {
+  return useQueries({
+    queries: runIds.map((runId) => ({
+      queryKey: queryKeys.series(runId),
+      queryFn: () => getSeries(runId),
+    })),
   });
 }
 

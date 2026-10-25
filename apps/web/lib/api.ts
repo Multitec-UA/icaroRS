@@ -525,12 +525,17 @@ export function getExport(exportId: string): Promise<ExportDetail> {
   return request<ExportDetail>(`/api/exports/${encodeURIComponent(exportId)}`);
 }
 
-/** GET /api/history?limit=&before= — reverse-chronological simulation history. */
+/**
+ * GET /api/history?limit=&before=&rocket_id= — reverse-chronological
+ * simulation history; `rocketId` narrows it to one rocket's runs (S9, /runs).
+ */
 export function getHistory(
   limit = 20,
   before?: string,
+  rocketId?: string | null,
 ): Promise<SimulationSummary[]> {
   const q = new URLSearchParams({ limit: String(limit) });
   if (before) q.set("before", before);
+  if (rocketId) q.set("rocket_id", rocketId);
   return request<SimulationSummary[]>(`/api/history?${q}`);
 }

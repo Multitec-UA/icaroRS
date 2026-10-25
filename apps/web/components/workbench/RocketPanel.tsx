@@ -177,7 +177,7 @@ export function RocketPanel({
             <h3 className="text-xs font-medium text-ink">{t("workbench.panelFilesTitle")}</h3>
             <span className="text-xs text-muted">· {t("workbench.panelFilesHint")}</span>
             <div className="flex-1" />
-            <Link href={`/history?rocket_id=${encodeURIComponent(rocketId)}`} className={textLink}>
+            <Link href={`/runs?rocket_id=${encodeURIComponent(rocketId)}`} className={textLink}>
               {t("workbench.panelCompare")}
             </Link>
           </div>

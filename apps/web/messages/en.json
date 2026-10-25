@@ -30,18 +30,12 @@
     "forgotPasswordFailed": "Could not send the email. Try again in a few minutes."
   },
 
-  "wizard": {
-    "appName": "icaro",
-    "appSubtitle": "rocket simulation",
-    "signOut": "Sign out"
-  },
-
   "nav": {
+    "primaryNavigation": "Primary navigation",
+    "language": "Language",
     "simulate": "Simulate",
     "rockets": "Rockets",
-    "history": "History",
-    "primaryNavigation": "Primary navigation",
-    "language": "Language"
+    "history": "History"
   },
 
   "account": {
@@ -54,44 +48,34 @@
     "signOut": "Sign out"
   },
 
-  "stepper": {
-    "rocket": "Rocket",
-    "basics": "Launch site & time",
-    "advanced": "Fine-tuning",
-    "review": "Review",
-    "results": "Results",
-    "label": "Simulation steps",
-    "completed": "completed"
-  },
-
   "rocket": {
+    "converting": "Converting {filename}… this can take up to a minute.",
+    "errorNotOrk": "That isn't an OpenRocket file. Please choose a .ork file.",
+    "errorGeneric": "Conversion failed.",
+    "fileInputLabel": "OpenRocket .ork file",
     "eyebrow": "Step 1 · Rocket",
     "heading": "Upload your rocket",
     "description": "Drop the OpenRocket .ork file you designed. We convert it into a simulation-ready model.",
-    "converting": "Converting {filename}… this can take up to a minute.",
     "readyPrefix": "Ready: {name}",
     "changeFile": "Click to choose a different file.",
     "dropPrompt": "Drag & drop your .ork file here",
     "browsePrompt": "or click to browse",
     "continue": "Continue",
-    "errorNotOrk": "That isn't an OpenRocket file. Please choose a .ork file.",
-    "errorGeneric": "Conversion failed.",
-    "defaultRocketName": "your rocket",
-    "fileInputLabel": "OpenRocket .ork file"
+    "defaultRocketName": "your rocket"
   },
 
   "basics": {
-    "eyebrow": "Step 2 · Launch site & time",
-    "heading": "Where and when?",
-    "description": "Pick the launch site and time. We'll choose the best weather model for you.",
     "fieldLatitude": "Latitude",
     "fieldLongitude": "Longitude",
     "fieldElevation": "Elevation (m)",
-    "elevationHint": "Above sea level.",
     "elevationLookingUp": "Looking up elevation…",
     "elevationAutoFilled": "Elevation auto-filled ({source}).",
     "elevationEnterManually": "Enter elevation manually.",
     "elevationFetchFailed": "Couldn't fetch elevation — enter it manually below.",
+    "eyebrow": "Step 2 · Launch site & time",
+    "heading": "Where and when?",
+    "description": "Pick the launch site and time. We'll choose the best weather model for you.",
+    "elevationHint": "Above sea level.",
     "fieldDateTime": "Launch date & hour (UTC)",
     "dateTimeHint": "Your local time ({timeZone}), simulated to the whole hour. Within ~16 days, we use a real weather forecast.",
     "modelForecastLabel": "Real weather forecast (GFS)",
@@ -125,33 +109,21 @@
   },
 
   "advanced": {
-    "eyebrow": "Step 3 · Fine-tuning",
-    "heading": "Fine-tuning",
-    "description": "Optional. The defaults are sensible — open a section only if you want more control.",
-    "uncertaintyBudget": "Uncertainty budget",
     "presetTypical": "Typical",
     "presetConservative": "Conservative",
     "presetPrecise": "Precise",
-    "presetCustomize": "Customize",
     "tableHeaderParameter": "Parameter",
     "tableHeaderStdDev": "Std deviation",
     "tableHeaderKind": "Kind",
     "kindRelative": "relative",
     "kindAbsolute": "absolute",
-    "railOverrides": "Launch rail overrides",
     "railLength": "Length (m)",
     "railInclination": "Inclination (°)",
     "railHeading": "Heading (°)",
-    "atmosphereModel": "Atmosphere model ({model})",
-    "fieldModel": "Model",
     "fieldStationId": "Station id",
     "fieldStationHint": "Required for Wyoming soundings.",
     "fieldEra5Path": "ERA5 file path",
     "fieldEra5Hint": "Required for reanalysis.",
-    "errorsTitle": "Please fix the following",
-    "errorValidationFailed": "Validation failed.",
-    "review": "Review",
-    "checking": "Checking…",
     "paramLabels": {
       "mass": "Mass",
       "inclination": "Inclination",
@@ -164,10 +136,25 @@
     "stdDevFor": "Standard deviation for {param}",
     "kindFor": "Kind for {param}",
     "stationPlaceholder": "72493…",
-    "era5Placeholder": "/data/era5/2024-06.nc…"
+    "era5Placeholder": "/data/era5/2024-06.nc…",
+    "eyebrow": "Step 3 · Fine-tuning",
+    "heading": "Fine-tuning",
+    "description": "Optional. The defaults are sensible — open a section only if you want more control.",
+    "uncertaintyBudget": "Uncertainty budget",
+    "presetCustomize": "Customize",
+    "railOverrides": "Launch rail overrides",
+    "atmosphereModel": "Atmosphere model ({model})",
+    "fieldModel": "Model",
+    "errorsTitle": "Please fix the following",
+    "errorValidationFailed": "Validation failed.",
+    "review": "Review",
+    "checking": "Checking…"
   },
 
   "review": {
+    "errorsTitle": "The scenario needs attention",
+    "running": "Running the 6-DOF simulation — this can take a moment…",
+    "errorGeneric": "Simulation failed.",
     "eyebrow": "Step 4 · Review",
     "heading": "Review & launch",
     "description": "Check the summary, then run the simulation.",
@@ -177,27 +164,25 @@
     "rowAtmosphere": "Atmosphere",
     "rowUncertaintyParams": "Uncertainty params",
     "uncertaintyDefault": "default",
-    "errorsTitle": "The scenario needs attention",
-    "running": "Running the 6-DOF simulation — this can take a moment…",
     "runSimulation": "Run simulation 🚀",
-    "simulating": "Simulating…",
-    "errorGeneric": "Simulation failed."
+    "simulating": "Simulating…"
   },
 
   "results": {
-    "eyebrow": "Mission report",
-    "heading": "Flight results",
-    "runId": "Run {runId}",
     "simulateAgain": "Simulate again",
     "newRocket": "New rocket",
     "warningsTitle": "Heads up",
-    "moreNumbers": "More numbers",
-    "allPlots": "All plots",
     "backToStart": "← Back to start",
     "resultsUnavailableTitle": "Results unavailable",
     "resultsNotFound": "This run could not be found.",
     "loadingResults": "Loading results…",
     "couldNotLoadPlot": "Couldn't load this plot.",
+    "newRocketConfirm": "Discard this draft and start a new rocket?",
+    "eyebrow": "Mission report",
+    "heading": "Flight results",
+    "runId": "Run {runId}",
+    "moreNumbers": "More numbers",
+    "allPlots": "All plots",
     "valuesBadge": {
       "one": "1 value",
       "other": "{count} values"
@@ -206,21 +191,20 @@
       "one": "1 plot",
       "other": "{count} plots"
     },
-    "summaryCaption": "Run summary",
-    "newRocketConfirm": "Discard this draft and start a new rocket?"
+    "summaryCaption": "Run summary"
   },
 
   "interactive": {
-    "loadingFlightData": "Loading interactive flight data…",
     "loading3d": "Loading 3D…",
-    "sectionHeading": "Interactive flight data",
-    "trajectoryEyebrow": "Trajectory",
     "trajectoryHint": "Drag to orbit · scroll to zoom",
-    "telemetryEyebrow": "Telemetry",
     "play": "Play",
     "pause": "Pause",
     "scrubTimeline": "Scrub flight timeline",
-    "trajectoryAriaLabel": "3D flight trajectory. Use the timeline slider to scrub the flight."
+    "trajectoryAriaLabel": "3D flight trajectory. Use the timeline slider to scrub the flight.",
+    "loadingFlightData": "Loading interactive flight data…",
+    "sectionHeading": "Interactive flight data",
+    "trajectoryEyebrow": "Trajectory",
+    "telemetryEyebrow": "Telemetry"
   },
 
   "chart": {
@@ -286,38 +270,97 @@
   },
 
   "rockets": {
-    "eyebrow": "Saved rockets",
     "heading": "Your rockets",
-    "description": "Every converted rocket is saved here. Pick one to skip the upload step.",
+    "description": "Every rocket groups the .ork files converted for it. Use one in the Workbench, or open its runs to compare them.",
     "loading": "Loading rockets…",
     "empty": "No rockets saved yet. Upload an .ork file to get started.",
     "errorLoad": "Could not load the rockets list.",
     "errorUseFailed": "Could not use this rocket. Please try again.",
-    "colName": "Name",
     "colDate": "Saved on",
     "colBy": "By",
     "useThisRocket": "Use this rocket",
+    "runs": "Runs",
+    "eyebrow": "Saved rockets",
+    "colName": "Name",
     "backToWizard": "← Back to wizard"
   },
 
-  "history": {
-    "eyebrow": "Simulation history",
-    "heading": "Flight history",
-    "description": "Every simulation run, newest first.",
-    "loading": "Loading history…",
-    "empty": "No simulations yet. Run one to see results here.",
-    "errorLoad": "Could not load the history.",
-    "colRocket": "Rocket",
-    "colDate": "Date",
+  "runs": {
+    "heading": "Runs & compare",
+    "description": "Every run of a rocket, newest first. Pick a baseline, compare up to three runs and see what changed between them.",
+    "loading": "Loading runs…",
+    "rocketLabel": "Rocket",
+    "count": {
+      "one": "1 run",
+      "other": "{count} runs"
+    },
+    "noRockets": "No rockets yet. Convert an .ork file in the Workbench to get started.",
+    "empty": "No runs for this rocket yet. Run a simulation from the Workbench to compare it here.",
+    "errorLoad": "Could not load the runs.",
+    "tableCaption": "Runs of {rocket}",
+    "colCompare": "Compare",
+    "colBaseline": "Baseline",
+    "colRun": "Run",
+    "colLaunch": "Launch",
+    "colApogee": "Apogee",
+    "colMaxSpeed": "Max speed",
+    "colFlightTime": "Flight time",
+    "colLanding": "Landing",
     "colStatus": "Status",
-    "colApogee": "Apogee (m)",
+    "colActions": "Actions",
+    "selectRun": "Compare run {id}",
+    "baselineRun": "Baseline: run {id}",
+    "baselineTag": "Baseline",
+    "selectionLimit": "Up to {count} runs can be overlaid",
     "statusDone": "Done",
-    "statusError": "Error",
-    "viewDetails": "View details",
+    "statusError": "Failed",
+    "viewReport": "View report",
     "reRun": "Re-run",
-    "backToWizard": "← Back to wizard",
     "reRunUnavailable": "Re-run is unavailable for failed runs.",
-    "reRunNoExport": "Re-run is unavailable for runs saved before their file was tracked."
+    "reRunNoExport": "Re-run is unavailable for runs saved before their file was tracked.",
+    "unset": "unset",
+    "overlayTitle": "Altitude",
+    "overlayCount": {
+      "one": "1 run overlaid",
+      "other": "{count} runs overlaid"
+    },
+    "overlayLabel": "Altitude over time for {runs}",
+    "overlayLegend": "Overlaid runs",
+    "overlayEmpty": "Select runs in the table to overlay their altitude.",
+    "overlayNoSeries": "{run} has no flight data to overlay.",
+    "whatChanged": "What changed",
+    "whatChangedHint": "each compared run against the baseline",
+    "whatChangedEmpty": "Select another run to see what differs from the baseline.",
+    "noChanges": "Same inputs as the baseline",
+    "changeSite": "Site {from} → {to}",
+    "changeLaunchDate": "Launch {from} → {to}",
+    "changeAtmosphere": "Weather {from} → {to}",
+    "changeRailLength": "Rail length {from} → {to}",
+    "changeRailInclination": "Rail inclination {from} → {to}",
+    "changeRailHeading": "Rail heading {from} → {to}",
+    "changeUncertainty": "Uncertainty spread changed",
+    "changeFile": "Different file: {to}"
+  },
+
+  "report": {
+    "breadcrumb": "Breadcrumb",
+    "runs": "Runs",
+    "runCrumb": "run {id}",
+    "title": "{rocket} over {site}",
+    "titleFallback": "Run report",
+    "statusDone": "Completed",
+    "detailsUnavailable": "The rocket, file and scenario of this run are not available: it is older than the runs the API lists.",
+    "allResults": "All results",
+    "configuration": "Configuration",
+    "configFile": "Rocket file",
+    "configSite": "Site",
+    "configElevation": "Elevation",
+    "configLaunch": "Launch",
+    "configWeather": "Weather",
+    "configRail": "Rail",
+    "configUncertainty": "Uncertainty",
+    "uncertaintyCustom": "Custom spread",
+    "uncertaintyDefault": "Default"
   },
 
   "glossary": {
@@ -455,5 +498,41 @@
     "label": "Theme",
     "switchToDark": "Switch to dark mode",
     "switchToLight": "Switch to light mode"
+  },
+
+  "wizard": {
+    "appName": "icaro",
+    "appSubtitle": "rocket simulation",
+    "signOut": "Sign out"
+  },
+
+  "stepper": {
+    "rocket": "Rocket",
+    "basics": "Launch site & time",
+    "advanced": "Fine-tuning",
+    "review": "Review",
+    "results": "Results",
+    "label": "Simulation steps",
+    "completed": "completed"
+  },
+
+  "history": {
+    "eyebrow": "Simulation history",
+    "heading": "Flight history",
+    "description": "Every simulation run, newest first.",
+    "loading": "Loading history…",
+    "empty": "No simulations yet. Run one to see results here.",
+    "errorLoad": "Could not load the history.",
+    "colRocket": "Rocket",
+    "colDate": "Date",
+    "colStatus": "Status",
+    "colApogee": "Apogee (m)",
+    "statusDone": "Done",
+    "statusError": "Error",
+    "viewDetails": "View details",
+    "reRun": "Re-run",
+    "backToWizard": "← Back to wizard",
+    "reRunUnavailable": "Re-run is unavailable for failed runs.",
+    "reRunNoExport": "Re-run is unavailable for runs saved before their file was tracked."
   }
 }
