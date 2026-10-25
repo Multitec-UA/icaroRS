@@ -81,9 +81,10 @@ its dev proxy.
 - `icaro_api/scripts/backfill_org_id.py` — idempotent backfill that stamps
   `org_id` onto pre-existing `rockets`/`simulations` Firestore documents. See
   [`DEPLOY.md` → Backfill org_id](../../DEPLOY.md#backfill-org_id-on-existing-documents).
-- `icaro_api/scripts/migrate_rocket_exports.py` — idempotent split of the
-  legacy per-file `rockets` documents into `rockets` (groups) + `exports`
-  (converted files), and `export_id` on simulations. See
+- `icaro_api/scripts/migrate_rocket_exports.py` — idempotent, rollback-safe
+  split of the legacy per-file `rockets` documents into `rockets` (groups) +
+  `exports` (converted files), and `export_id` on simulations; the legacy
+  fields stay on the rocket documents until `--drop-legacy-fields`. See
   [`DEPLOY.md` → Migrate rockets](../../DEPLOY.md#migrate-rockets--rockets--exports).
 
 ## Tests

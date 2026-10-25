@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from icaro_api.scripts.migrate_rocket_exports import migrate_rockets, migrate_simulations
+from icaro_api.scripts.migrate_rocket_exports import drop_legacy_rocket_fields, migrate_rockets, migrate_simulations
 
 pytestmark = pytest.mark.integration
 
@@ -77,11 +77,25 @@ class TestMigrateAgainstEmulator:
         assert export["export_prefix"] == "orgs/org-1/exports/r1/"
         assert export["ork_filename"] == "icarus.ork"
         rocket = client.collection(_ROCKETS).document("r1").get().to_dict()
-        assert set(rocket) == {"rocket_id", "name", "created_at", "created_by", "org_id"}
+        # Rollback-safe: the legacy export fields stay until the cleanup pass.
+        assert rocket["schema_version"] == 2
+        assert rocket["export_prefix"] == "orgs/org-1/exports/r1/"
         assert rocket["name"] == "Icarus"
 
         again = migrate_rockets(client, rockets_collection=_ROCKETS, exports_collection=_EXPORTS)
         assert again.migrated == 0 and again.already_migrated == 2
+
+    def test_cleanup_drops_legacy_fields_once_and_is_idempotent(self, client) -> None:
+        client.collection(_ROCKETS).document("r1").set(_legacy("r1"))
+        migrate_rockets(client, rockets_collection=_ROCKETS, exports_collection=_EXPORTS)
+
+        report = drop_legacy_rocket_fields(client, rockets_collection=_ROCKETS)
+
+        assert (report.migrated, report.already_migrated) == (1, 0)
+        rocket = client.collection(_ROCKETS).document("r1").get().to_dict()
+        assert set(rocket) == {"rocket_id", "name", "created_at", "created_by", "org_id", "schema_version"}
+        again = drop_legacy_rocket_fields(client, rockets_collection=_ROCKETS)
+        assert (again.migrated, again.already_migrated) == (0, 1)
 
     def test_dry_run_leaves_documents_untouched(self, client) -> None:
         client.collection(_ROCKETS).document("r1").set(_legacy("r1"))

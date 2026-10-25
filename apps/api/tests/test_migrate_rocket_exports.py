@@ -12,13 +12,23 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import icaro_api.scripts.migrate_rocket_exports as mod
 from icaro_api.scripts.migrate_rocket_exports import (
+    LEGACY_EXPORT_FIELDS,
     MigrationReport,
     _parse_args,
+    drop_legacy_rocket_fields,
     migrate_rockets,
     migrate_simulations,
-    rocket_doc_from_legacy,
 )
+
+_DELETE = object()
+
+
+@pytest.fixture(autouse=True)
+def _fake_delete_field(monkeypatch):
+    """The Firestore DELETE_FIELD sentinel needs the SDK; unit tests use a stand-in."""
+    monkeypatch.setattr(mod, "_delete_field", lambda: _DELETE)
 
 _T1 = datetime(2026, 1, 1, tzinfo=timezone.utc)
 
@@ -61,14 +71,11 @@ def _client_with(rockets: list[MagicMock] = (), exports_ids: set[str] = frozense
     return client, collections
 
 
-class TestRocketDocFromLegacy:
-    def test_keeps_only_group_fields(self):
-        new = rocket_doc_from_legacy("r1", _legacy_rocket("r1"))
-        assert new == {"rocket_id": "r1", "name": "Icarus", "created_at": _T1, "created_by": "u1", "org_id": "org-1"}
-
-
 class TestMigrateRockets:
-    def test_legacy_doc_becomes_export_plus_rewritten_rocket(self):
+    def test_legacy_doc_gets_an_export_and_is_marked_but_keeps_its_fields(self):
+        """Rollback-safe: the rocket document keeps every legacy export field so the
+        pre-split API, still running during the migrate-then-deploy window or after
+        a rollback, keeps reading export_prefix from it; only a marker is added."""
         snap = _snap("r1", _legacy_rocket("r1"))
         client, cols = _client_with([snap])
         batch = client.batch.return_value
@@ -76,40 +83,34 @@ class TestMigrateRockets:
         report = migrate_rockets(client)
 
         assert report.scanned == 1 and report.migrated == 1 and report.already_migrated == 0
-        # exports/{id} written with the legacy fields plus the two ids.
         cols["exports"].document.assert_called_once_with("r1")
-        export_ref = cols["exports"].document.return_value
-        batch.set.assert_any_call(
-            export_ref,
+        batch.set.assert_called_once_with(
+            cols["exports"].document.return_value,
             {**_legacy_rocket("r1"), "export_id": "r1", "rocket_id": "r1"},
         )
-        # rockets/{id} rewritten in place to the new shape (set, not update: the
-        # export-only fields must disappear).
-        batch.set.assert_any_call(snap.reference, rocket_doc_from_legacy("r1", _legacy_rocket("r1")))
-        assert batch.set.call_count == 2
+        batch.update.assert_called_once_with(snap.reference, {"schema_version": 2})
         batch.commit.assert_called_once()
 
     def test_new_shape_doc_is_skipped(self):
         snap = _snap("r2", {"rocket_id": "r2", "name": "New", "created_at": _T1, "created_by": "u", "org_id": "o"})
-        client, cols = _client_with([snap])
+        client, _ = _client_with([snap])
 
         report = migrate_rockets(client)
 
         assert report.scanned == 1 and report.migrated == 0 and report.already_migrated == 1
         client.batch.return_value.set.assert_not_called()
+        client.batch.return_value.update.assert_not_called()
 
     def test_rerun_is_idempotent(self):
-        """After one run every doc is in the new shape → zero writes."""
-        legacy = _snap("r1", _legacy_rocket("r1"))
-        client, _ = _client_with([legacy])
-        migrate_rockets(client)
-        rewritten = _snap("r1", rocket_doc_from_legacy("r1", _legacy_rocket("r1")))
-        client2, _ = _client_with([rewritten])
+        """A marked document still carries export_prefix — the marker is what says it is done."""
+        marked = _snap("r1", {**_legacy_rocket("r1"), "schema_version": 2})
+        client, _ = _client_with([marked])
 
-        report = migrate_rockets(client2)
+        report = migrate_rockets(client)
 
         assert report.migrated == 0 and report.already_migrated == 1
-        client2.batch.return_value.set.assert_not_called()
+        client.batch.return_value.set.assert_not_called()
+        client.batch.return_value.update.assert_not_called()
 
     def test_dry_run_writes_nothing_but_counts(self):
         client, _ = _client_with([_snap("r1", _legacy_rocket("r1"))])
@@ -118,11 +119,10 @@ class TestMigrateRockets:
 
         assert report.migrated == 1
         client.batch.return_value.set.assert_not_called()
+        client.batch.return_value.update.assert_not_called()
         client.batch.return_value.commit.assert_not_called()
 
     def test_batch_boundary_commits_and_starts_fresh(self, monkeypatch):
-        import icaro_api.scripts.migrate_rocket_exports as mod
-
         monkeypatch.setattr(mod, "_BATCH_LIMIT", 4)  # 2 writes per doc → commit every 2 docs
         snaps = [_snap(f"r{i}", _legacy_rocket(f"r{i}")) for i in range(5)]
         client, _ = _client_with(snaps)
@@ -134,10 +134,10 @@ class TestMigrateRockets:
         assert report.migrated == 5
         # 10 writes: batches of 4, 4, 2 → three commits.
         assert sum(b.commit.call_count for b in batches) == 3
-        assert batches[0].set.call_count == 4
-        assert batches[2].set.call_count == 2
+        assert batches[0].set.call_count + batches[0].update.call_count == 4
+        assert batches[2].set.call_count + batches[2].update.call_count == 2
 
-    def test_missing_rocket_id_field_defaults_to_doc_id(self):
+    def test_missing_rocket_id_field_still_names_the_export(self):
         legacy = _legacy_rocket("r9")
         legacy.pop("rocket_id")
         client, cols = _client_with([_snap("r9", legacy)])
@@ -145,8 +145,35 @@ class TestMigrateRockets:
 
         migrate_rockets(client)
 
-        export_doc = [c.args[1] for c in batch.set.call_args_list if c.args[0] is cols["exports"].document.return_value][0]
+        export_doc = batch.set.call_args.args[1]
         assert export_doc["export_id"] == "r9" and export_doc["rocket_id"] == "r9"
+
+
+class TestDropLegacyRocketFields:
+    """The optional cleanup, run only once the pre-split API can no longer come back."""
+
+    def test_removes_export_fields_from_marked_rockets_only(self):
+        marked = _snap("r1", {**_legacy_rocket("r1"), "schema_version": 2})
+        unmarked = _snap("r2", _legacy_rocket("r2"))
+        clean = _snap("r3", {"rocket_id": "r3", "name": "N", "org_id": "o", "schema_version": 2})
+        client, _ = _client_with([marked, unmarked, clean])
+        batch = client.batch.return_value
+
+        report = drop_legacy_rocket_fields(client)
+
+        assert (report.scanned, report.migrated, report.already_migrated) == (3, 1, 2)
+        batch.update.assert_called_once_with(
+            marked.reference, {field: _DELETE for field in LEGACY_EXPORT_FIELDS if field in _legacy_rocket("r1")}
+        )
+        batch.commit.assert_called_once()
+
+    def test_dry_run_writes_nothing(self):
+        client, _ = _client_with([_snap("r1", {**_legacy_rocket("r1"), "schema_version": 2})])
+
+        report = drop_legacy_rocket_fields(client, dry_run=True)
+
+        assert report.migrated == 1
+        client.batch.return_value.update.assert_not_called()
 
 
 class TestMigrateSimulations:
@@ -190,9 +217,9 @@ class TestReportAndArgs:
             _parse_args([])
 
     def test_accepts_flags_and_env(self, monkeypatch):
-        ns = _parse_args(["--project", "p", "--database", "db", "--dry-run"])
-        assert (ns.project, ns.database, ns.dry_run) == ("p", "db", True)
+        ns = _parse_args(["--project", "p", "--database", "db", "--dry-run", "--drop-legacy-fields"])
+        assert (ns.project, ns.database, ns.dry_run, ns.drop_legacy_fields) == ("p", "db", True, True)
         monkeypatch.setenv("ICARO_FIRESTORE_PROJECT", "env-p")
         monkeypatch.setenv("ICARO_FIRESTORE_DATABASE", "env-db")
         ns = _parse_args([])
-        assert (ns.project, ns.database, ns.dry_run) == ("env-p", "env-db", False)
+        assert (ns.project, ns.database, ns.dry_run, ns.drop_legacy_fields) == ("env-p", "env-db", False, False)

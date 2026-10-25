@@ -179,9 +179,20 @@ ICARO_FIRESTORE_PROJECT=PROJECT \
 
 For each legacy `rockets/{id}` it writes `exports/{id}` (same id, so existing
 `simulations.rocket_id` values stay valid and old links keep working) and
-rewrites `rockets/{id}` to the group shape; simulations without `export_id`
-get `export_id = rocket_id`. Idempotent — already-migrated documents are
-counted and skipped. Create the `exports` indexes above first.
+marks `rockets/{id}` with `schema_version: 2` **keeping its legacy fields**:
+the pre-split API still reads `export_prefix` from that document, so the
+migration is safe to run while the old API is serving and a rollback needs no
+data change. Simulations without `export_id` get `export_id = rocket_id`.
+Idempotent — already-migrated documents are counted and skipped. Create the
+`exports` indexes above first.
+
+Order: run the migration → deploy the new API → once a rollback is no longer
+on the table, drop the now-unused export fields from the rocket documents:
+
+```bash
+ICARO_FIRESTORE_PROJECT=PROJECT \
+  uv run python -m icaro_api.scripts.migrate_rocket_exports --drop-legacy-fields
+```
 
 ---
 
