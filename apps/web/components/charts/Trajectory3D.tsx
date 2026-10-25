@@ -11,6 +11,15 @@
  * state), so the Canvas never re-renders during animation — only the small
  * timeline component ticks its own slider. Client-only; dynamically imported
  * (ssr:false) so three never runs during SSR and stays code-split.
+ *
+ * Two modes (S9):
+ *   - uncontrolled (default, the /results page): the component owns play,
+ *     pause and the scrubber and renders its own timeline underneath;
+ *   - controlled (the Workbench's FlightReplay): the parent passes `advance`
+ *     — the same per-frame callback the marker calls — and `autoRotate`, and
+ *     renders its own controls. The scene is identical in both modes.
+ * `palette` recolours the scene from the caller's theme tokens; the defaults
+ * are the original dark-glass colours so existing callers look the same.
  */
 
 import {
@@ -30,6 +39,28 @@ import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 
 const SCENE_SIZE = 6; // half-extent the trajectory is scaled to fit
 const PLAY_SECONDS = 9; // wall-clock duration of one full play-through
+
+/** Scene colours. Three.js needs concrete colour strings, not CSS variables. */
+export interface Trajectory3DPalette {
+  /** Canvas background and fog colour. */
+  background: string;
+  /** Fine ground-grid lines. */
+  grid: string;
+  /** Every fifth grid line. */
+  section: string;
+  /** The trajectory line and its drop line. */
+  line: string;
+  /** The travelling rocket marker and its glow. */
+  marker: string;
+}
+
+const DEFAULT_PALETTE: Trajectory3DPalette = {
+  background: "#070709",
+  grid: "#1b1b22",
+  section: "#2a2a35",
+  line: "#a78bfa",
+  marker: "#22d3ee",
+};
 
 /** Map (East, North, Up) metres → a uniformly-scaled three.js point (Y up). */
 function toScenePoints(path: [number, number, number][]): {
@@ -68,10 +99,12 @@ interface PlayState {
 function RocketMarker({
   points,
   advance,
+  color,
 }: {
   points: THREE.Vector3[];
   /** Advance playback by `delta` seconds and return the new progress ∈ [0,1]. */
   advance: (delta: number) => number;
+  color: string;
 }) {
   const group = useRef<THREE.Group>(null);
   const pos = useMemo(() => new THREE.Vector3(), []);
@@ -87,13 +120,13 @@ function RocketMarker({
       <mesh>
         <sphereGeometry args={[0.12, 24, 24]} />
         <meshStandardMaterial
-          color="#22d3ee"
-          emissive="#22d3ee"
+          color={color}
+          emissive={color}
           emissiveIntensity={1.6}
           toneMapped={false}
         />
       </mesh>
-      <pointLight color="#22d3ee" intensity={6} distance={4} />
+      <pointLight color={color} intensity={6} distance={4} />
     </group>
   );
 }
@@ -102,11 +135,13 @@ function Scene({
   points,
   advance,
   autoRotate,
+  palette,
 }: {
   points: THREE.Vector3[];
   advance: (delta: number) => number;
   /** The camera orbits on its own only while the flight is playing. */
   autoRotate: boolean;
+  palette: Trajectory3DPalette;
 }) {
   const apogee = points[points.length - 1];
   return (
@@ -118,21 +153,21 @@ function Scene({
         args={[SCENE_SIZE * 4, SCENE_SIZE * 4]}
         cellSize={0.5}
         cellThickness={0.5}
-        cellColor="#1b1b22"
+        cellColor={palette.grid}
         sectionSize={2.5}
         sectionThickness={1}
-        sectionColor="#2a2a35"
+        sectionColor={palette.section}
         fadeDistance={SCENE_SIZE * 6}
         fadeStrength={1.5}
         infiniteGrid
       />
 
       {/* Full trajectory + a faint vertical drop line to the landing point. */}
-      <Line points={points} color="#a78bfa" lineWidth={2} transparent opacity={0.85} />
+      <Line points={points} color={palette.line} lineWidth={2} transparent opacity={0.85} />
       {apogee && (
         <Line
           points={[apogee, new THREE.Vector3(apogee.x, 0, apogee.z)]}
-          color="#a78bfa"
+          color={palette.line}
           lineWidth={1}
           dashed
           dashSize={0.18}
@@ -142,7 +177,7 @@ function Scene({
         />
       )}
 
-      <RocketMarker points={points} advance={advance} />
+      <RocketMarker points={points} advance={advance} color={palette.marker} />
 
       <OrbitControls
         enablePan={false}
@@ -215,9 +250,36 @@ function Timeline({
   );
 }
 
-export function Trajectory3D({ path }: { path: [number, number, number][] }) {
+export function Trajectory3D({
+  path,
+  advance: controlledAdvance,
+  autoRotate: controlledAutoRotate = false,
+  palette: paletteOverrides,
+  className,
+}: {
+  path: [number, number, number][];
+  /**
+   * Controlled playback: called once per frame with the elapsed seconds,
+   * returns the marker's progress along `path` ∈ [0,1]. When given, the
+   * built-in timeline is not rendered and `autoRotate` is the parent's call.
+   */
+  advance?: (delta: number) => number;
+  autoRotate?: boolean;
+  palette?: Partial<Trajectory3DPalette>;
+  /** Replaces the canvas wrapper's default height and radius. */
+  className?: string;
+}) {
   const t = useT();
   const { points } = useMemo(() => toScenePoints(path), [path]);
+  const controlled = controlledAdvance !== undefined;
+  const palette = useMemo<Trajectory3DPalette>(() => {
+    const merged = { ...DEFAULT_PALETTE };
+    for (const key of Object.keys(DEFAULT_PALETTE) as (keyof Trajectory3DPalette)[]) {
+      const value = paletteOverrides?.[key];
+      if (value) merged[key] = value;
+    }
+    return merged;
+  }, [paletteOverrides]);
   // Users who asked for less motion get the still trajectory first; Play
   // (and the camera's auto-rotation with it) is theirs to start.
   const reduceMotion = useReducedMotion() === true;
@@ -255,6 +317,9 @@ export function Trajectory3D({ path }: { path: [number, number, number][] }) {
 
   if (points.length < 2) return null;
 
+  const activeAdvance = controlledAdvance ?? advance;
+  const autoRotate = controlled ? controlledAutoRotate : playing;
+
   return (
     <div className="flex flex-col gap-4">
       {/* The WebGL canvas is opaque to assistive tech; the wrapper names it
@@ -262,18 +327,18 @@ export function Trajectory3D({ path }: { path: [number, number, number][] }) {
       <div
         role="img"
         aria-label={t("interactive.trajectoryAriaLabel")}
-        className="h-[440px] w-full overflow-hidden rounded-[calc(2rem-0.375rem)]"
+        className={className ?? "h-[440px] w-full overflow-hidden rounded-[calc(2rem-0.375rem)]"}
       >
         <Canvas
           dpr={[1, 2]}
           camera={{ position: [SCENE_SIZE * 1.4, SCENE_SIZE * 1.1, SCENE_SIZE * 1.4], fov: 50 }}
         >
-          <color attach="background" args={["#070709"]} />
-          <fog attach="fog" args={["#070709", SCENE_SIZE * 3, SCENE_SIZE * 7]} />
-          <Scene points={points} advance={advance} autoRotate={playing} />
+          <color attach="background" args={[palette.background]} />
+          <fog attach="fog" args={[palette.background, SCENE_SIZE * 3, SCENE_SIZE * 7]} />
+          <Scene points={points} advance={activeAdvance} autoRotate={autoRotate} palette={palette} />
         </Canvas>
       </div>
-      <Timeline state={state} playing={playing} onToggle={toggle} onSeek={seek} />
+      {!controlled && <Timeline state={state} playing={playing} onToggle={toggle} onSeek={seek} />}
     </div>
   );
 }

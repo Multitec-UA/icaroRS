@@ -75,3 +75,52 @@ describe("Trajectory3D — playback controls and accessible canvas", () => {
     expect(screen.getByTestId("orbit")).toHaveAttribute("data-auto-rotate", "false");
   });
 });
+
+describe("Trajectory3D — controlled playback (flight replay)", () => {
+  it("keeps its own timeline and starts playing when no controls are passed", () => {
+    renderTrajectory();
+
+    expect(screen.getByRole("slider", { name: "Scrub flight timeline" })).toHaveValue("0");
+    expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    expect(screen.getByTestId("orbit")).toHaveAttribute("data-auto-rotate", "true");
+  });
+
+  it("hands playback to the parent: no built-in timeline, auto-rotate follows the prop", () => {
+    const advance = vi.fn(() => 0.5);
+    const { rerender } = render(
+      <LocaleProvider initialLocale="en">
+        <Trajectory3D path={path} advance={advance} autoRotate={false} />
+      </LocaleProvider>,
+    );
+
+    expect(screen.queryByRole("slider")).toBeNull();
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.getByTestId("orbit")).toHaveAttribute("data-auto-rotate", "false");
+
+    rerender(
+      <LocaleProvider initialLocale="en">
+        <Trajectory3D path={path} advance={advance} autoRotate />
+      </LocaleProvider>,
+    );
+    expect(screen.getByTestId("orbit")).toHaveAttribute("data-auto-rotate", "true");
+  });
+
+  it("accepts a palette and a canvas class without changing the accessible name", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <Trajectory3D
+          path={path}
+          advance={() => 0}
+          autoRotate={false}
+          palette={{ background: "#123456", line: "#abcdef" }}
+          className="h-[340px]"
+        />
+      </LocaleProvider>,
+    );
+
+    const canvas = screen.getByRole("img", {
+      name: "3D flight trajectory. Use the timeline slider to scrub the flight.",
+    });
+    expect(canvas).toHaveClass("h-[340px]");
+  });
+});

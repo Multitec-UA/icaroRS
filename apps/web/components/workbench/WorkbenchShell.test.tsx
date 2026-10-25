@@ -6,14 +6,14 @@ import { ApiError } from "@/lib/api";
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { WorkbenchShell } from "./WorkbenchShell";
 
-const { simulateMock, getScenarioTemplateMock, suggestAtmosphereMock, getElevationMock } = vi.hoisted(
-  () => ({
+const { simulateMock, getScenarioTemplateMock, suggestAtmosphereMock, getElevationMock, getSeriesMock } =
+  vi.hoisted(() => ({
     simulateMock: vi.fn(),
     getScenarioTemplateMock: vi.fn(),
     suggestAtmosphereMock: vi.fn(),
     getElevationMock: vi.fn(),
-  }),
-);
+    getSeriesMock: vi.fn(),
+  }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -30,19 +30,24 @@ vi.mock("@/lib/api", async (importOriginal) => {
     suggestAtmosphere: (...args: Parameters<typeof actual.suggestAtmosphere>) =>
       suggestAtmosphereMock(...args),
     getElevation: (...args: Parameters<typeof actual.getElevation>) => getElevationMock(...args),
+    getSeries: (...args: Parameters<typeof actual.getSeries>) => getSeriesMock(...args),
     // An empty org: the results column shows only the drop zone (S8/A1), so
     // these shell tests stay about the shell's own wiring.
     getRockets: vi.fn().mockResolvedValue([]),
   };
 });
 
-// Leaflet (SitePicker → MapInner) and three/echarts (InteractiveResults) touch
-// `window` at import time and are irrelevant to the shell's wiring under test.
+// Leaflet (SitePicker → MapInner) and three/echarts (the flight replay and
+// series chart) touch `window` at import time and are irrelevant to the
+// shell's wiring under test; the flight components have their own tests.
 vi.mock("@/components/map/SitePicker", () => ({
   SitePicker: () => <div>site-picker-stub</div>,
 }));
-vi.mock("@/components/results/InteractiveResultsLazy", () => ({
-  InteractiveResultsLazy: ({ runId }: { runId: string }) => <div>interactive-results-stub {runId}</div>,
+vi.mock("@/components/charts/Trajectory3D", () => ({
+  Trajectory3D: () => <div>trajectory-3d-stub</div>,
+}));
+vi.mock("@/components/charts/SeriesChart", () => ({
+  SeriesChart: () => <div>series-chart-stub</div>,
 }));
 
 const TEMPLATE = {
@@ -59,11 +64,23 @@ const TEMPLATE = {
   },
 };
 
-const RESULT = {
+const RESULT: { run_id: string; scalars: Record<string, number>; plot_urls: string[]; warnings: string[] } = {
   run_id: "run-7f3a",
   scalars: { apogee: 3142 },
   plot_urls: [],
   warnings: ["Stability margin at rail exit is low."],
+};
+
+const SERIES = {
+  t: [0, 1, 2, 3],
+  altitude: [0, 100, 300, 200],
+  speed: [0, 50, 30, 10],
+  path3d: [
+    [0, 0, 0],
+    [3, 4, 100],
+    [6, 8, 300],
+    [9, 12, 200],
+  ],
 };
 
 /** Drives WizardProvider the way RocketStep / RocketCard / the map would. */
@@ -134,9 +151,11 @@ afterEach(() => {
   getScenarioTemplateMock.mockReset();
   suggestAtmosphereMock.mockReset();
   getElevationMock.mockReset();
+  getSeriesMock.mockReset();
 });
 
 function arm() {
+  getSeriesMock.mockResolvedValue(SERIES);
   getScenarioTemplateMock.mockResolvedValue(TEMPLATE);
   suggestAtmosphereMock.mockResolvedValue({
     model: "forecast",
@@ -207,7 +226,8 @@ describe("WorkbenchShell — running in place (S7)", () => {
         }),
       ),
     );
-    expect(await screen.findByText("interactive-results-stub run-7f3a")).toBeInTheDocument();
+    expect(await screen.findByText("trajectory-3d-stub")).toBeInTheDocument();
+    expect(getSeriesMock).toHaveBeenCalledWith("run-7f3a");
     expect(screen.getByText("Stability margin at rail exit is low.")).toBeInTheDocument();
     expect(screen.queryByText(placeholder)).toBeNull();
     expect(push).not.toHaveBeenCalled();
@@ -323,5 +343,94 @@ describe("WorkbenchShell — top bar context", () => {
     fireEvent.click(screen.getByText("seed-export"));
 
     expect(await screen.findByText("Icarus-2 · icarus2.ork")).toBeInTheDocument();
+  });
+});
+
+describe("WorkbenchShell — results column (S9)", () => {
+  // `prepare` runs after arm(), which resolves the series by default.
+  async function runOnce(result = RESULT, prepare?: () => void) {
+    arm();
+    prepare?.();
+    simulateMock.mockResolvedValueOnce(result);
+    const run = await seedReady();
+    fireEvent.click(run);
+    await waitFor(() => expect(simulateMock).toHaveBeenCalledTimes(1));
+  }
+
+  it("shows skeletons while the series loads, then the replay, KPIs, chart and timeline", async () => {
+    let resolveSeries: (value: typeof SERIES) => void = () => {};
+    await runOnce(
+      {
+        ...RESULT,
+        scalars: { apogee_m: 3142.2, apogee_time_s: 21.8, flight_time_s: 142, impact_velocity_ms: 8.4 },
+      },
+      () => {
+        getSeriesMock.mockReturnValue(new Promise<typeof SERIES>((resolve) => (resolveSeries = resolve)));
+      },
+    );
+
+    expect(await screen.findByRole("status", { name: "Loading flight data…" })).toBeInTheDocument();
+    // Scalars-only pieces do not wait for the series.
+    expect(screen.getByRole("group", { name: "Apogee" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Flight timeline" })).toBeInTheDocument();
+    expect(screen.queryByText("trajectory-3d-stub")).toBeNull();
+
+    resolveSeries(SERIES);
+
+    expect(await screen.findByText("trajectory-3d-stub")).toBeInTheDocument();
+    expect(await screen.findByText("series-chart-stub")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Loading flight data…" })).toBeNull();
+    expect(screen.getByText("Flight replay")).toBeInTheDocument();
+    // The counted-up value itself is KpiCards.test's job (the global motion
+    // stub keeps CountUp at 0); here the card and its caption are composed.
+    expect(screen.getByRole("group", { name: "Apogee" })).toHaveTextContent("at 21.8 s");
+    expect(screen.getByRole("list", { name: "Flight timeline" })).toBeInTheDocument();
+  });
+
+  it("falls back to the KPIs, the timeline and the static plots when the series 404s", async () => {
+    arm();
+    getSeriesMock.mockRejectedValue(new ApiError(404, "Series not found."));
+    simulateMock.mockResolvedValueOnce({
+      ...RESULT,
+      scalars: { apogee_m: 3142.2, apogee_time_s: 21.8 },
+      plot_urls: ["/api/results/run-7f3a/plots/linear_kinematics.png", "/api/results/run-7f3a/plots/energy.png"],
+    });
+    const run = await seedReady();
+    fireEvent.click(run);
+
+    expect(await screen.findByText("Linear kinematics")).toBeInTheDocument();
+    expect(screen.getByText("Energy")).toBeInTheDocument();
+    expect(screen.getByText("This run has no flight data to replay, so the static plots are shown instead.")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Apogee" })).toHaveTextContent("at 21.8 s");
+    expect(screen.getByRole("list", { name: "Flight timeline" })).toBeInTheDocument();
+    expect(screen.queryByText("trajectory-3d-stub")).toBeNull();
+    expect(screen.queryByText("series-chart-stub")).toBeNull();
+  });
+
+  it("collapses the warnings banner past two warnings", async () => {
+    await runOnce({
+      ...RESULT,
+      warnings: ["Warning one.", "Warning two.", "Warning three.", "Warning four."],
+    });
+
+    expect(await screen.findByText("Warning one.")).toBeInTheDocument();
+    expect(screen.getByText("Warning two.")).toBeInTheDocument();
+    expect(screen.queryByText("Warning three.")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show all 4 warnings" }));
+
+    expect(screen.getByText("Warning three.")).toBeInTheDocument();
+    expect(screen.getByText("Warning four.")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Show fewer" }));
+    expect(screen.queryByText("Warning three.")).toBeNull();
+  });
+
+  it("shows two or fewer warnings in full, without a toggle", async () => {
+    await runOnce({ ...RESULT, warnings: ["Warning one.", "Warning two."] });
+
+    expect(await screen.findByText("Warning one.")).toBeInTheDocument();
+    expect(screen.getByText("Warning two.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
   });
 });
