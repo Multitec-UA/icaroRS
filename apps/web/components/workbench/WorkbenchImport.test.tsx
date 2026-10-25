@@ -56,9 +56,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
 vi.mock("@/components/map/SitePicker", () => ({
   SitePicker: () => <div>site-picker-stub</div>,
 }));
-vi.mock("@/components/results/InteractiveResultsLazy", () => ({
-  InteractiveResultsLazy: ({ runId }: { runId: string }) => <div>interactive-results-stub {runId}</div>,
-}));
 
 const TEMPLATE = {
   name: "template",
@@ -430,7 +427,7 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
     expect(radios[1]).not.toBeChecked();
     expect(within(dialog).getByRole("link", { name: "Compare two files" })).toHaveAttribute(
       "href",
-      "/history?rocket_id=rk-1",
+      "/runs?rocket_id=rk-1",
     );
   });
 
