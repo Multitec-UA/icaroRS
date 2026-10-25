@@ -69,6 +69,23 @@ export function ChevronDownIcon(props: IconProps) {
   );
 }
 
+export function UploadIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 16V4M7 9l5-5 5 5" />
+      <path d="M4 16v3a1 1 0 001 1h14a1 1 0 001-1v-3" />
+    </Icon>
+  );
+}
+
+export function CloseIcon(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M6 6l12 12M18 6L6 18" />
+    </Icon>
+  );
+}
+
 export function InfoIcon(props: IconProps) {
   return (
     <Icon {...props}>

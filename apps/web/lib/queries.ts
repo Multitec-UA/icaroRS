@@ -12,9 +12,10 @@
  * user out in one place instead of each consumer repeating the check.
  */
 
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ApiError,
+  convert,
   getHistory,
   getRockets,
   getExport,
@@ -24,6 +25,7 @@ import {
   getScenarioTemplate,
   simulate,
   type ResultEnvelope,
+  type ConvertResponse,
   type ExportDetail,
   type RocketDetail,
   type ScenarioTemplate,
@@ -36,6 +38,8 @@ import {
 export const queryKeys = {
   history: ["history"] as const,
   rockets: ["rockets"] as const,
+  /** One rocket with its exports. Shares the `rockets` prefix so one invalidation refreshes list and details. */
+  rocket: (rocketId: string) => ["rockets", rocketId] as const,
   result: (runId: string) => ["results", runId] as const,
   series: (runId: string) => ["results", runId, "series"] as const,
   scenarioTemplate: ["scenario", "template"] as const,
@@ -52,6 +56,19 @@ export function useRocketsQuery() {
   return useQuery<RocketSummary[]>({
     queryKey: queryKeys.rockets,
     queryFn: () => getRockets(),
+  });
+}
+
+/**
+ * GET /api/rockets/{rocketId} — the rocket and its exports, newest first
+ * (the Workbench's rocket panel, S8/A3). `null` means "no rocket yet": the
+ * query stays idle instead of asking for a rocket that does not exist.
+ */
+export function useRocketDetailQuery(rocketId: string | null) {
+  return useQuery<RocketDetail>({
+    queryKey: queryKeys.rocket(rocketId ?? "none"),
+    queryFn: () => getRocket(rocketId as string),
+    enabled: rocketId !== null,
   });
 }
 
@@ -87,6 +104,33 @@ export function useScenarioTemplateQuery() {
 export function useSimulateMutation() {
   return useMutation<SimulateResult, unknown, { exportId: string; scenario: unknown }>({
     mutationFn: ({ exportId, scenario }) => simulate(exportId, scenario),
+  });
+}
+
+/**
+ * POST /api/convert — the Workbench's `.ork` import (S8). `rocketId` is the
+ * destination the user chose explicitly (L14): `null` creates a new rocket,
+ * an id attaches the export to that rocket. A successful convert changes
+ * the org's rockets and the destination rocket's exports, so both the list
+ * and every detail query (same `rockets` key prefix) are invalidated here,
+ * once, for every caller.
+ */
+export function useConvertMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<ConvertResponse, unknown, { file: File; rocketId: string | null }>({
+    mutationFn: ({ file, rocketId }) => convert(file, rocketId ?? undefined),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.rockets }),
+  });
+}
+
+/**
+ * GET /api/exports/{exportId} on demand — switching the active file inside
+ * the rocket panel. A mutation rather than a query because the fetch is an
+ * action with its own pending/error state, not data the screen keeps.
+ */
+export function useExportDetailMutation() {
+  return useMutation<ExportDetail, unknown, string>({
+    mutationFn: (exportId) => getExport(exportId),
   });
 }
 

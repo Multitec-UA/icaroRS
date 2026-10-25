@@ -6,6 +6,13 @@
  * body from WizardProvider, then keep the result in the draft so the results
  * column renders it in place.
  *
+ * Also owns the two derived facts the command row shows about a run:
+ *   - `ready`: the guard (export + finite site + date when the model needs
+ *     one, nothing in flight, and not held by the caller — e.g. while a
+ *     `.ork` is converting, S8/A2);
+ *   - `stale`: the results on screen belong to a previous export, so the
+ *     status pill says "Results are from …" and the button "Run this file".
+ *
  * Error contract (unchanged from the wizard):
  *   401 → handled globally by lib/query-client.ts, nothing to do here
  *   422 → `errors` (FieldError[]) for the input sections / results column
@@ -23,21 +30,25 @@ import { focusFirstError } from "./fieldErrors";
 export interface RunSimulation {
   /** Send the draft to /api/simulate. No-op while not `ready`. */
   run: () => Promise<void>;
-  /** True when the draft can run right now (guard satisfied, nothing in flight). */
+  /** True when the draft can run right now (guard satisfied, nothing in flight, not held). */
   ready: boolean;
   busy: boolean;
+  /** True when the results on screen were computed from a different export than the active one. */
+  stale: boolean;
   errors: FieldError[];
   fatal: string | null;
 }
 
-export function useRunSimulation(): RunSimulation {
+export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
   const { state, setResult, scenarioBody } = useWizardDraft();
   const t = useT();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
   const { mutateAsync, isPending } = useSimulateMutation();
 
-  const ready = canRun(state) && !isPending;
+  const hold = options?.hold ?? false;
+  const ready = canRun(state) && !isPending && !hold;
+  const stale = state.result !== null && state.resultExportId !== state.exportId;
   const exportId = state.exportId;
 
   const run = useCallback(async () => {
@@ -61,5 +72,5 @@ export function useRunSimulation(): RunSimulation {
     }
   }, [exportId, ready, mutateAsync, scenarioBody, setResult, t]);
 
-  return { run, ready, busy: isPending, errors, fatal };
+  return { run, ready, busy: isPending, stale, errors, fatal };
 }
