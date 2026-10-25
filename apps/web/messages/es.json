@@ -32,10 +32,7 @@
 
   "nav": {
     "primaryNavigation": "Navegación principal",
-    "language": "Idioma",
-    "simulate": "Simular",
-    "rockets": "Cohetes",
-    "history": "Historial"
+    "language": "Idioma"
   },
 
   "account": {
@@ -52,16 +49,7 @@
     "converting": "Convirtiendo {filename}… esto puede tardar hasta un minuto.",
     "errorNotOrk": "Ese no es un archivo de OpenRocket. Por favor selecciona un archivo .ork.",
     "errorGeneric": "Falló la conversión.",
-    "fileInputLabel": "Archivo .ork de OpenRocket",
-    "eyebrow": "Paso 1 · Cohete",
-    "heading": "Carga tu cohete",
-    "description": "Sube el archivo .ork de OpenRocket que diseñaste. Lo convertimos en un modelo listo para simular.",
-    "readyPrefix": "Listo: {name}",
-    "changeFile": "Haz clic para elegir otro archivo.",
-    "dropPrompt": "Arrastra y suelta tu archivo .ork aquí",
-    "browsePrompt": "o haz clic para explorar",
-    "continue": "Continuar",
-    "defaultRocketName": "tu cohete"
+    "fileInputLabel": "Archivo .ork de OpenRocket"
   },
 
   "basics": {
@@ -71,19 +59,7 @@
     "elevationLookingUp": "Buscando elevación…",
     "elevationAutoFilled": "Elevación completada automáticamente ({source}).",
     "elevationEnterManually": "Introduce la elevación manualmente.",
-    "elevationFetchFailed": "No se pudo obtener la elevación — introdúcela manualmente.",
-    "eyebrow": "Paso 2 · Sitio y hora de lanzamiento",
-    "heading": "¿Dónde y cuándo?",
-    "description": "Selecciona el sitio de lanzamiento y el momento. Nosotros elegimos el mejor modelo meteorológico para ti.",
-    "elevationHint": "Sobre el nivel del mar.",
-    "fieldDateTime": "Fecha y hora de lanzamiento (UTC)",
-    "dateTimeHint": "Tu hora local ({timeZone}), simulada a la hora completa. Dentro de ~16 días, usamos un pronóstico meteorológico real.",
-    "modelForecastLabel": "Pronóstico meteorológico real (GFS)",
-    "modelStandardLabel": "Atmósfera estándar",
-    "errorValidationFailed": "Falló la validación.",
-    "continue": "Continuar",
-    "checking": "Verificando…",
-    "errorsTitle": "Por favor corrige lo siguiente"
+    "elevationFetchFailed": "No se pudo obtener la elevación — introdúcela manualmente."
   },
 
   "sitePicker": {
@@ -136,36 +112,13 @@
     "stdDevFor": "Desviación estándar de {param}",
     "kindFor": "Tipo de {param}",
     "stationPlaceholder": "72493…",
-    "era5Placeholder": "/data/era5/2024-06.nc…",
-    "eyebrow": "Paso 3 · Ajuste fino",
-    "heading": "Ajuste fino",
-    "description": "Opcional. Los valores por defecto son sensatos — abre una sección solo si deseas más control.",
-    "uncertaintyBudget": "Presupuesto de incertidumbre",
-    "presetCustomize": "Personalizar",
-    "railOverrides": "Parámetros del riel de lanzamiento",
-    "atmosphereModel": "Modelo de atmósfera ({model})",
-    "fieldModel": "Modelo",
-    "errorsTitle": "Por favor corrige lo siguiente",
-    "errorValidationFailed": "Falló la validación.",
-    "review": "Revisar",
-    "checking": "Verificando…"
+    "era5Placeholder": "/data/era5/2024-06.nc…"
   },
 
   "review": {
     "errorsTitle": "El escenario necesita correcciones",
     "running": "Ejecutando la simulación de 6 grados de libertad — esto puede tardar un momento…",
-    "errorGeneric": "Falló la simulación.",
-    "eyebrow": "Paso 4 · Revisión",
-    "heading": "Revisión y lanzamiento",
-    "description": "Revisa el resumen y ejecuta la simulación.",
-    "rowScenario": "Escenario",
-    "rowSite": "Sitio",
-    "rowLaunchTime": "Hora de lanzamiento",
-    "rowAtmosphere": "Atmósfera",
-    "rowUncertaintyParams": "Parámetros de incertidumbre",
-    "uncertaintyDefault": "predeterminado",
-    "runSimulation": "Ejecutar simulación 🚀",
-    "simulating": "Simulando…"
+    "errorGeneric": "Falló la simulación."
   },
 
   "results": {
@@ -177,21 +130,7 @@
     "resultsNotFound": "No se encontró esta corrida.",
     "loadingResults": "Cargando resultados…",
     "couldNotLoadPlot": "No se pudo cargar esta gráfica.",
-    "newRocketConfirm": "¿Descartar este borrador y empezar un cohete nuevo?",
-    "eyebrow": "Informe de misión",
-    "heading": "Resultados de vuelo",
-    "runId": "Corrida {runId}",
-    "moreNumbers": "Más números",
-    "allPlots": "Todas las gráficas",
-    "valuesBadge": {
-      "one": "1 valor",
-      "other": "{count} valores"
-    },
-    "plotsBadge": {
-      "one": "1 gráfica",
-      "other": "{count} gráficas"
-    },
-    "summaryCaption": "Resumen de la ejecución"
+    "newRocketConfirm": "¿Descartar este borrador y empezar un cohete nuevo?"
   },
 
   "interactive": {
@@ -200,11 +139,7 @@
     "play": "Reproducir",
     "pause": "Pausar",
     "scrubTimeline": "Avanzar en la línea de tiempo del vuelo",
-    "trajectoryAriaLabel": "Trayectoria de vuelo 3D. Usa el deslizador de la línea de tiempo para recorrer el vuelo.",
-    "loadingFlightData": "Cargando datos de vuelo interactivos…",
-    "sectionHeading": "Datos de vuelo interactivos",
-    "trajectoryEyebrow": "Trayectoria",
-    "telemetryEyebrow": "Telemetría"
+    "trajectoryAriaLabel": "Trayectoria de vuelo 3D. Usa el deslizador de la línea de tiempo para recorrer el vuelo."
   },
 
   "chart": {
@@ -279,10 +214,7 @@
     "colDate": "Guardado el",
     "colBy": "Por",
     "useThisRocket": "Usar este cohete",
-    "runs": "Simulaciones",
-    "eyebrow": "Cohetes guardados",
-    "colName": "Nombre",
-    "backToWizard": "← Volver al asistente"
+    "runs": "Simulaciones"
   },
 
   "runs": {
@@ -498,41 +430,5 @@
     "label": "Tema",
     "switchToDark": "Cambiar al modo oscuro",
     "switchToLight": "Cambiar al modo claro"
-  },
-
-  "wizard": {
-    "appName": "icaro",
-    "appSubtitle": "simulación de cohetes",
-    "signOut": "Cerrar sesión"
-  },
-
-  "stepper": {
-    "rocket": "Cohete",
-    "basics": "Sitio y hora de lanzamiento",
-    "advanced": "Ajuste fino",
-    "review": "Revisión",
-    "results": "Resultados",
-    "label": "Pasos de la simulación",
-    "completed": "completado"
-  },
-
-  "history": {
-    "eyebrow": "Historial de simulaciones",
-    "heading": "Historial de vuelos",
-    "description": "Todas las simulaciones ejecutadas, las más recientes primero.",
-    "loading": "Cargando historial…",
-    "empty": "Todavía no hay simulaciones. Ejecuta una para ver los resultados aquí.",
-    "errorLoad": "No se pudo cargar el historial.",
-    "colRocket": "Cohete",
-    "colDate": "Fecha",
-    "colStatus": "Estado",
-    "colApogee": "Apogeo (m)",
-    "statusDone": "Completada",
-    "statusError": "Error",
-    "viewDetails": "Ver detalles",
-    "reRun": "Volver a lanzar",
-    "backToWizard": "← Volver al asistente",
-    "reRunNoExport": "No se puede repetir una simulación guardada antes de registrar su archivo.",
-    "reRunUnavailable": "No se puede repetir una ejecución fallida."
   }
 }
