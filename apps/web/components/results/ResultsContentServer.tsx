@@ -1,60 +1,37 @@
 /**
- * ResultsContentServer — the server-rendered body of /results/[runId]
- * (issue #52).
+ * ResultsContentServer — the server-rendered body of /results/[runId], the
+ * Run report (S9, canvas board C).
  *
  * A Server Component: fetches GET /api/results/{runId} directly
- * (lib/server-api.ts, forwarding the session cookie) instead of the client
- * useResultQuery from issue #48. Renders the headline scalars and details
- * table server-side; the interactive charts (InteractiveResults, already
- * `ssr:false`) and every stateful bit (ScalarsGrid's CountUp animation,
- * PlotCard's onError fallback, ResultsActions' wizard navigation) are client
- * islands.
+ * (lib/server-api.ts, forwarding the session cookie) and renders what needs
+ * no client state itself — the warnings, "All results" (every scalar with
+ * its catalog label) and the plot gallery. The parts that need the browser
+ * are client islands with serialisable props:
+ *   - ReportHeader: breadcrumb, "{rocket} over {site}", file · date · author
+ *     and the actions. The results envelope carries only the numbers, so the
+ *     header looks the run up in the history (useRunSummaryQuery);
+ *   - ReportFlight: the flight replay (series via useSeriesQuery, the PNG
+ *     plots stand in on 404) and the KPI cards with their sparklines;
+ *   - ReportConfiguration: the stored scenario as a definition list.
  *
- * Known trade-off: the previous client-only ResultsDashboard could skip the
- * fetch entirely when the wizard had just produced this exact run
- * (`state.result` in WizardProvider). A Server Component can't read that
- * client-side context, so the just-simulated → view-results navigation now
- * always does one server-side fetch it didn't need to before. Every other
- * case (deep link, refresh, "Re-run" from history) already fetched and is
- * strictly faster now (server-rendered instead of a client loading spinner).
+ * Known trade-off (unchanged from issue #52): a Server Component cannot read
+ * the just-simulated result held in WizardProvider, so the Workbench → report
+ * navigation always does one server-side fetch.
  */
 
 import Link from "next/link";
 import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
-import { ApiError } from "@/lib/api";
+import { ApiError, type SimulateResult } from "@/lib/api";
 import { getResultServer } from "@/lib/server-api";
-import { plural, type Locale, type TranslateFn } from "@/lib/i18n";
-import { cn, focusRing } from "@/lib/styles";
-import { Accordion, Callout, Eyebrow } from "@/components/ui";
-import { ScalarsGrid } from "./ScalarsGrid";
-import { PlotCard } from "./PlotCard";
-import { ResultsActions } from "./ResultsActions";
-import { InteractiveResultsLazy } from "./InteractiveResultsLazy";
-
-// Matches components/ui.tsx's Button ghost variant (no `withArrow`) — a
-// server-rendered <Link> needs no client onClick, unlike Button itself.
-const backLinkClassName = cn(
-  "group relative inline-flex h-12 items-center justify-center gap-2.5 rounded-full px-6 text-sm font-medium transition-[background-color,box-shadow,color,transform,opacity] duration-500 ease-[var(--ease-spring)] active:scale-[0.98] text-foreground ring-1 ring-inset ring-white/15 hover:bg-white/[0.06] hover:ring-white/25",
-  focusRing,
-);
-
-/**
- * "Run {runId}" with only the id itself marked `translate="no"`, so a
- * browser auto-translation can localize the label but never garble the
- * identifier. The catalog string is interpolated first and then split on
- * the id, which keeps the wording (and the placeholder position) in the
- * catalog's hands.
- */
-function RunIdLine({ runId, t }: { runId: string; t: TranslateFn }) {
-  const [before, after] = t("results.runId", { runId }).split(runId);
-  return (
-    <p className="tabular-readout text-sm text-muted">
-      {before}
-      <span translate="no">{runId}</span>
-      {after}
-    </p>
-  );
-}
+import type { Locale, TranslateFn } from "@/lib/i18n";
+import { Callout } from "@/components/ui";
+import { PlotGallery } from "@/components/flight/PlotGallery";
+import { ReplayProvider } from "@/components/flight/ReplayContext";
+import { WarningsBanner } from "@/components/flight/WarningsBanner";
+import { ghostButton } from "@/components/workbench/styles";
+import { ReportConfiguration } from "./ReportConfiguration";
+import { ReportFlight } from "./ReportFlight";
+import { ReportHeader } from "./ReportHeader";
 
 export async function ResultsContentServer({
   runId,
@@ -65,15 +42,10 @@ export async function ResultsContentServer({
   t: TranslateFn;
   locale: Locale;
 }) {
-  let scalars: Record<string, number | null>;
-  let warnings: string[];
-  let plotUrls: string[];
+  let result: SimulateResult;
 
   try {
-    const env = await getResultServer(runId);
-    scalars = env.result.scalars;
-    warnings = env.result.warnings;
-    plotUrls = env.result.plot_urls;
+    result = (await getResultServer(runId)).result;
   } catch (err) {
     // A 401 here just means AuthGate (client-side) is about to replace this
     // whole tree with the login screen — nothing to render in the meantime.
@@ -83,106 +55,56 @@ export async function ResultsContentServer({
         ? (err.hint ?? t(`errors.${err.code}`, { status: err.status }))
         : t("results.resultsNotFound");
     return (
-      <div className="py-12">
+      <div className="flex flex-col gap-4 py-12">
         <Callout tone="error" title={t("results.resultsUnavailableTitle")}>
           {message}
         </Callout>
-        <div className="mt-4">
-          <Link href="/" className={backLinkClassName}>
-            <span className="inline-flex items-center gap-2.5">{t("results.backToStart")}</span>
+        <div>
+          <Link href="/" className={ghostButton}>
+            {t("results.backToStart")}
           </Link>
         </div>
       </div>
     );
   }
 
-  const present = (key: string) => key in scalars;
-  const details = SCALAR_SPECS.filter((s) => !s.primary && present(s.key));
+  const { scalars, warnings, plot_urls: plotUrls } = result;
+  const allResults = SCALAR_SPECS.filter((spec) => spec.key in scalars);
 
   return (
-    <>
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-3">
-          <Eyebrow>{t("results.eyebrow")}</Eyebrow>
-          <h1 className="text-balance text-4xl font-semibold tracking-tight">{t("results.heading")}</h1>
-          <RunIdLine runId={runId} t={t} />
-        </div>
-        <ResultsActions />
-      </header>
+    <ReplayProvider>
+      <ReportHeader runId={runId} />
 
-      {warnings.length > 0 && (
-        <Callout tone="warning" title={t("results.warningsTitle")}>
-          {/* API warnings are English verbatim per RG-6.1 */}
-          <ul className="list-disc pl-5">
-            {warnings.map((w, i) => (
-              <li key={i} className="break-words">
-                {w}
-              </li>
+      <ReportFlight runId={runId} scalars={scalars} />
+
+      <WarningsBanner warnings={warnings} />
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section
+          aria-labelledby="report-all-results"
+          className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-soft"
+        >
+          <h2 id="report-all-results" className="text-sm font-semibold text-ink">
+            {t("report.allResults")}
+          </h2>
+          <dl className="flex flex-col text-sm">
+            {allResults.map((spec) => (
+              <div
+                key={spec.key}
+                className="flex items-baseline justify-between gap-4 border-t border-divider py-2 first:border-t-0"
+              >
+                <dt className="text-ink-2">{t(`scalars.${spec.key}`)}</dt>
+                <dd className="tabular-nums font-medium text-ink">{formatScalar(scalars[spec.key], spec.unit, locale)}</dd>
+              </div>
             ))}
-          </ul>
-          {/* Localized note per AC-6.3/6.4 */}
-          <p className="mt-2 text-xs opacity-75">{t("common.technicalEnglishNote")}</p>
-        </Callout>
-      )}
+          </dl>
+        </section>
 
-      <ScalarsGrid scalars={scalars} />
+        <ReportConfiguration runId={runId} />
+      </div>
 
-      {/* Interactive charts + animated 3D trajectory (issue #11). Renders
-          nothing when the run has no series — the PNG gallery below stands in. */}
-      <InteractiveResultsLazy runId={runId} />
-
-      {/* Secondary detail — collapsed by default so the hero + interactive
-          section stays the focus. "More numbers" before the static plots. */}
-      {details.length > 0 && (
-        <Accordion
-          title={t("results.moreNumbers")}
-          badge={plural(locale, details.length, "results.valuesBadge")}
-        >
-          <div className="overflow-hidden rounded-xl ring-1 ring-inset ring-white/10">
-            <table className="w-full text-sm">
-              <caption className="sr-only">{t("results.summaryCaption")}</caption>
-              <tbody>
-                {details.map((spec) => (
-                  <tr key={spec.key} className="border-t border-white/[0.06] first:border-0">
-                    <th scope="row" className="px-4 py-3 text-left font-normal text-muted">
-                      {t(`scalars.${spec.key}`)}
-                    </th>
-                    <td className="tabular-readout px-4 py-3 text-right font-medium text-foreground">
-                      {formatScalar(scalars[spec.key], spec.unit, locale)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Accordion>
-      )}
-
-      {/* Static plot gallery (PNGs) — fallback / complete set. */}
-      {plotUrls.length > 0 && (
-        <Accordion
-          title={t("results.allPlots")}
-          badge={plural(locale, plotUrls.length, "results.plotsBadge")}
-        >
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            {plotUrls.map((url, i) => {
-              const stem = url.split("/").pop()?.replace(/\.png$/, "") ?? "plot";
-              // Resolve plot title from catalog; fall back to humanized stem if key missing
-              const title =
-                t(`plots.${stem}`) !== `plots.${stem}` ? t(`plots.${stem}`) : stem.replace(/_/g, " ");
-              return (
-                <PlotCard
-                  key={url}
-                  url={url}
-                  title={title}
-                  failedLabel={t("results.couldNotLoadPlot")}
-                  index={i}
-                />
-              );
-            })}
-          </div>
-        </Accordion>
-      )}
-    </>
+      {/* The complete set of static plots, whether or not the run has series. */}
+      <PlotGallery urls={plotUrls} />
+    </ReplayProvider>
   );
 }
