@@ -301,6 +301,8 @@ export type MessageKey =
   | "workbench.panelFiles.one"
   | "workbench.panelFiles.other"
   | "workbench.panelOpenInRockets"
+  | "workbench.panelRuns.one"
+  | "workbench.panelRuns.other"
   | "workbench.panelFilesTitle"
   | "workbench.panelFilesHint"
   | "workbench.panelActiveFile"

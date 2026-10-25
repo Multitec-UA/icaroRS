@@ -20,6 +20,7 @@ const {
   getRocketMock,
   getExportMock,
   convertMock,
+  getHistoryMock,
 } = vi.hoisted(() => ({
   simulateMock: vi.fn(),
   getScenarioTemplateMock: vi.fn(),
@@ -29,6 +30,7 @@ const {
   getRocketMock: vi.fn(),
   getExportMock: vi.fn(),
   convertMock: vi.fn(),
+  getHistoryMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -50,6 +52,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     getRocket: (...args: Parameters<typeof actual.getRocket>) => getRocketMock(...args),
     getExport: (...args: Parameters<typeof actual.getExport>) => getExportMock(...args),
     convert: (...args: Parameters<typeof actual.convert>) => convertMock(...args),
+    getHistory: (...args: Parameters<typeof actual.getHistory>) => getHistoryMock(...args),
   };
 });
 
@@ -429,6 +432,36 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
       "href",
       "/runs?rocket_id=rk-1",
     );
+  });
+
+  it("shows how many runs each file has, counted from the rocket's history", async () => {
+    arm();
+    armRocketApi();
+    const run = (simulation_id: string, export_id: string) => ({
+      simulation_id,
+      rocket_id: "rk-1",
+      export_id,
+      name: "Icarus-2",
+      ork_filename: null,
+      created_at: "2026-10-01T00:00:00Z",
+      created_by: "pilot@multitec.dev",
+      status: "done" as const,
+      scenario: {},
+      scalars: { apogee: 3000 },
+      warnings: [],
+      result_prefix: "",
+      plot_names: [],
+      has_series: false,
+    });
+    getHistoryMock.mockResolvedValue([run("s-1", "ex-new"), run("s-2", "ex-new"), run("s-3", "ex-old")]);
+    await renderShell();
+    await useRocket("Icarus-2");
+
+    const { dialog } = await openPanel();
+
+    expect(getHistoryMock).toHaveBeenCalledWith(100, undefined, "rk-1");
+    expect(await within(dialog).findByText("2 runs")).toBeInTheDocument();
+    expect(within(dialog).getByText("1 run")).toBeInTheDocument();
   });
 
   it("selecting another file keeps the rocket, marks results stale and relabels Run as 'Run this file'", async () => {

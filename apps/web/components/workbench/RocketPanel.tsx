@@ -18,7 +18,13 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, type KeyboardEvent, type RefObject } from "react";
-import { useExportDetailMutation, useRocketDetailQuery, useRocketLatestExportMutation, useRocketsQuery } from "@/lib/queries";
+import {
+  useExportDetailMutation,
+  useHistoryQuery,
+  useRocketDetailQuery,
+  useRocketLatestExportMutation,
+  useRocketsQuery,
+} from "@/lib/queries";
 import type { ExportSummary } from "@/lib/api";
 import { plural } from "@/lib/i18n";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
@@ -53,6 +59,17 @@ export function RocketPanel({
   const { state, setExport } = useWizardDraft();
   const detail = useRocketDetailQuery(rocketId);
   const rockets = useRocketsQuery();
+  // Run counts per file come from the rocket's history (S10: computed
+  // client-side, no denormalised counters). One page is the API's maximum;
+  // a rocket with more runs than that shows the counts of its latest hundred.
+  const runs = useHistoryQuery({ rocketId, limit: 100 });
+  const runCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const row of runs.data ?? []) {
+      if (row.export_id) counts.set(row.export_id, (counts.get(row.export_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [runs.data]);
   const loadExport = useExportDetailMutation();
   const useLatest = useRocketLatestExportMutation();
   const panelRef = useRef<HTMLElement>(null);
@@ -217,6 +234,14 @@ export function RocketPanel({
                       <span translate="no">{exp.created_by}</span>
                       {" · "}
                       <span className="tabular-nums">{dateFormat.format(new Date(exp.created_at))}</span>
+                      {runs.data && (
+                        <>
+                          {" · "}
+                          <span className="tabular-nums">
+                            {plural(locale, runCounts.get(exp.export_id) ?? 0, "workbench.panelRuns")}
+                          </span>
+                        </>
+                      )}
                     </span>
                   </span>
                   {loading && <Spinner decorative className="h-3.5 w-3.5 text-accent-ink" />}
