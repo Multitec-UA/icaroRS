@@ -1,7 +1,6 @@
 import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { resolveServerLocale, getServerT } from "@/lib/server-i18n";
-import { Eyebrow } from "@/components/ui";
 import { RocketsListServer } from "@/components/rockets/RocketsListServer";
 import { RocketsListSkeleton } from "@/components/rockets/RocketsListSkeleton";
 
@@ -13,12 +12,9 @@ export default async function RocketsPage() {
   const t = getServerT(locale);
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-10 px-4 py-12">
-      <header className="flex flex-col gap-3">
-        <Eyebrow>{t("rockets.eyebrow")}</Eyebrow>
-        <h1 className="text-4xl font-semibold tracking-tight text-balance">
-          {t("rockets.heading")}
-        </h1>
+    <div className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 px-4 py-6 sm:px-6 lg:py-8">
+      <header className="flex flex-col gap-1">
+        <h1 className="text-2xl font-semibold tracking-[-0.02em] text-ink">{t("rockets.heading")}</h1>
         <p className="text-sm text-muted">{t("rockets.description")}</p>
       </header>
 

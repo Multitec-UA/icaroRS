@@ -16,9 +16,8 @@ vi.mock("@/lib/api", async (importOriginal) => {
   };
 });
 
-// In production the Sidebar exists only at `/`, where AppNav renders nothing.
-// The provider stack (AuthGate) still mounts AppNav here, so on a non-root
-// pathname the queries are scoped to the Sidebar's own subtree.
+// The provider stack (AuthGate → AppShell) already mounts one Sidebar for
+// every route, so the queries are scoped to the Sidebar rendered here.
 async function renderSidebar() {
   render(
     <AppProviders>
@@ -37,7 +36,7 @@ describe("Sidebar (S7)", () => {
 
     const nav = await sidebar.findByRole("navigation", { name: "Primary navigation" });
     const links = Array.from(nav.querySelectorAll("a")).map((a) => a.getAttribute("href"));
-    expect(links).toEqual(["/", "/rockets", "/history"]);
+    expect(links).toEqual(["/", "/rockets", "/runs"]);
 
     expect(sidebar.getByRole("link", { name: "Rockets" })).toHaveAttribute("aria-current", "page");
     expect(sidebar.getByRole("link", { name: "Workbench" })).not.toHaveAttribute("aria-current");

@@ -32,10 +32,7 @@
 
   "nav": {
     "primaryNavigation": "Primary navigation",
-    "language": "Language",
-    "simulate": "Simulate",
-    "rockets": "Rockets",
-    "history": "History"
+    "language": "Language"
   },
 
   "account": {
@@ -52,16 +49,7 @@
     "converting": "Converting {filename}… this can take up to a minute.",
     "errorNotOrk": "That isn't an OpenRocket file. Please choose a .ork file.",
     "errorGeneric": "Conversion failed.",
-    "fileInputLabel": "OpenRocket .ork file",
-    "eyebrow": "Step 1 · Rocket",
-    "heading": "Upload your rocket",
-    "description": "Drop the OpenRocket .ork file you designed. We convert it into a simulation-ready model.",
-    "readyPrefix": "Ready: {name}",
-    "changeFile": "Click to choose a different file.",
-    "dropPrompt": "Drag & drop your .ork file here",
-    "browsePrompt": "or click to browse",
-    "continue": "Continue",
-    "defaultRocketName": "your rocket"
+    "fileInputLabel": "OpenRocket .ork file"
   },
 
   "basics": {
@@ -71,19 +59,7 @@
     "elevationLookingUp": "Looking up elevation…",
     "elevationAutoFilled": "Elevation auto-filled ({source}).",
     "elevationEnterManually": "Enter elevation manually.",
-    "elevationFetchFailed": "Couldn't fetch elevation — enter it manually below.",
-    "eyebrow": "Step 2 · Launch site & time",
-    "heading": "Where and when?",
-    "description": "Pick the launch site and time. We'll choose the best weather model for you.",
-    "elevationHint": "Above sea level.",
-    "fieldDateTime": "Launch date & hour (UTC)",
-    "dateTimeHint": "Your local time ({timeZone}), simulated to the whole hour. Within ~16 days, we use a real weather forecast.",
-    "modelForecastLabel": "Real weather forecast (GFS)",
-    "modelStandardLabel": "Standard atmosphere",
-    "errorValidationFailed": "Validation failed.",
-    "continue": "Continue",
-    "checking": "Checking…",
-    "errorsTitle": "Please fix the following"
+    "elevationFetchFailed": "Couldn't fetch elevation — enter it manually below."
   },
 
   "sitePicker": {
@@ -136,36 +112,13 @@
     "stdDevFor": "Standard deviation for {param}",
     "kindFor": "Kind for {param}",
     "stationPlaceholder": "72493…",
-    "era5Placeholder": "/data/era5/2024-06.nc…",
-    "eyebrow": "Step 3 · Fine-tuning",
-    "heading": "Fine-tuning",
-    "description": "Optional. The defaults are sensible — open a section only if you want more control.",
-    "uncertaintyBudget": "Uncertainty budget",
-    "presetCustomize": "Customize",
-    "railOverrides": "Launch rail overrides",
-    "atmosphereModel": "Atmosphere model ({model})",
-    "fieldModel": "Model",
-    "errorsTitle": "Please fix the following",
-    "errorValidationFailed": "Validation failed.",
-    "review": "Review",
-    "checking": "Checking…"
+    "era5Placeholder": "/data/era5/2024-06.nc…"
   },
 
   "review": {
     "errorsTitle": "The scenario needs attention",
     "running": "Running the 6-DOF simulation — this can take a moment…",
-    "errorGeneric": "Simulation failed.",
-    "eyebrow": "Step 4 · Review",
-    "heading": "Review & launch",
-    "description": "Check the summary, then run the simulation.",
-    "rowScenario": "Scenario",
-    "rowSite": "Site",
-    "rowLaunchTime": "Launch time",
-    "rowAtmosphere": "Atmosphere",
-    "rowUncertaintyParams": "Uncertainty params",
-    "uncertaintyDefault": "default",
-    "runSimulation": "Run simulation 🚀",
-    "simulating": "Simulating…"
+    "errorGeneric": "Simulation failed."
   },
 
   "results": {
@@ -177,21 +130,7 @@
     "resultsNotFound": "This run could not be found.",
     "loadingResults": "Loading results…",
     "couldNotLoadPlot": "Couldn't load this plot.",
-    "newRocketConfirm": "Discard this draft and start a new rocket?",
-    "eyebrow": "Mission report",
-    "heading": "Flight results",
-    "runId": "Run {runId}",
-    "moreNumbers": "More numbers",
-    "allPlots": "All plots",
-    "valuesBadge": {
-      "one": "1 value",
-      "other": "{count} values"
-    },
-    "plotsBadge": {
-      "one": "1 plot",
-      "other": "{count} plots"
-    },
-    "summaryCaption": "Run summary"
+    "newRocketConfirm": "Discard this draft and start a new rocket?"
   },
 
   "interactive": {
@@ -200,11 +139,7 @@
     "play": "Play",
     "pause": "Pause",
     "scrubTimeline": "Scrub flight timeline",
-    "trajectoryAriaLabel": "3D flight trajectory. Use the timeline slider to scrub the flight.",
-    "loadingFlightData": "Loading interactive flight data…",
-    "sectionHeading": "Interactive flight data",
-    "trajectoryEyebrow": "Trajectory",
-    "telemetryEyebrow": "Telemetry"
+    "trajectoryAriaLabel": "3D flight trajectory. Use the timeline slider to scrub the flight."
   },
 
   "chart": {
@@ -279,10 +214,7 @@
     "colDate": "Saved on",
     "colBy": "By",
     "useThisRocket": "Use this rocket",
-    "runs": "Runs",
-    "eyebrow": "Saved rockets",
-    "colName": "Name",
-    "backToWizard": "← Back to wizard"
+    "runs": "Runs"
   },
 
   "runs": {
@@ -498,41 +430,5 @@
     "label": "Theme",
     "switchToDark": "Switch to dark mode",
     "switchToLight": "Switch to light mode"
-  },
-
-  "wizard": {
-    "appName": "icaro",
-    "appSubtitle": "rocket simulation",
-    "signOut": "Sign out"
-  },
-
-  "stepper": {
-    "rocket": "Rocket",
-    "basics": "Launch site & time",
-    "advanced": "Fine-tuning",
-    "review": "Review",
-    "results": "Results",
-    "label": "Simulation steps",
-    "completed": "completed"
-  },
-
-  "history": {
-    "eyebrow": "Simulation history",
-    "heading": "Flight history",
-    "description": "Every simulation run, newest first.",
-    "loading": "Loading history…",
-    "empty": "No simulations yet. Run one to see results here.",
-    "errorLoad": "Could not load the history.",
-    "colRocket": "Rocket",
-    "colDate": "Date",
-    "colStatus": "Status",
-    "colApogee": "Apogee (m)",
-    "statusDone": "Done",
-    "statusError": "Error",
-    "viewDetails": "View details",
-    "reRun": "Re-run",
-    "backToWizard": "← Back to wizard",
-    "reRunUnavailable": "Re-run is unavailable for failed runs.",
-    "reRunNoExport": "Re-run is unavailable for runs saved before their file was tracked."
   }
 }
