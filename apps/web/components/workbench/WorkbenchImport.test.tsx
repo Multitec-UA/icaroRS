@@ -281,6 +281,25 @@ describe("Workbench import — destination before upload (S8, L14)", () => {
     expect(await screen.findByText("Icarus-3 · icarus3.ork")).toBeInTheDocument();
   });
 
+  it("names the context after the rocket the user chose, not after the file's own design name", async () => {
+    arm();
+    armRocketApi();
+    convertMock.mockResolvedValue({ export_id: "ex-z", rocket_id: "rk-1", manifest: { name: "Icarus 2 Mk5" } });
+    await renderShell();
+    await screen.findByText("Or pick one already converted");
+
+    const file = orkFile();
+    chooseFile(dropZoneInput(), file);
+    await screen.findByText("Where does this file go?");
+    fireEvent.click(screen.getByRole("radio", { name: /Add to one of my rockets/ }));
+    fireEvent.change(screen.getByRole("combobox", { name: "Rocket to add this file to" }), { target: { value: "rk-1" } });
+    fireEvent.click(screen.getByRole("button", { name: "Convert" }));
+
+    await waitFor(() => expect(convertMock).toHaveBeenCalledWith(file, "rk-1"));
+    expect(await screen.findByText(`Icarus-2 · ${file.name}`)).toBeInTheDocument();
+    expect(screen.queryByText(/Icarus 2 Mk5/)).toBeNull();
+  });
+
   it("Add to one of my rockets keeps Convert disabled until a rocket is picked, then sends its id", async () => {
     arm();
     armRocketApi();
