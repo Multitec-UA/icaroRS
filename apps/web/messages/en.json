@@ -328,5 +328,44 @@
     "forecast": "Real weather forecast (GFS) for your launch date and place. Available for dates within about 16 days from now.",
     "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate.",
     "uncertainty": "How much each input (mass, wind, thrust…) might vary in reality. It feeds the dispersion / landing-spread analysis."
+  },
+
+  "workbench": {
+    "brand": "icaro",
+    "navWorkbench": "Workbench",
+    "navRockets": "Rockets",
+    "navRuns": "Runs",
+    "noRocket": "No rocket selected",
+    "rocketContext": "{rocket} · {file}",
+    "rocketContextLabel": "Active rocket and file",
+    "statusUpToDate": "Up to date · run {runId}",
+    "statusStale": "Results are from {filename} · run {runId}",
+    "run": "Run simulation",
+    "running": "Simulating…",
+    "runShortcut": "Shortcut: Cmd or Ctrl + Enter",
+    "inputs": "Inputs",
+    "results": "Results",
+    "launchSite": "Launch site",
+    "timeWeather": "Time & weather",
+    "launchRail": "Launch rail",
+    "uncertainty": "Uncertainty presets",
+    "atmosphereModel": "Atmosphere model",
+    "modelForecast": "Forecast",
+    "modelStandard": "Standard",
+    "modelSounding": "Sounding",
+    "modelReanalysis": "ERA5",
+    "launchTime": "Launch · your time, {timeZone}",
+    "launchTimeHint": "Simulated to the whole hour. Within about 16 days a real weather forecast is used.",
+    "needsDate": "This weather model needs a launch date.",
+    "fineTune": "Fine-tune",
+    "fineTuneHint": "Edit each parameter's spread. Any edit switches the preset to custom.",
+    "presetCustom": "Custom",
+    "resultsPlaceholder": "Results, the 3D replay and plots appear here after the first run."
+  },
+
+  "theme": {
+    "label": "Theme",
+    "switchToDark": "Switch to dark mode",
+    "switchToLight": "Switch to light mode"
   }
 }

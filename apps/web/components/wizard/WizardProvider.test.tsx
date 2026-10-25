@@ -120,6 +120,64 @@ describe("WizardProvider — canAdvance per step", () => {
   });
 });
 
+describe("WizardProvider — export metadata and result provenance (Workbench)", () => {
+  it("setExport stores the export filename and rocket name when given, and clears them when not", () => {
+    const { result } = setup();
+    act(() =>
+      result.current.setExport("export-1", { name: "Icarus-2" }, "rocket-1", {
+        filename: "icarus2.ork",
+        rocketName: "Icarus-2",
+      }),
+    );
+    expect(result.current.state.exportFilename).toBe("icarus2.ork");
+    expect(result.current.state.rocketName).toBe("Icarus-2");
+
+    act(() => result.current.setExport("export-2", {}, "rocket-1"));
+    expect(result.current.state.exportFilename).toBeNull();
+    expect(result.current.state.rocketName).toBeNull();
+  });
+
+  it("keeps the 2- and 3-argument setExport calls working (metadata defaults to null)", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", { name: "R" }));
+    expect(result.current.state).toMatchObject({
+      exportId: "export-1",
+      rocketId: null,
+      exportFilename: null,
+      rocketName: null,
+    });
+
+    act(() => result.current.setExport("export-2", { name: "R" }, "rocket-2"));
+    expect(result.current.state).toMatchObject({
+      exportId: "export-2",
+      rocketId: "rocket-2",
+      exportFilename: null,
+      rocketName: null,
+    });
+  });
+
+  it("setResult records the export the result came from, and a later setExport leaves it alone", () => {
+    const { result } = setup();
+    expect(result.current.state.resultExportId).toBeNull();
+
+    act(() => result.current.setExport("export-1", {}, null, { filename: "icarus2.ork" }));
+    act(() =>
+      result.current.setResult({ run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] }),
+    );
+    expect(result.current.state.resultExportId).toBe("export-1");
+    expect(result.current.state.resultExportFilename).toBe("icarus2.ork");
+
+    act(() => result.current.setExport("export-2", {}, null, { filename: "icarus2_v2.ork" }));
+    expect(result.current.state.exportId).toBe("export-2");
+    expect(result.current.state.resultExportId).toBe("export-1");
+    expect(result.current.state.resultExportFilename).toBe("icarus2.ork");
+
+    act(() => result.current.reset());
+    expect(result.current.state.resultExportId).toBeNull();
+    expect(result.current.state.resultExportFilename).toBeNull();
+  });
+});
+
 describe("WizardProvider — reducer / navigation", () => {
   it("next() walks the step order forward and stops at the last step", () => {
     const { result } = setup();

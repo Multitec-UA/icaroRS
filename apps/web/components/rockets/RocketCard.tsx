@@ -7,7 +7,8 @@
  *
  * "Use this rocket" triggers re-launch flow B: loads the rocket's newest
  * export (a rocket groups the .ork files uploaded for it), calls
- * setExport(export_id, manifest, rocket_id) in WizardProvider and navigates
+ * setExport(export_id, manifest, rocket_id, { filename, rocketName }) in
+ * WizardProvider (the Workbench's rocket button shows those) and navigates
  * to the wizard root — NO .ork re-upload. Owns its own mutation state
  * (issue #50) so a failure shows an inline error without affecting any
  * other card.
@@ -45,7 +46,10 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
   function handleUseRocket() {
     useRocket.mutate(rocket.rocket_id, {
       onSuccess: ({ rocket: detail, export: exp }) => {
-        setExport(exp.export_id, exp.manifest, detail.rocket_id);
+        setExport(exp.export_id, exp.manifest, detail.rocket_id, {
+          filename: exp.ork_filename,
+          rocketName: detail.name,
+        });
         goto("basics");
         router.push("/");
       },

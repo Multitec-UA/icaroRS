@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { WizardProvider } from "@/components/wizard/WizardProvider";
 import { AuthGate } from "@/components/auth/AuthGate";
 
@@ -30,9 +31,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={client}>
       <LocaleProvider initialLocale="en">
-        <WizardProvider>
-          <AuthGate>{children}</AuthGate>
-        </WizardProvider>
+        <ThemeProvider initialPreference="light">
+          <WizardProvider>
+            <AuthGate>{children}</AuthGate>
+          </WizardProvider>
+        </ThemeProvider>
       </LocaleProvider>
     </QueryClientProvider>
   );

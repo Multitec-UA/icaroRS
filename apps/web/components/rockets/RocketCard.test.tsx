@@ -47,9 +47,23 @@ afterEach(() => {
   getExportMock.mockReset();
 });
 
-function WizardSpy({ onState }: { onState: (s: { exportId: string | null; rocketId: string | null; manifest: Record<string, unknown> | null }) => void }) {
+interface SeenState {
+  exportId: string | null;
+  rocketId: string | null;
+  manifest: Record<string, unknown> | null;
+  exportFilename: string | null;
+  rocketName: string | null;
+}
+
+function WizardSpy({ onState }: { onState: (s: SeenState) => void }) {
   const { state } = useWizard();
-  onState({ exportId: state.exportId, rocketId: state.rocketId, manifest: state.manifest });
+  onState({
+    exportId: state.exportId,
+    rocketId: state.rocketId,
+    manifest: state.manifest,
+    exportFilename: state.exportFilename,
+    rocketName: state.rocketName,
+  });
   return null;
 }
 
@@ -75,7 +89,7 @@ describe("RocketCard (issue #52 — client island in the server-rendered /rocket
       ...exportSummary("export-new", "2026-02-01T00:00:00Z"),
       manifest: { name: "acme-1 v2" },
     });
-    const seen: { exportId: string | null; rocketId: string | null; manifest: Record<string, unknown> | null }[] = [];
+    const seen: SeenState[] = [];
     const push = vi.fn();
     vi.mocked(useRouter).mockReturnValue({
       push,
@@ -102,6 +116,9 @@ describe("RocketCard (issue #52 — client island in the server-rendered /rocket
       exportId: "export-new",
       rocketId: "rocket-1",
       manifest: { name: "acme-1 v2" },
+      // The Workbench's rocket context button reads these (S7).
+      exportFilename: "export-new.ork",
+      rocketName: "acme-1",
     });
   });
 

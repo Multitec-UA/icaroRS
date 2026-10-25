@@ -208,6 +208,32 @@ export interface ScenarioProgress {
   result: SimulateResult | null;
 }
 
+/** A site the simulation can place: both coordinates are finite numbers. */
+function hasFiniteSite(site: Site | null): site is Site {
+  return site !== null && Number.isFinite(site.latitude) && Number.isFinite(site.longitude);
+}
+
+/** True when the atmosphere model needs a launch date and none is parseable. */
+function missesRequiredDate(progress: Pick<ScenarioProgress, "atmosphere" | "launchDatetime">): boolean {
+  return needsDate(progress.atmosphere.model) && toLaunchDate(progress.launchDatetime) === null;
+}
+
+/** The subset of the draft the Workbench's Run button depends on. */
+export type RunReadiness = Pick<
+  ScenarioProgress,
+  "exportId" | "site" | "atmosphere" | "launchDatetime"
+>;
+
+/**
+ * True when the Workbench can send the draft to /api/simulate: an export is
+ * loaded, the launch site is placed, and a launch date exists whenever the
+ * atmosphere model needs one. Local gate for fast feedback only — the API
+ * still validates the scenario (same contract as `canAdvance`).
+ */
+export function canRun(progress: RunReadiness): boolean {
+  return progress.exportId !== null && hasFiniteSite(progress.site) && !missesRequiredDate(progress);
+}
+
 /**
  * True when the current step's local guard is satisfied — gates the "Next"
  * button for fast UX feedback only. The API (/api/scenario/validate,
@@ -219,13 +245,7 @@ export function canAdvance(step: WizardStep, progress: ScenarioProgress): boolea
     case "rocket":
       return progress.exportId !== null;
     case "basics":
-      return (
-        progress.site !== null &&
-        Number.isFinite(progress.site.latitude) &&
-        Number.isFinite(progress.site.longitude) &&
-        (!needsDate(progress.atmosphere.model) ||
-          toLaunchDate(progress.launchDatetime) !== null)
-      );
+      return hasFiniteSite(progress.site) && !missesRequiredDate(progress);
     case "advanced":
       return true; // advanced overrides are all optional
     case "review":
