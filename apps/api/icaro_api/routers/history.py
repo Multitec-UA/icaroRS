@@ -1,7 +1,8 @@
 """Simulation history endpoint.
 
 Routes (all require auth via router-level dependency):
-  GET /api/history   — paginated list, reverse-chronological
+  GET /api/history                    — paginated list, reverse-chronological
+  GET /api/history/{simulation_id}    — one run's row (the run report's metadata)
 
 Req: REQ-05.1, REQ-05.2, REQ-05.3.
 
@@ -90,39 +91,60 @@ def list_history(
         org_id=identity.org_id, limit=effective_limit, before=before, rocket_id=rocket_id
     )
 
-    result = []
-    for sim in records:
-        # Denormalize rocket name and export filename — O(1) dict gets in
-        # InMemoryDb, one Firestore doc get each in production.  Acceptable
-        # for list sizes ≤ 100.  Pre-split runs have export_id == "".
-        rocket = db.get_rocket(sim.rocket_id, org_id=identity.org_id)
-        rocket_name = rocket.name if rocket is not None else ""
-        export = db.get_export(sim.export_id, org_id=identity.org_id) if sim.export_id else None
-        ork_filename = export.ork_filename if export is not None else None
+    return [_summary_row(sim, db, identity.org_id) for sim in records]
 
-        # Extract apogee from scalars — expose at top level per REQ-05.2.
-        apogee = sim.scalars.get("apogee_m") or sim.scalars.get("apogee")
 
-        result.append(
-            {
-                "simulation_id": sim.simulation_id,
-                "rocket_id": sim.rocket_id,
-                "export_id": sim.export_id,
-                "name": rocket_name,
-                "ork_filename": ork_filename,
-                "created_at": sim.created_at.isoformat(),
-                "created_by": sim.created_by,
-                "status": sim.status,
-                "scenario": sim.scenario,
-                "scalars": {
-                    **sim.scalars,
-                    "apogee": apogee,
-                },
-                "warnings": sim.warnings,
-                "result_prefix": sim.result_prefix,
-                "plot_names": sim.plot_names,
-                "has_series": sim.has_series,
-            }
+def _summary_row(sim, db: Db, org_id: str) -> dict[str, Any]:
+    """Serialise one SimRecord to the SimulationSummary wire shape.
+
+    Denormalizes the rocket name and the export's file name with one
+    ``get_rocket`` / ``get_export`` each (join-on-read, see the module
+    docstring). Pre-split runs have ``export_id == ""`` and no file name.
+    """
+    rocket = db.get_rocket(sim.rocket_id, org_id=org_id)
+    rocket_name = rocket.name if rocket is not None else ""
+    export = db.get_export(sim.export_id, org_id=org_id) if sim.export_id else None
+    ork_filename = export.ork_filename if export is not None else None
+
+    # Extract apogee from scalars — expose at top level per REQ-05.2.
+    apogee = sim.scalars.get("apogee_m") or sim.scalars.get("apogee")
+
+    return {
+        "simulation_id": sim.simulation_id,
+        "rocket_id": sim.rocket_id,
+        "export_id": sim.export_id,
+        "name": rocket_name,
+        "ork_filename": ork_filename,
+        "created_at": sim.created_at.isoformat(),
+        "created_by": sim.created_by,
+        "status": sim.status,
+        "scenario": sim.scenario,
+        "scalars": {
+            **sim.scalars,
+            "apogee": apogee,
+        },
+        "warnings": sim.warnings,
+        "result_prefix": sim.result_prefix,
+        "plot_names": sim.plot_names,
+        "has_series": sim.has_series,
+    }
+
+
+@router.get("/history/{simulation_id}", response_model=SimulationSummary)
+def get_history_item(
+    simulation_id: str,
+    db: Db = Depends(get_db),
+    identity: Identity = Depends(require_auth),
+) -> dict[str, Any]:
+    """Return one run's summary row — the metadata the run report shows.
+
+    Same shape as a list row. 404 if the run is unknown OR owned by another
+    org (indistinguishable, like every other per-id endpoint).
+    """
+    sim = db.get_simulation(simulation_id, org_id=identity.org_id)
+    if sim is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Run '{simulation_id}' not found.",
         )
-
-    return result
+    return _summary_row(sim, db, identity.org_id)

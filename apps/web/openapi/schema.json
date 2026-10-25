@@ -1305,6 +1305,49 @@
         ]
       }
     },
+    "/api/history/{simulation_id}": {
+      "get": {
+        "description": "Return one run's summary row \u2014 the metadata the run report shows.\n\nSame shape as a list row. 404 if the run is unknown OR owned by another\norg (indistinguishable, like every other per-id endpoint).",
+        "operationId": "get_history_item_api_history__simulation_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "simulation_id",
+            "required": true,
+            "schema": {
+              "title": "Simulation Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SimulationSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get History Item",
+        "tags": [
+          "history"
+        ]
+      }
+    },
     "/api/results/{run_id}": {
       "get": {
         "description": "Return the result for a completed run in forward-compat job-status shape.\n\nResponse shape: ``{run_id, status: \"done\", result}``\n\nThe shape is designed for forward-compat with an async/polling upgrade\n(ADR-6): when simulate becomes async, this endpoint will return\n``{run_id, status: \"running\"|\"done\"|\"error\", progress?, result?}`` and\nthe client polls \u2014 no contract break.\n\nFetches ``{result_prefix}result.json`` via the Storage seam (REQ-02.4),\nwhere ``result_prefix`` comes from the resolved SimRecord (issue #45).\nReturns 404 if the run is absent or not owned by the caller's org.",

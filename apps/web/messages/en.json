@@ -377,6 +377,10 @@
       "other": "{count} files"
     },
     "panelOpenInRockets": "Open in Rockets",
+    "panelRuns": {
+      "one": "1 run",
+      "other": "{count} runs"
+    },
     "panelFilesTitle": "Files in this rocket",
     "panelFilesHint": "The active one feeds the workbench",
     "panelActiveFile": "Active file",

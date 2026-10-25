@@ -6,8 +6,8 @@ import { makeT } from "@/lib/i18n";
 import { SCALARS } from "@/components/flight/fixtures";
 import { ResultsContentServer } from "./ResultsContentServer";
 
-const { getHistoryMock, getSeriesMock } = vi.hoisted(() => ({
-  getHistoryMock: vi.fn(),
+const { getRunSummaryMock, getSeriesMock } = vi.hoisted(() => ({
+  getRunSummaryMock: vi.fn(),
   getSeriesMock: vi.fn(),
 }));
 
@@ -16,7 +16,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return {
     ...actual,
     getIdentity: vi.fn().mockResolvedValue({ user_id: "u1", org_id: "o1", email: "pilot@multitec.dev" }),
-    getHistory: (...args: Parameters<typeof actual.getHistory>) => getHistoryMock(...args),
+    getRunSummary: (...args: Parameters<typeof actual.getRunSummary>) => getRunSummaryMock(...args),
     getSeries: (...args: Parameters<typeof actual.getSeries>) => getSeriesMock(...args),
   };
 });
@@ -71,7 +71,7 @@ const SUMMARY = {
 // vitest.config.ts); awaiting it yields the plain element tree, whose client
 // islands then render under the usual provider stack.
 async function renderReport() {
-  getHistoryMock.mockResolvedValue([SUMMARY]);
+  getRunSummaryMock.mockResolvedValue(SUMMARY);
   getSeriesMock.mockRejectedValue(new ApiError(404, "Run 'run-1' has no series.", { code: "requestFailed" }));
   const tree = await ResultsContentServer({ runId: "run-1", t: makeT("en"), locale: "en" });
   return render(<AppProviders>{tree}</AppProviders>);

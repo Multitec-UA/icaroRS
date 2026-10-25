@@ -377,6 +377,10 @@
       "other": "{count} archivos"
     },
     "panelOpenInRockets": "Abrir en Cohetes",
+    "panelRuns": {
+      "one": "1 simulación",
+      "other": "{count} simulaciones"
+    },
     "panelFilesTitle": "Archivos de este cohete",
     "panelFilesHint": "El activo alimenta la mesa de trabajo",
     "panelActiveFile": "Archivo activo",
