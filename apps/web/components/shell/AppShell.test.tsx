@@ -9,46 +9,42 @@ vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {
     ...actual,
-    getIdentity: vi.fn().mockResolvedValue({
-      user_id: "u1",
-      org_id: "o1",
-      email: "pilot@multitec.dev",
-    }),
+    getIdentity: vi.fn().mockResolvedValue({ user_id: "u1", org_id: "o1", email: "pilot@multitec.dev" }),
   };
 });
 
 /**
- * Web Interface Guidelines: navigation uses real links so Cmd/Ctrl-click,
- * middle-click and "open in new tab" work. AppNav is rendered by AuthGate
- * once the identity resolves, hence the full provider stack.
+ * One navigation for every authenticated route (S9/T8b): AuthGate renders
+ * the sidebar around <main id="main"> whatever the pathname, so /rockets,
+ * /runs and /results/* share the Workbench's own nav instead of AppNav.
  */
-describe("AppNav", () => {
-  it("renders nothing on / — the Workbench has its own sidebar", async () => {
-    vi.mocked(usePathname).mockReturnValue("/");
-    render(<AppProviders>content</AppProviders>);
-
-    expect(await screen.findByText("content")).toBeInTheDocument();
-    expect(screen.queryByRole("navigation", { name: "Primary navigation" })).toBeNull();
-  });
-
-  it("renders the primary destinations as links with their hrefs on /rockets", async () => {
-    vi.mocked(usePathname).mockReturnValue("/rockets");
+describe("AppShell — the sidebar on every authenticated route", () => {
+  it.each(["/rockets", "/results/run-1", "/runs"])("renders the primary navigation on %s", async (pathname) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     render(<AppProviders>content</AppProviders>);
 
     const nav = await screen.findByRole("navigation", { name: "Primary navigation" });
     const links = Array.from(nav.querySelectorAll("a")).map((a) => a.getAttribute("href"));
+    expect(links).toEqual(["/", "/rockets", "/runs"]);
+    expect(screen.getByText("content").closest("main")).toHaveAttribute("id", "main");
+  });
 
-    expect(links).toEqual(["/", "/rockets", "/history"]);
-    expect(nav.querySelector("button")).toBeNull();
+  it("keeps the skip link first and pointing at the main landmark", async () => {
+    vi.mocked(usePathname).mockReturnValue("/rockets");
+    render(<AppProviders>content</AppProviders>);
+
+    const skip = await screen.findByRole("link", { name: "Skip to main content" });
+    expect(skip).toHaveAttribute("href", "#main");
+    expect(skip.compareDocumentPosition(screen.getByRole("navigation", { name: "Primary navigation" })))
+      .toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
   it("marks the active destination with aria-current=page", async () => {
-    vi.mocked(usePathname).mockReturnValue("/history/");
+    vi.mocked(usePathname).mockReturnValue("/runs/");
     render(<AppProviders>content</AppProviders>);
 
-    const active = await screen.findByRole("link", { name: "History" });
-    expect(active).toHaveAttribute("aria-current", "page");
-    expect(screen.getByRole("link", { name: "Simulate" })).not.toHaveAttribute("aria-current");
+    expect(await screen.findByRole("link", { name: "Runs" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Workbench" })).not.toHaveAttribute("aria-current");
   });
 
   describe("leaving /results", () => {
@@ -68,7 +64,7 @@ describe("AppNav", () => {
         </AppProviders>,
       );
       await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));
-      return screen.getByRole("link", { name: "Simulate" });
+      return screen.getByRole("link", { name: "Workbench" });
     }
 
     it("resets the wizard draft on a plain click", async () => {
@@ -79,7 +75,7 @@ describe("AppNav", () => {
       expect(screen.getByTestId("export-id")).toHaveTextContent("");
     });
 
-    it("keeps the wizard draft on a modified click (new tab stays a navigation only)", async () => {
+    it("keeps the draft on a modified click (a new tab is a navigation only)", async () => {
       const link = await renderOnResults();
 
       fireEvent.click(link, { metaKey: true });

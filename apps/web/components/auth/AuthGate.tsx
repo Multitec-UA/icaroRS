@@ -34,7 +34,7 @@ import { cn, focusRing } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { AppNav } from "@/components/AppNav";
+import { AppShell } from "@/components/shell/AppShell";
 
 interface AuthContextValue {
   identity: Identity;
@@ -95,7 +95,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (status === "checking") {
     return (
       <div className="flex min-h-[100dvh] flex-1 items-center justify-center">
-        <Spinner className="text-slate-400" />
+        <Spinner className="text-muted" />
       </div>
     );
   }
@@ -111,16 +111,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <a
         href="#main"
         className={cn(
-          "sr-only rounded-full bg-foreground px-4 py-2 text-sm font-medium text-[#050505] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50",
+          "sr-only rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50",
           focusRing,
         )}
       >
         {t("common.skipToContent")}
       </a>
-      <AppNav />
-      <main id="main" className="flex flex-1 flex-col">
-        {children}
-      </main>
+      {/* The sidebar and the main landmark, shared by every signed-in route. */}
+      <AppShell>{children}</AppShell>
     </AuthContext.Provider>
   );
 }

@@ -384,18 +384,19 @@ export function Callout({
   title?: string;
   children?: ReactNode;
 }) {
+  // Theme tokens (S6): soft fill + ink per tone, in both themes.
   const tones = {
-    info: "ring-cyan-400/20 bg-cyan-400/[0.06] text-cyan-50",
-    warning: "ring-amber-400/20 bg-amber-400/[0.06] text-amber-50",
-    error: "ring-rose-400/25 bg-rose-500/[0.07] text-rose-50",
-    success: "ring-emerald-400/20 bg-emerald-400/[0.06] text-emerald-50",
+    info: "bg-accent-soft text-accent-ink",
+    warning: "bg-warn-soft text-warn-ink",
+    error: "bg-bad-soft text-bad-ink",
+    success: "bg-ok-soft text-ok-ink",
   } as const;
   // Callouts carry async outcomes (validation, fetch failures, confirmations),
   // so they are live regions: errors interrupt, the rest wait politely.
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
-      className={cn("break-words rounded-2xl px-4 py-3 text-sm ring-1 ring-inset", tones[tone])}
+      className={cn("break-words rounded-xl px-4 py-3 text-sm", tones[tone])}
     >
       {title && <p className="font-semibold">{title}</p>}
       {children && <div className={cn(title && "mt-1 text-[0.92em] opacity-90")}>{children}</div>}
