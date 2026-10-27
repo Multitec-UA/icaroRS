@@ -61,6 +61,7 @@ describe("RocketCard (issue #52 — client island in the server-rendered /rocket
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     render(
