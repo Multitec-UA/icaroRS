@@ -12,14 +12,19 @@
 # the server proxies /api/* to ICARO_API_ORIGIN (a RUNTIME env, read at boot in
 # next.config.ts rewrites()).
 
+# Node runtime for every stage. Keep it on a patched release line: 22.23.4 is
+# the 22.x fix for the Oct 21, 2026 security release (CVE-2026-111497, Brotli
+# decoder OOB write); Node 20 is EOL and gets no fix.
+ARG NODE_VERSION=22.23.4
+
 # --- deps --------------------------------------------------------------------
-FROM node:20-slim AS deps
+FROM node:${NODE_VERSION}-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # --- build -------------------------------------------------------------------
-FROM node:20-slim AS build
+FROM node:${NODE_VERSION}-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # Next 16 evaluates `rewrites()` at BUILD time and bakes the resolved routes
@@ -44,7 +49,7 @@ COPY . .
 RUN npm run build
 
 # --- runtime -----------------------------------------------------------------
-FROM node:20-slim AS runtime
+FROM node:${NODE_VERSION}-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
