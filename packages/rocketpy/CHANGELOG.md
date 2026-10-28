@@ -42,6 +42,10 @@ Attention: The newest changes should be on top -->
 
 -
 
+### Security
+
+- Raise dependency floors so no known-vulnerable version can resolve: numpy>=1.22, scipy>=1.8, requests>=2.32.4, ipython>=8.10.0
+
 ## [v1.12.1] - 2026-04-03
 
 ### Fixed
