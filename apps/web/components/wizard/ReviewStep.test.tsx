@@ -67,6 +67,7 @@ describe("ReviewStep (issue #48 — shared simulate mutation)", () => {
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     render(
@@ -135,6 +136,7 @@ describe("ReviewStep — launch time in the user's time zone", () => {
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     render(

@@ -77,6 +77,7 @@ describe("HistoryCard (issue #52 — client island in the server-rendered /histo
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     render(
