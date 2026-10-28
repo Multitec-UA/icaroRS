@@ -56,7 +56,7 @@ env-analysis = [
     "windrose>=1.6.8",
     "timezonefinder",
     "jsonpickle",
-    "ipython",
+    "ipython>=8.10.0",
     "ipywidgets>=7.6.3"
 ]
 
