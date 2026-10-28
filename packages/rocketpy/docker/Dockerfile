@@ -6,8 +6,8 @@ FROM python:latest
 # set the working directory in the container
 WORKDIR /RocketPy
 
-# Ensure pip is updated
-RUN python3 -m pip install --upgrade pip
+# Ensure pip is updated; pinned so builds get a known version past the old pip CVEs
+RUN python3 -m pip install --upgrade "pip==26.2.2"
 
 # Copy the dependencies file to the working directory
 COPY requirements.txt .
