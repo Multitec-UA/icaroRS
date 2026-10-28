@@ -31,8 +31,10 @@ ENV PATH="/opt/java/openjdk/bin:${PATH}"
 COPY --from=uv /uv /uvx /bin/
 
 # libgomp1: rocketpy's numeric stack (numpy/scipy wheels) loads libgomp at
-# runtime; the slim base doesn't ship it.
+# runtime; the slim base doesn't ship it. `apt-get upgrade` pulls the Debian
+# security fixes (openssl, perl-base, pcre2) the base image lags behind on.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
