@@ -17,9 +17,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useWizardNav } from "@/components/wizard/WizardProvider";
-import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
-import { ghostButton, primaryButton } from "@/components/workbench/styles";
+import { buttonClass, ghostButton } from "@/components/ui/classes";
 
 export function ResultsActions() {
   const t = useT();
@@ -38,7 +37,7 @@ export function ResultsActions() {
         <p role="status" className="w-full text-sm text-muted sm:w-auto">
           {t("results.newRocketConfirm")}
         </p>
-        <button type="button" onClick={newRocket} className={cn(primaryButton, "bg-bad")}>
+        <button type="button" onClick={newRocket} className={buttonClass({ variant: "danger" })}>
           {t("common.confirm")}
         </button>
         <button type="button" onClick={() => setConfirming(false)} className={ghostButton}>

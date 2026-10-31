@@ -4,8 +4,8 @@
  * SeriesChart — interactive 2D flight chart (issue #11).
  *
  * One metric at a time (altitude / speed / Mach / acceleration) vs time, with
- * hover tooltip, zoom + pan (mouse wheel and a slider). ECharts, themed to the
- * dark "Ethereal Glass" look. Client-only; meant to be dynamically imported
+ * hover tooltip, zoom + pan (mouse wheel and a slider). ECharts, themed from
+ * the theme tokens. Client-only; meant to be dynamically imported
  * (ssr:false) so echarts never runs during SSR and stays code-split.
  *
  * The canvas itself is opaque to assistive tech, so the container carries an
@@ -16,7 +16,7 @@
  * its own toggles; controlled (`metric` + `onMetricChange`, the Workbench's
  * SeriesPanel) follows the parent's metric and leaves the toggles to it, so
  * the chart never shows two sets. `palette` recolours the chart from the
- * caller's theme tokens; the defaults are the original dark-glass colours.
+ * caller's colours; the defaults read the theme tokens (`useChartTokens`).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -26,6 +26,7 @@ import type { FlightSeries } from "@/lib/api";
 import type { Locale, TranslateFn } from "@/lib/i18n";
 import { cn, focusRing } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { mergePalette, useChartTokens } from "./themeDefaults";
 
 export type MetricKey = "altitude" | "speed" | "mach" | "acceleration";
 
@@ -34,18 +35,20 @@ export type SeriesChartPalette = Partial<
   Record<MetricKey | "ink" | "muted" | "divider" | "axis" | "surface" | "border", string>
 >;
 
-const DEFAULT_PALETTE: Required<SeriesChartPalette> = {
-  altitude: "#22d3ee",
-  speed: "#a78bfa",
-  mach: "#34d399",
-  acceleration: "#f472b6",
-  ink: "#ededf2",
-  muted: "#8b8f9c",
-  divider: "rgba(255,255,255,0.05)",
-  axis: "rgba(255,255,255,0.15)",
-  surface: "rgba(11,11,14,0.95)",
-  border: "rgba(255,255,255,0.12)",
-};
+function tokenPalette(tokens: ReturnType<typeof useChartTokens>): Required<SeriesChartPalette> {
+  return {
+    altitude: tokens.accent,
+    speed: tokens.peach,
+    mach: tokens.ok,
+    acceleration: tokens.warn,
+    ink: tokens.ink,
+    muted: tokens.muted,
+    divider: tokens.divider,
+    axis: tokens.axis,
+    surface: tokens.surface,
+    border: tokens.border,
+  };
+}
 
 const METRICS: { key: MetricKey; labelKey: string; unit: string }[] = [
   { key: "altitude", labelKey: "chart.altitude", unit: "m" },
@@ -181,14 +184,11 @@ export function SeriesChart({
   const { locale } = useLocale();
   const reduceMotion = useReducedMotion() === true;
   const format = useMemo(() => makeNumberFormat(locale), [locale]);
-  const colors = useMemo<Required<SeriesChartPalette>>(() => {
-    const merged = { ...DEFAULT_PALETTE };
-    for (const key of Object.keys(DEFAULT_PALETTE) as (keyof SeriesChartPalette)[]) {
-      const value = paletteOverrides?.[key];
-      if (value) merged[key] = value;
-    }
-    return merged;
-  }, [paletteOverrides]);
+  const tokens = useChartTokens();
+  const colors = useMemo(
+    () => mergePalette(tokenPalette(tokens), paletteOverrides),
+    [tokens, paletteOverrides],
+  );
 
   const available = METRICS.filter(
     (m) => Array.isArray(series[m.key]) && (series[m.key] as number[]).length > 0,
@@ -241,20 +241,12 @@ export function SeriesChart({
               aria-pressed={active === m.key}
               onClick={() => setActive(m.key)}
               className={cn(
-                "rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset transition-[background-color,box-shadow,color] duration-500 ease-[var(--ease-spring)]",
+                "h-8 rounded-full border px-3.5 text-[13px] font-medium transition-[background-color,border-color,color] duration-300 ease-[var(--ease-spring)] pointer-coarse:min-h-11",
                 focusRing,
                 active === m.key
-                  ? "text-foreground ring-white/25"
-                  : "text-muted ring-white/10 hover:text-foreground hover:ring-white/20",
+                  ? "border-accent bg-accent-soft text-accent-ink"
+                  : "border-transparent bg-chip text-ink-2 hover:bg-accent-soft hover:text-accent-ink",
             )}
-            style={
-              active === m.key
-                ? {
-                    boxShadow: `0 0 24px -10px ${colors[m.key]}`,
-                    background: withAlpha(colors[m.key], "1a"),
-                  }
-                : undefined
-            }
           >
             {t(m.labelKey)}
           </button>

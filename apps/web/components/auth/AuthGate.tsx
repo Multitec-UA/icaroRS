@@ -29,7 +29,7 @@ import {
   signInWithPassword,
   signOut as firebaseSignOut,
 } from "@/lib/firebase";
-import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { Button, Callout, Card, Field, Spinner, TextInput } from "@/components/ui";
 import { cn, focusRing } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
@@ -191,15 +191,17 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
       </div>
       <Reveal className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-5 text-center">
-          <Eyebrow>{t("auth.eyebrow")}</Eyebrow>
-          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-balance text-transparent">
+          <span className="inline-flex h-7 items-center rounded-full bg-chip px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-2">
+            {t("auth.eyebrow")}
+          </span>
+          <h1 className="text-5xl font-semibold tracking-tight text-balance text-ink">
             {t("auth.title")}
           </h1>
           <p className="max-w-xs text-sm text-muted">
             {t("auth.subtitle")}
           </p>
         </div>
-        <Card innerClassName="p-6 sm:p-6">
+        <Card className="p-6">
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Field label={t("auth.email")} htmlFor="email">
               <TextInput
@@ -231,7 +233,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 onClick={forgotPassword}
                 disabled={reset === "sending"}
                 className={cn(
-                  "rounded-sm text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40",
+                  "rounded-sm text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-ink hover:underline disabled:pointer-events-none disabled:opacity-40",
                   focusRing,
                 )}
               >
@@ -243,12 +245,12 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 </p>
               )}
               {reset === "requested" && (
-                <p role="status" className="text-right text-xs text-emerald-400">
+                <p role="status" className="text-right text-xs text-ok-ink">
                   {t("auth.forgotPasswordRequested")}
                 </p>
               )}
               {reset === "failed" && (
-                <p role="alert" className="text-right text-xs text-rose-400">
+                <p role="alert" className="text-right text-xs text-bad-ink">
                   {t("auth.forgotPasswordFailed")}
                 </p>
               )}

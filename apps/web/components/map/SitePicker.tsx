@@ -10,7 +10,7 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Callout, Spinner, TextInput } from "@/components/ui";
+import { Callout, Spinner, TextInput, popoverClass } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cn, focusRing } from "@/lib/styles";
 import { plural } from "@/lib/i18n";
@@ -22,7 +22,7 @@ import { geocodeSearch, type GeocodeHit } from "@/lib/geocode";
 function MapLoadingFallback() {
   const t = useT();
   return (
-    <div className="flex h-80 w-full items-center justify-center rounded-2xl bg-white/[0.02] text-sm text-muted ring-1 ring-inset ring-white/10">
+    <div className="flex h-80 w-full items-center justify-center rounded-[14px] border border-border bg-surface-2 text-sm text-muted">
       {t("sitePicker.loadingMap")}
     </div>
   );
@@ -128,7 +128,7 @@ export function SitePicker({
           onKeyDown={onKeyDown}
         />
         {searching && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted">
+          <span className="absolute inset-y-0 right-3 flex items-center text-muted">
             <Spinner />
           </span>
         )}
@@ -136,7 +136,7 @@ export function SitePicker({
             when it changes, not only when the panel first appears. */}
         <div aria-live="polite" className="absolute z-[1000] mt-2 w-full">
           {showPanel && (
-            <div className="overflow-hidden rounded-2xl bg-[#0b0b0e]/95 p-1.5 ring-1 ring-white/10 backdrop-blur-xl">
+            <div className={cn("overflow-hidden p-1.5", popoverClass)}>
               {hits.length > 0 ? (
                 <>
                   <p className="px-3 py-1 text-xs text-muted">
@@ -149,7 +149,7 @@ export function SitePicker({
                           type="button"
                           onClick={() => choose(hit)}
                           className={cn(
-                            "block w-full truncate rounded-xl px-3 py-2 text-left text-sm text-foreground/80 transition-[background-color,color] hover:bg-white/[0.06] hover:text-foreground",
+                            "block w-full truncate rounded-lg px-3 py-2 text-left text-sm text-ink-2 transition-[background-color,color] hover:bg-surface-2 hover:text-ink",
                             focusRing,
                           )}
                         >
@@ -169,7 +169,7 @@ export function SitePicker({
         </div>
       </div>
       {searchFailed && <Callout tone="error">{t("sitePicker.searchError")}</Callout>}
-      <div className="overflow-hidden rounded-2xl ring-1 ring-inset ring-white/10">
+      <div className="overflow-hidden rounded-[14px] border border-border">
         <MapInner lat={lat} lon={lon} onPick={onPick} />
       </div>
       <p className="text-xs text-muted">{t("sitePicker.helperText")}</p>

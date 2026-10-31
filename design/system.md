@@ -27,7 +27,7 @@ Synced 2026-10-31 from `apps/web/app/globals.css`, `apps/web/components/workbenc
 | `--accent` | `#6b7fe0` | `#8e9cf2` | accent fills, sparklines |
 | `--accent-ink` | `#4757b8` | `#aeb8f7` | accent text, links |
 | `--accent-soft` | `#e3e7fb` | `#34385c` | accent backgrounds, selected rows |
-| `--primary` | `#5b6cd6` | `#8e9cf2` | primary button fill |
+| `--primary` | `#5160cc` | `#8e9cf2` | primary button fill |
 | `--on-primary` | `#fbfafd` | `#1e1d2a` | text on primary |
 | `--chip` | `#ece8f4` | `#34324a` | chips, kbd |
 | `--ok` / `--ok-soft` / `--ok-ink` | `#5fb38d` / `#dff3ea` / `#2d6a50` | `#6fc79f` / `#27402f` / `#a9e3c6` | success pill |
@@ -37,7 +37,21 @@ Synced 2026-10-31 from `apps/web/app/globals.css`, `apps/web/components/workbenc
 | `--scrim` | `rgba(43,40,64,.28)` | `rgba(14,13,22,.55)` | modal backdrop |
 | `--orb-a` / `--orb-b` | `rgba(107,127,224,.18)` / `rgba(238,154,114,.14)` | `rgba(142,156,242,.16)` / `rgba(242,174,139,.1)` | ambient background orbs |
 
-Legacy aliases still read by old components (`globals.css:46-52`): `--background`, `--foreground`, `--accent-cyan`, `--accent-violet` → mapped to the token palette. Tailwind exposes every token as `--color-*` through `@theme inline` (`globals.css:130-160`).
+Tailwind exposes every token as `--color-*` through `@theme inline`. The legacy aliases (`--background`, `--foreground`, `--accent-cyan`, `--accent-violet`) are removed. `.palette-light` pins a subtree to the light palette in either theme (plot frames, S7).
+
+### Contrast checks
+
+WCAG 2 relative-luminance ratios, measured 2026-10-31 (AA for 14 px text needs 4.5:1). Only the light `--primary` failed and was darkened from `#5b6cd6` (4.43:1) to `#5160cc`.
+
+| Text on background | Light | Dark |
+| --- | --- | --- |
+| `--on-primary` on `--primary` | 5.18:1 | 6.48:1 |
+| `--accent-ink` on `--accent-soft` | 5.14:1 | 5.89:1 |
+| `--ok-ink` on `--ok-soft` | 5.52:1 | 7.79:1 |
+| `--warn-ink` on `--warn-soft` | 5.93:1 | 7.59:1 |
+| `--bad-ink` on `--bad-soft` | 5.47:1 | 7.35:1 |
+| `--muted` on `--surface` | 5.01:1 | 5.28:1 |
+| `--ink-2` on `--chip` | 7.43:1 | 6.98:1 |
 
 ## Typography (`layout.tsx:15-22`, `globals.css`)
 
@@ -47,15 +61,26 @@ Legacy aliases still read by old components (`globals.css:46-52`): `--background
 
 ## Spacing, radius, shadows
 
-- Controls: height 36px (`h-9`), padding 12–14px, radius 9px (`rounded-[9px]`) for buttons; chips are 32px (`h-8`) full-round; links `rounded-md`. (`styles.ts:13-32`)
-- Legacy `Button` in `components/ui.tsx:220` is a 48px glass pill from the retired wizard (`styles.ts:3-6` documents the split). Not a token: treat as a deviation to retire.
+- Controls: height 36px (`h-9`), padding 12–14px, radius 9px (`rounded-[9px]`) for buttons; chips are 32px (`h-8`) full-round; links `rounded-md`. (`components/ui/classes.ts`)
+- Cards: radius 14px, 1px `--border`, `--shadow` (`cardClass`). Popovers/menus: radius 12px, `--shadow-lg` (`popoverClass`).
+- Under `pointer: coarse` every button, input and segment grows to a 44px hit area (`pointer-coarse:min-h-11`).
 - Shadows: `--shadow` (1px/24px soft), `--shadow-lg` (40–48px); Tailwind `shadow-soft`, `shadow-soft-lg`. (`globals.css:38-39, 168-169`)
 - `scroll-padding-top: 5rem` for the sticky nav; `touch-action: manipulation`; no overscroll bounce on fine pointers. (`globals.css:162-186`)
 
-## Component rules (`components/workbench/styles.ts`)
+## Control kit (`apps/web/components/ui/`, S2)
+
+One token-based kit; `components/ui.tsx` re-exports it and `components/workbench/styles.ts` re-exports its class builders.
+
+- `Button` / `ButtonLink`: variants `primary` (filled `--primary`), `ghost` (bordered `--surface`), `chip` (full-round `--chip`, 32px, hover `--accent-soft`), `danger` (`--bad-soft` / `--bad-ink`); sizes `md` 36px, `sm` 32px; radius 9px; optional trailing arrow. `type="button"` by default. Class builder: `buttonClass({ variant, size, className })`, plus `primaryButton`, `ghostButton`, `chipButton`, `textLink`.
+- `StatusPill`: tones `ok` / `warn` / `bad` / `neutral` (soft fill + ink), 28px full-round, 7px dot (default) or decorative spinner; a polite `role="status"`.
+- `Field` + `TextInput` + `Select`: 36px, radius 9px, `--border` on `--surface`, accent border + ring on focus, `--bad` border when invalid; the field wires hint/error to the control.
+- `Card` (`cardClass`), `Disclosure` (native `<details>` card, chevron, title + `(count)` + meta slot; Enter/Space toggle; `onToggle(open)`), `Kbd` (chip, or outlined on a primary button), `Spinner`, `Callout` (info/warning/error/success), `SegmentedControl`.
+- Tone map `toneClass` is shared by pills, callouts and banners.
+
+## Component rules (`components/ui/classes.ts`, re-exported by `components/workbench/styles.ts`)
 
 - `primaryButton`: filled `bg-primary text-on-primary`, hover lifts with `shadow-soft`, active `scale-[0.98]`, disabled 50% opacity, 300 ms spring transition, focus ring from `lib/styles`.
 - `ghostButton`: `border-border bg-surface text-ink`, hover `bg-surface-2`.
 - `chipButton`: `bg-chip text-ink-2`, hover `bg-accent-soft text-accent-ink`.
 - `textLink`: `text-accent-ink`, hover `text-ink`.
-- Status pills, KPI cards, section headers: no shared primitives found; each Workbench component composes classes inline. Document and unify when redesigning.
+- Status pills: `StatusPill` from the kit. KPI cards and section headers are still composed inline in the Workbench.

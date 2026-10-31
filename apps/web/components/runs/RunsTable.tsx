@@ -25,7 +25,7 @@ import {
 import { formatScalar } from "@/lib/scalars";
 import { cn } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { textLink } from "@/components/workbench/styles";
+import { cardClass, textLink } from "@/components/ui/classes";
 import { RUN_COLORS } from "./colors";
 import { MAX_OVERLAY } from "./colors";
 import { ReRunButton } from "./ReRunButton";
@@ -70,7 +70,7 @@ export function RunsTable({
   const baselineMetrics = useMemo(() => (baseline ? runMetrics(baseline.scalars) : null), [baseline]);
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border bg-surface shadow-soft">
+    <div className={cn("overflow-x-auto", cardClass)}>
       <table className="w-full min-w-[1040px] border-collapse text-sm text-ink">
         <caption className="sr-only">{t("runs.tableCaption", { rocket: rocketName })}</caption>
         <thead>

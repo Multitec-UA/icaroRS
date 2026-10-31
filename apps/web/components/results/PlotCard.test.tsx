@@ -28,4 +28,12 @@ describe("PlotCard (issue #52 — client island for the results page)", () => {
     expect(screen.getByText("Couldn't load")).toBeInTheDocument();
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
   });
+
+  it("frames the PNG in a light card in both themes (matplotlib's white does not glare)", () => {
+    render(<PlotCard url="/api/results/run-1/plots/energy.png" title="Energy" failedLabel="Couldn't load" />);
+
+    const frame = screen.getByRole("figure");
+    expect(frame.className).toContain("palette-light");
+    expect(frame.className).toContain("bg-surface");
+  });
 });

@@ -24,11 +24,11 @@ import { useRouter } from "next/navigation";
 import { ApiError, type RocketSummary } from "@/lib/api";
 import { useRocketLatestExportMutation } from "@/lib/queries";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
-import { Spinner } from "@/components/ui";
+import { Spinner, cardClass, ghostButton, textLink } from "@/components/ui";
+import { cn } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { RocketIcon } from "@/components/workbench/icons";
-import { ghostButton, textLink } from "@/components/workbench/styles";
 
 export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index?: number }) {
   const t = useT();
@@ -61,7 +61,7 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
   return (
     // Stagger is capped so a long list doesn't keep its last rows waiting.
     <Reveal delay={Math.min(index, 10) * 0.04} className="h-full">
-      <article className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-surface p-5 shadow-soft">
+      <article className={cn("flex h-full flex-col gap-4 p-5", cardClass)}>
         <div className="flex items-center gap-3">
           <span
             aria-hidden

@@ -18,8 +18,8 @@
  *   - controlled (the Workbench's FlightReplay): the parent passes `advance`
  *     — the same per-frame callback the marker calls — and `autoRotate`, and
  *     renders its own controls. The scene is identical in both modes.
- * `palette` recolours the scene from the caller's theme tokens; the defaults
- * are the original dark-glass colours so existing callers look the same.
+ * `palette` recolours the scene; the defaults read the theme tokens
+ * (`useChartTokens`), so the scene follows the light / dark theme.
  */
 
 import {
@@ -36,6 +36,7 @@ import { useReducedMotion } from "motion/react";
 import * as THREE from "three";
 import { Button } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { mergePalette, useChartTokens } from "./themeDefaults";
 
 const SCENE_SIZE = 6; // half-extent the trajectory is scaled to fit
 const PLAY_SECONDS = 9; // wall-clock duration of one full play-through
@@ -54,13 +55,15 @@ export interface Trajectory3DPalette {
   marker: string;
 }
 
-const DEFAULT_PALETTE: Trajectory3DPalette = {
-  background: "#070709",
-  grid: "#1b1b22",
-  section: "#2a2a35",
-  line: "#a78bfa",
-  marker: "#22d3ee",
-};
+function tokenPalette(tokens: ReturnType<typeof useChartTokens>): Trajectory3DPalette {
+  return {
+    background: tokens["surface-2"],
+    grid: tokens.divider,
+    section: tokens.axis,
+    line: tokens.accent,
+    marker: tokens.peach,
+  };
+}
 
 /** Map (East, North, Up) metres → a uniformly-scaled three.js point (Y up). */
 function toScenePoints(path: [number, number, number][]): {
@@ -226,7 +229,7 @@ function Timeline({
 
   return (
     <div className="flex items-center gap-4">
-      <Button variant="ghost" onClick={onToggle} className="h-10 shrink-0 px-5">
+      <Button variant="ghost" onClick={onToggle}>
         {playing ? t("interactive.pause") : t("interactive.play")}
       </Button>
       <input
@@ -241,7 +244,7 @@ function Timeline({
           onSeek(v);
         }}
         aria-label={t("interactive.scrubTimeline")}
-        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-400"
+        className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-chip accent-accent"
       />
       <span className="tabular-readout w-12 shrink-0 text-right text-sm text-muted">
         {percent.format(val)}
@@ -272,14 +275,11 @@ export function Trajectory3D({
   const t = useT();
   const { points } = useMemo(() => toScenePoints(path), [path]);
   const controlled = controlledAdvance !== undefined;
-  const palette = useMemo<Trajectory3DPalette>(() => {
-    const merged = { ...DEFAULT_PALETTE };
-    for (const key of Object.keys(DEFAULT_PALETTE) as (keyof Trajectory3DPalette)[]) {
-      const value = paletteOverrides?.[key];
-      if (value) merged[key] = value;
-    }
-    return merged;
-  }, [paletteOverrides]);
+  const tokens = useChartTokens();
+  const palette = useMemo(
+    () => mergePalette(tokenPalette(tokens), paletteOverrides),
+    [tokens, paletteOverrides],
+  );
   // Users who asked for less motion get the still trajectory first; Play
   // (and the camera's auto-rotation with it) is theirs to start.
   const reduceMotion = useReducedMotion() === true;

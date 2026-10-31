@@ -13,11 +13,9 @@
 import { useRouter } from "next/navigation";
 import { ApiError, type SimulationSummary } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
-import { Spinner } from "@/components/ui";
-import { cn } from "@/lib/styles";
+import { Spinner, buttonClass } from "@/components/ui";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { PlayIcon } from "@/components/workbench/icons";
-import { ghostButton } from "@/components/workbench/styles";
 
 export function ReRunButton({ run }: { run: SimulationSummary }) {
   const t = useT();
@@ -45,7 +43,7 @@ export function ReRunButton({ run }: { run: SimulationSummary }) {
         disabled={rerun.isPending || unavailable}
         title={unavailable ? reason : undefined}
         onClick={handleReRun}
-        className={cn(ghostButton, "h-8 px-2.5 text-[13px]")}
+        className={buttonClass({ variant: "ghost", size: "sm", className: "px-2.5" })}
       >
         {rerun.isPending ? <Spinner decorative className="h-3 w-3" /> : <PlayIcon />}
         {t("runs.reRun")}

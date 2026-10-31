@@ -28,7 +28,7 @@ import { Callout } from "@/components/ui";
 import { PlotGallery } from "@/components/flight/PlotGallery";
 import { ReplayProvider } from "@/components/flight/ReplayContext";
 import { WarningsBanner } from "@/components/flight/WarningsBanner";
-import { ghostButton } from "@/components/workbench/styles";
+import { cardClass, ghostButton } from "@/components/ui/classes";
 import { ReportConfiguration } from "./ReportConfiguration";
 import { ReportFlight } from "./ReportFlight";
 import { ReportHeader } from "./ReportHeader";
@@ -82,7 +82,7 @@ export async function ResultsContentServer({
       <div className="grid gap-4 lg:grid-cols-2">
         <section
           aria-labelledby="report-all-results"
-          className="flex flex-col gap-2 rounded-2xl border border-border bg-surface p-4 shadow-soft"
+          className={`flex flex-col gap-2 p-4 ${cardClass}`}
         >
           <h2 id="report-all-results" className="text-sm font-semibold text-ink">
             {t("report.allResults")}

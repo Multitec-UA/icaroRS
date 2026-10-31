@@ -17,7 +17,7 @@ import { useRunSummaryQuery } from "@/lib/queries";
 import { scenarioFacts, siteLabel } from "@/lib/domain/runs";
 import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
-import { textLink } from "@/components/workbench/styles";
+import { textLink, toneClass } from "@/components/ui/classes";
 import { useRunFormatters } from "@/components/runs/useRunFormatters";
 import { ResultsActions } from "./ResultsActions";
 
@@ -61,8 +61,8 @@ export function ReportHeader({ runId }: { runId: string }) {
 
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1.5">
-          <span className="inline-flex items-center gap-1.5 self-start rounded-full bg-ok-soft px-2.5 py-0.5 text-xs font-medium text-ok-ink">
-            <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-ok" />
+          <span className={cn("inline-flex h-7 items-center gap-[7px] self-start rounded-full px-[11px] text-[13px] font-medium", toneClass.ok)}>
+            <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-current" />
             {t("report.statusDone")}
           </span>
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] text-ink sm:text-3xl">{title}</h1>

@@ -40,7 +40,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       aria-label={isDark ? t("theme.switchToLight") : t("theme.switchToDark")}
       title={isDark ? t("theme.switchToLight") : t("theme.switchToDark")}
       className={cn(
-        "inline-flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-ink-2 ring-1 ring-inset ring-border transition-[background-color,color,transform] duration-300 ease-[var(--ease-spring)] hover:text-ink active:scale-[0.96]",
+        "inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface-2 text-ink-2 transition-[background-color,color,transform] duration-300 ease-[var(--ease-spring)] hover:text-ink active:scale-[0.96] pointer-coarse:min-h-11 pointer-coarse:min-w-11",
         focusRing,
         className,
       )}

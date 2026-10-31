@@ -16,8 +16,7 @@ import { useSearchParams } from "next/navigation";
 import type { SimulationSummary } from "@/lib/api";
 import { useHistoryQuery, useRocketsQuery, useSeriesQueries } from "@/lib/queries";
 import { plural } from "@/lib/i18n";
-import { cn, selectClass } from "@/lib/styles";
-import { Callout } from "@/components/ui";
+import { Callout, Select } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { MAX_OVERLAY } from "./colors";
 import { OverlayCard } from "./OverlayCard";
@@ -59,11 +58,11 @@ export function RunsView() {
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
         <label className="flex flex-col gap-1 text-xs font-medium text-muted">
           {t("runs.rocketLabel")}
-          <select
+          <Select
             value={rocketId ?? ""}
             onChange={(event) => setChosenRocket(event.target.value)}
             disabled={!rockets.data}
-            className={cn(selectClass, "h-9 w-auto min-w-[14rem] rounded-[9px] pr-9 text-ink")}
+            className="w-auto min-w-[14rem]"
           >
             {!rockets.data && <option value="">{t("common.loading")}</option>}
             {rockets.data?.map((r) => (
@@ -71,7 +70,7 @@ export function RunsView() {
                 {r.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         {runs.data && (
           <span className="pb-2 text-sm text-muted">{plural(locale, runs.data.length, "runs.count")}</span>

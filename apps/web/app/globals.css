@@ -4,7 +4,7 @@
  * icaro — two soft palettes, one token set.
  *
  * Light is pastel (lavender-tinted greys, periwinkle accent); dark is soft
- * (deep indigo-grey, never OLED black). Neither theme uses pure #000 or #fff.
+ * (deep indigo-grey, never OLED black). Neither theme uses pure black or white.
  * Components style against the tokens below (`bg-surface`, `text-ink`,
  * `border-divider`, …) and never against a literal colour, so both themes
  * stay in sync by construction.
@@ -12,9 +12,14 @@
  * Theme selection: `data-theme="light|dark"` on <html> wins (set by the root
  * layout from the `icaro-theme` cookie and by ThemeProvider on toggle);
  * without it the OS preference decides via `prefers-color-scheme`.
+ *
+ * `.palette-light` pins a subtree to the light palette in either theme (the
+ * plot frames: matplotlib PNGs are drawn on white). Custom properties set on
+ * the element itself win over the ones it would inherit from <html>.
  */
 
-:root {
+:root,
+.palette-light {
   /* --- light (default) --- */
   --bg: #f3f1f8;
   --surface: #fbfafd;
@@ -28,7 +33,8 @@
   --accent: #6b7fe0;
   --accent-ink: #4757b8;
   --accent-soft: #e3e7fb;
-  --primary: #5b6cd6;
+  /* #5160cc: --on-primary on it is 5.18:1 (WCAG AA); #5b6cd6 was 4.43:1. */
+  --primary: #5160cc;
   --on-primary: #fbfafd;
   --chip: #ece8f4;
   --ok: #5fb38d;
@@ -46,13 +52,6 @@
   --shadow-lg: 0 12px 40px -16px rgba(43, 40, 64, 0.28);
   --orb-a: rgba(107, 127, 224, 0.18);
   --orb-b: rgba(238, 154, 114, 0.14);
-
-  /* Legacy aliases — older components still read these; they now resolve to
-     the token palette so nothing is left on the retired OLED-black theme. */
-  --background: var(--bg);
-  --foreground: var(--ink);
-  --accent-cyan: var(--accent);
-  --accent-violet: var(--accent-ink);
 
   color-scheme: light;
 }
@@ -153,12 +152,6 @@
   --color-bad-soft: var(--bad-soft);
   --color-bad-ink: var(--bad-ink);
   --color-peach: var(--peach);
-
-  /* Legacy names kept for components not yet moved to the token set. */
-  --color-background: var(--bg);
-  --color-foreground: var(--ink);
-  --color-accent-cyan: var(--accent);
-  --color-accent-violet: var(--accent-ink);
 
   --shadow-soft: var(--shadow);
   --shadow-soft-lg: var(--shadow-lg);
