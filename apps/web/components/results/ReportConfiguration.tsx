@@ -3,7 +3,7 @@
 /**
  * ReportConfiguration — the run's stored scenario as a definition list (S9,
  * board C): rocket file, site, elevation, launch time, weather model, rail
- * and whether an uncertainty spread was set. The scenario lives on the run's
+ * The scenario lives on the run's
  * history row (useRunSummaryQuery), hence a client island; the facts come
  * from lib/domain/runs so they read the same way as the /runs chips.
  */
@@ -59,11 +59,6 @@ export function ReportConfiguration({ runId }: { runId: string }) {
                 .filter(Boolean)
                 .join(" · ") || unset
             : unset,
-        },
-        {
-          key: "uncertainty",
-          label: t("report.configUncertainty"),
-          value: facts.hasUncertainty ? t("report.uncertaintyCustom") : t("report.uncertaintyDefault"),
         },
       ]
     : [];

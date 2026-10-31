@@ -36,14 +36,18 @@ import {
   useReducer,
   type ReactNode,
 } from "react";
-import type { Atmosphere, Dispersion, Rail, Site, SimulateResult } from "@/lib/api";
+import type { Atmosphere, Site, SimulateResult } from "@/lib/api";
 import {
   STEP_ORDER,
   buildScenarioBody,
   canAdvance as computeCanAdvance,
   needsDate as computeNeedsDate,
+  type RailOverrides,
   type WizardStep,
 } from "@/lib/domain/scenario";
+import { railDefaultsFromManifest, type RailDefaults } from "@/lib/domain/rocket";
+
+export type RailField = keyof RailOverrides;
 
 const DEFAULT_ATMOSPHERE: Atmosphere = {
   model: "standard_atmosphere",
@@ -69,6 +73,8 @@ interface WizardState {
   // did not know them (older call sites pass only the ids).
   exportFilename: string | null;
   rocketName: string | null;
+  // The active file's launch rail (`manifest.flight`), derived at setExport.
+  railDefaults: RailDefaults | null;
 
   // The scenario draft.
   name: string;
@@ -76,8 +82,12 @@ interface WizardState {
   /** Raw value from an <input type="datetime-local"> — interpreted as UTC. */
   launchDatetime: string | null;
   atmosphere: Atmosphere;
-  rail: Rail | null;
-  uncertainty: Record<string, Dispersion> | null;
+  /**
+   * Only the rail values the user typed over the file's own (S4). Kept
+   * across file switches, so an override shows as such against the next
+   * file's defaults instead of silently turning into a default.
+   */
+  railOverrides: RailOverrides;
 
   // Results (from /api/simulate), plus the export they were computed from:
   // when the active export changes after a run, the Workbench's status pill
@@ -107,8 +117,8 @@ type WizardAction =
   | { type: "SET_SITE"; site: Site | null }
   | { type: "SET_LAUNCH_DATETIME"; value: string | null }
   | { type: "SET_ATMOSPHERE"; atmosphere: Atmosphere }
-  | { type: "SET_RAIL"; rail: Rail | null }
-  | { type: "SET_UNCERTAINTY"; uncertainty: Record<string, Dispersion> | null }
+  | { type: "SET_RAIL_OVERRIDE"; field: RailField; value: number }
+  | { type: "RESET_RAIL_OVERRIDE"; field: RailField }
   | { type: "SET_RESULT"; result: SimulateResult }
   | { type: "GOTO"; step: WizardStep }
   | { type: "RESET" };
@@ -120,12 +130,12 @@ const INITIAL_STATE: WizardState = {
   manifest: null,
   exportFilename: null,
   rocketName: null,
+  railDefaults: null,
   name: "my_scenario",
   site: null,
   launchDatetime: null,
   atmosphere: DEFAULT_ATMOSPHERE,
-  rail: null,
-  uncertainty: null,
+  railOverrides: {},
   runId: null,
   result: null,
   resultExportId: null,
@@ -146,8 +156,7 @@ function isDraftDirty(state: WizardState): boolean {
     state.site !== INITIAL_STATE.site ||
     state.launchDatetime !== INITIAL_STATE.launchDatetime ||
     state.atmosphere !== INITIAL_STATE.atmosphere ||
-    state.rail !== INITIAL_STATE.rail ||
-    state.uncertainty !== INITIAL_STATE.uncertainty
+    state.railOverrides !== INITIAL_STATE.railOverrides
   );
 }
 
@@ -161,6 +170,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         manifest: action.manifest,
         exportFilename: action.exportFilename,
         rocketName: action.rocketName,
+        railDefaults: railDefaultsFromManifest(action.manifest),
       };
     case "SET_NAME":
       return { ...state, name: action.name };
@@ -170,10 +180,15 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, launchDatetime: action.value };
     case "SET_ATMOSPHERE":
       return { ...state, atmosphere: action.atmosphere };
-    case "SET_RAIL":
-      return { ...state, rail: action.rail };
-    case "SET_UNCERTAINTY":
-      return { ...state, uncertainty: action.uncertainty };
+    case "SET_RAIL_OVERRIDE":
+      return { ...state, railOverrides: { ...state.railOverrides, [action.field]: action.value } };
+    case "RESET_RAIL_OVERRIDE": {
+      if (!(action.field in state.railOverrides)) return state;
+      const rest = { ...state.railOverrides };
+      delete rest[action.field];
+      // Back to the initial reference when empty, so the draft can be clean again.
+      return { ...state, railOverrides: Object.keys(rest).length > 0 ? rest : INITIAL_STATE.railOverrides };
+    }
     case "SET_RESULT":
       return {
         ...state,
@@ -194,7 +209,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 // ---------------------------------------------------------------------------
 // Nav context — step + navigation only. Consumers: AppNav, Stepper,
 // WizardShell. Memoized on just `state.step` / `state.exportId`, so it never
-// changes identity when a draft field (name, site, uncertainty, ...) changes.
+// changes identity when a draft field (name, site, rail, ...) changes.
 // ---------------------------------------------------------------------------
 
 interface WizardNavContextValue {
@@ -243,8 +258,10 @@ interface WizardDraftContextValue {
   setSite: (site: Site | null) => void;
   setLaunchDatetime: (value: string | null) => void;
   setAtmosphere: (atmosphere: Atmosphere) => void;
-  setRail: (rail: Rail | null) => void;
-  setUncertainty: (uncertainty: Record<string, Dispersion> | null) => void;
+  /** Override one rail field with a value the user typed. */
+  setRailOverride: (field: RailField, value: number) => void;
+  /** Drop one rail override: the field shows the file's value again. */
+  resetRailOverride: (field: RailField) => void;
   setResult: (result: SimulateResult) => void;
   /** Snapshot of the scenario body for validate/simulate calls. */
   scenarioBody: () => Record<string, unknown>;
@@ -314,13 +331,12 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     (atmosphere: Atmosphere) => dispatch({ type: "SET_ATMOSPHERE", atmosphere }),
     [],
   );
-  const setRail = useCallback(
-    (rail: Rail | null) => dispatch({ type: "SET_RAIL", rail }),
+  const setRailOverride = useCallback(
+    (field: RailField, value: number) => dispatch({ type: "SET_RAIL_OVERRIDE", field, value }),
     [],
   );
-  const setUncertainty = useCallback(
-    (uncertainty: Record<string, Dispersion> | null) =>
-      dispatch({ type: "SET_UNCERTAINTY", uncertainty }),
+  const resetRailOverride = useCallback(
+    (field: RailField) => dispatch({ type: "RESET_RAIL_OVERRIDE", field }),
     [],
   );
   const setResult = useCallback(
@@ -382,8 +398,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setSite,
       setLaunchDatetime,
       setAtmosphere,
-      setRail,
-      setUncertainty,
+      setRailOverride,
+      resetRailOverride,
       setResult,
       scenarioBody,
     }),
@@ -394,8 +410,8 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setSite,
       setLaunchDatetime,
       setAtmosphere,
-      setRail,
-      setUncertainty,
+      setRailOverride,
+      resetRailOverride,
       setResult,
       scenarioBody,
     ],

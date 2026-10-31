@@ -17,7 +17,7 @@ export const FIELD_INPUTS: ReadonlyArray<readonly [path: string, inputId: string
   ["site.elevation", "elev"],
   ["date", "dt"],
   ["atmosphere.station", "station"],
-  ["atmosphere.file", "file"],
+  ["atmosphere.fallback", "fallback"],
   ["rail.length", "rl"],
   ["rail.inclination", "ri"],
   ["rail.heading", "rh"],

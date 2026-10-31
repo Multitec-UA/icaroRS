@@ -13,7 +13,6 @@ import { WorkbenchShell } from "./WorkbenchShell";
 
 const {
   simulateMock,
-  getScenarioTemplateMock,
   suggestAtmosphereMock,
   getElevationMock,
   getRocketsMock,
@@ -23,7 +22,6 @@ const {
   getHistoryMock,
 } = vi.hoisted(() => ({
   simulateMock: vi.fn(),
-  getScenarioTemplateMock: vi.fn(),
   suggestAtmosphereMock: vi.fn(),
   getElevationMock: vi.fn(),
   getRocketsMock: vi.fn(),
@@ -43,8 +41,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
       email: "pilot@multitec.dev",
     }),
     simulate: (...args: Parameters<typeof actual.simulate>) => simulateMock(...args),
-    getScenarioTemplate: (...args: Parameters<typeof actual.getScenarioTemplate>) =>
-      getScenarioTemplateMock(...args),
     suggestAtmosphere: (...args: Parameters<typeof actual.suggestAtmosphere>) =>
       suggestAtmosphereMock(...args),
     getElevation: (...args: Parameters<typeof actual.getElevation>) => getElevationMock(...args),
@@ -59,20 +55,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
 vi.mock("@/components/map/SitePicker", () => ({
   SitePicker: () => <div>site-picker-stub</div>,
 }));
-
-const TEMPLATE = {
-  name: "template",
-  site: null,
-  date: null,
-  atmosphere: { model: "standard_atmosphere", file: null, station: null, fallback: "standard_atmosphere" },
-  rail: null,
-  uncertainty: null,
-  uncertainty_presets: {
-    Typical: { mass: { std: 0.02, kind: "relative" } },
-    Conservative: { mass: { std: 0.05, kind: "relative" } },
-    Precise: { mass: { std: 0.01, kind: "relative" } },
-  },
-};
 
 const RESULT = { run_id: "run-7f3a", scalars: { apogee: 3142 }, plot_urls: [], warnings: [] };
 
@@ -112,12 +94,17 @@ function armRocketApi() {
   getExportMock.mockImplementation(async (exportId: string) => {
     const exp = [...RK1_EXPORTS, ...RK2_EXPORTS].find((e) => e.export_id === exportId);
     if (!exp) throw new ApiError(404, `Export '${exportId}' not found.`);
-    return { ...exp, manifest: { name: exp.rocket_id === "rk-1" ? "Icarus-2" : "Icarus-1" } };
+    return {
+      ...exp,
+      manifest: {
+        name: exp.rocket_id === "rk-1" ? "Icarus-2" : "Icarus-1",
+        flight: { rail_length: 5.2, inclination: 85, heading: 90 },
+      },
+    };
   });
 }
 
 function arm() {
-  getScenarioTemplateMock.mockResolvedValue(TEMPLATE);
   suggestAtmosphereMock.mockResolvedValue({ model: "forecast", reason: "ok", needs_internet: true });
   getElevationMock.mockResolvedValue({ elevation: 12, source: "dem" });
 }
@@ -125,8 +112,7 @@ function arm() {
 afterEach(() => {
   for (const m of [
     simulateMock,
-    getScenarioTemplateMock,
-    suggestAtmosphereMock,
+      suggestAtmosphereMock,
     getElevationMock,
     getRocketsMock,
     getRocketMock,
@@ -230,28 +216,27 @@ describe("Workbench import — A1 no export (S8)", () => {
     expect(await screen.findByText("Icarus-2 · icarus2_v4.ork")).toBeInTheDocument();
     expect(getRocketMock).toHaveBeenCalledWith("rk-1");
     expect(getExportMock).toHaveBeenCalledWith("ex-new");
-    expect(screen.getByText("Results, the 3D replay and plots appear here after the first run.")).toBeInTheDocument();
+    expect(screen.getByText("Ready to run")).toBeInTheDocument();
   });
 
-  it("keeps Launch rail and Uncertainty disabled with a note until an export exists", async () => {
+  it("keeps only the rail disabled until an export exists, then prefills it from the file", async () => {
     arm();
     armRocketApi();
     await renderShell();
 
-    const note = "Defaults come from your .ork once it's loaded";
-    expect(screen.getByText(note)).toBeInTheDocument();
-    expect(screen.getByLabelText("Length (m)")).toBeDisabled();
-    // Asserted through a live query: the test-only motion/react stub re-mounts
-    // the DOM under <Reveal> on every render, so an awaited node can go stale.
-    await waitFor(() => expect(screen.getByRole("button", { name: "Typical" })).toBeDisabled());
+    expect(screen.queryByText("Defaults come from your .ork once it's loaded")).toBeNull();
+    expect(screen.queryByText("Uncertainty presets")).toBeNull();
+    expect(screen.getByLabelText("Rail length (m)")).toBeDisabled();
+    expect(screen.getByLabelText("Rail length (m)")).toHaveAttribute("placeholder", "From your .ork");
     // Launch site and Time & weather stay editable.
     expect(screen.getByLabelText("Latitude")).toBeEnabled();
+    expect(screen.getByLabelText("If the forecast is unavailable")).toBeEnabled();
 
     await useRocket("Icarus-2");
 
-    await waitFor(() => expect(screen.getByLabelText("Length (m)")).toBeEnabled());
-    expect(screen.getByRole("button", { name: "Typical" })).toBeEnabled();
-    expect(screen.queryByText(note)).toBeNull();
+    await waitFor(() => expect(screen.getByLabelText("Rail length (m)")).toBeEnabled());
+    expect(screen.getByLabelText("Rail length (m)")).toHaveValue(5.2);
+    expect(screen.getAllByText("From .ork")).toHaveLength(3);
   });
 });
 
@@ -386,7 +371,7 @@ describe("Workbench import — A2 converting (S8)", () => {
 
     expect(await screen.findByText("Icarus-2 · icarus2_v4.ork")).toBeInTheDocument();
     expect(screen.queryByText("Converting icarus2_v4.ork")).toBeNull();
-    expect(screen.getByText("Results, the 3D replay and plots appear here after the first run.")).toBeInTheDocument();
+    expect(screen.getByText("Ready to run")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: /Run simulation/ })).toBeEnabled());
   });
 
@@ -451,6 +436,22 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
       "href",
       "/runs?rocket_id=rk-1",
     );
+  });
+
+  it("shows a compact rocket card under each file, fetching the inactive file's manifest", async () => {
+    arm();
+    armRocketApi();
+    await renderShell();
+    await useRocket("Icarus-2");
+    getExportMock.mockClear();
+
+    const { dialog } = await openPanel();
+
+    // One card per file: the active one from the draft, the other fetched once.
+    await waitFor(() => expect(within(dialog).getAllByRole("group", { name: "Rocket Icarus-2" })).toHaveLength(2));
+    // The inactive file is fetched exactly once for its card.
+    expect(getExportMock.mock.calls.filter(([id]) => id === "ex-old")).toHaveLength(1);
+    expect(within(dialog).getAllByText("Rail defaults")).toHaveLength(2);
   });
 
   it("shows how many runs each file has, counted from the rocket's history", async () => {

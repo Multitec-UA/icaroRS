@@ -85,34 +85,9 @@
   },
 
   "advanced": {
-    "presetTypical": "Típico",
-    "presetConservative": "Conservador",
-    "presetPrecise": "Preciso",
-    "tableHeaderParameter": "Parámetro",
-    "tableHeaderStdDev": "Desviación estándar",
-    "tableHeaderKind": "Tipo",
-    "kindRelative": "relativo",
-    "kindAbsolute": "absoluto",
-    "railLength": "Longitud (m)",
-    "railInclination": "Inclinación (°)",
-    "railHeading": "Rumbo (°)",
     "fieldStationId": "ID de estación",
     "fieldStationHint": "Requerido para sondeos de Wyoming.",
-    "fieldEra5Path": "Ruta del archivo ERA5",
-    "fieldEra5Hint": "Requerido para reanálisis.",
-    "paramLabels": {
-      "mass": "Masa",
-      "inclination": "Inclinación",
-      "heading": "Rumbo",
-      "wind_factor": "Factor de viento",
-      "thrust": "Empuje",
-      "rail_length": "Longitud del riel"
-    },
-    "uncertaintyPresetLegend": "Preajuste de incertidumbre",
-    "stdDevFor": "Desviación estándar de {param}",
-    "kindFor": "Tipo de {param}",
-    "stationPlaceholder": "72493…",
-    "era5Placeholder": "/data/era5/2024-06.nc…"
+    "stationPlaceholder": "72493…"
   },
 
   "review": {
@@ -270,7 +245,6 @@
     "changeRailLength": "Longitud del riel {from} → {to}",
     "changeRailInclination": "Inclinación del riel {from} → {to}",
     "changeRailHeading": "Rumbo del riel {from} → {to}",
-    "changeUncertainty": "Cambió la dispersión de incertidumbre",
     "changeFile": "Archivo distinto: {to}"
   },
 
@@ -289,10 +263,7 @@
     "configElevation": "Elevación",
     "configLaunch": "Lanzamiento",
     "configWeather": "Meteorología",
-    "configRail": "Riel",
-    "configUncertainty": "Incertidumbre",
-    "uncertaintyCustom": "Dispersión personalizada",
-    "uncertaintyDefault": "Por defecto"
+    "configRail": "Riel"
   },
 
   "glossary": {
@@ -301,8 +272,7 @@
     "rail_departure": "El momento en que el cohete deja el riel de lanzamiento. Una salida más rápida y estable implica un vuelo más recto y seguro.",
     "stability_margin": "Qué tan estable es el cohete, medido en calibres (diámetros del cuerpo). Aproximadamente 1–2 cal representa un vuelo saludable y controlable.",
     "forecast": "Pronóstico meteorológico real (GFS) para la fecha y el lugar de lanzamiento. Disponible para fechas dentro de aproximadamente 16 días desde ahora.",
-    "standard_atmosphere": "Una atmósfera promedio teórica. Se usa cuando no hay pronóstico real disponible — útil para una estimación rápida y reproducible.",
-    "uncertainty": "Cuánto puede variar en la realidad cada dato de entrada (masa, viento, empuje…). Alimenta el análisis de dispersión y la predicción de zona de impacto."
+    "standard_atmosphere": "Una atmósfera promedio teórica. Se usa cuando no hay pronóstico real disponible — útil para una estimación rápida y reproducible."
   },
 
   "workbench": {
@@ -323,22 +293,16 @@
     "launchSite": "Lugar de lanzamiento",
     "timeWeather": "Hora y meteorología",
     "launchRail": "Riel de lanzamiento",
-    "uncertainty": "Preajustes de incertidumbre",
     "atmosphereModel": "Modelo atmosférico",
     "modelForecast": "Pronóstico",
     "modelStandard": "Estándar",
     "modelSounding": "Sondeo",
-    "modelReanalysis": "ERA5",
     "launchTime": "Lanzamiento · tu hora, {timeZone}",
     "launchTimeHint": "Se simula a la hora en punto. Dentro de unos 16 días se usa un pronóstico meteorológico real.",
     "needsDate": "Este modelo meteorológico necesita una fecha de lanzamiento.",
-    "fineTune": "Ajuste fino",
-    "fineTuneHint": "Edita la dispersión de cada parámetro. Cualquier cambio pasa el preajuste a personalizado.",
-    "presetCustom": "Personalizado",
     "resultsPlaceholder": "Los resultados, la repetición 3D y las gráficas aparecen aquí tras la primera ejecución.",
     "runThisFile": "Ejecutar este archivo",
     "convertingContext": "{filename} convirtiendo…",
-    "inputsNeedExport": "Los valores por defecto vienen de tu .ork cuando se carga",
     "dropTitle": "Suelta aquí tu archivo de OpenRocket",
     "dropHint": "Cualquier .ork directo de OpenRocket · o",
     "dropBrowse": "explora",
@@ -391,7 +355,37 @@
     "panelDropInputLabel": "Archivo .ork de OpenRocket para añadir a {rocket}",
     "panelOthers": "Otros cohetes",
     "panelNewRocket": "+ Cohete nuevo desde un .ork",
-    "panelClose": "Cerrar el panel del cohete"
+    "panelClose": "Cerrar el panel del cohete",
+    "railLength": "Longitud del riel (m)",
+    "railInclination": "Inclinación (°)",
+    "railHeading": "Rumbo (°)",
+    "railFromOrk": "Del .ork",
+    "railOverridden": "Modificado",
+    "railReset": "Restablecer a {value}",
+    "railPlaceholder": "De tu .ork",
+    "railInclinationHint": "Desde la horizontal: 90° = vertical",
+    "railHeadingHint": "Rumbo de brújula hacia el que se inclina el riel: 90° = este",
+    "fallbackLabel": "Si el pronóstico no está disponible",
+    "fallbackStandard": "Usar la atmósfera estándar",
+    "fallbackHint": "Un respaldo siempre se indica como aviso en el resultado.",
+    "cardEyebrow": "Cohete",
+    "cardLabel": "Cohete {rocket}",
+    "cardDryMass": "Masa en seco",
+    "cardLiftoffMass": "Masa al despegue",
+    "cardWithPropellant": "con propulsante",
+    "cardDiameter": "Diámetro",
+    "cardMotor": "Motor",
+    "cardPropellant": "{mass} de propulsante",
+    "cardParachutes": "Paracaídas",
+    "cardRailDefaults": "Riel por defecto",
+    "cardRailOrder": "longitud · inclinación · rumbo",
+    "cardStoredTitle": "Resultados guardados por OpenRocket",
+    "cardStoredNote": "con sus propias condiciones, guardados en el archivo",
+    "cardApogee": "Apogeo",
+    "cardMaxSpeed": "Velocidad máx.",
+    "cardFlightTime": "Tiempo de vuelo",
+    "cardReady": "Listo para ejecutar",
+    "cardReadyLine": "Revisa el escenario a la izquierda y ejecuta la simulación. Los resultados aparecen aquí."
   },
 
   "flight": {

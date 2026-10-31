@@ -2,7 +2,7 @@
 
 /**
  * WhatChanged — per compared run, the inputs that differ from the baseline
- * (S9): site, launch time, weather model, rail, uncertainty spread and the
+ * (S9): site, launch time, weather model, rail and the
  * file. The diff is lib/domain/runs's `whatChanged`; this only labels and
  * formats it. A compared run with no differences says so, and the baseline
  * is never compared with itself.
@@ -62,8 +62,6 @@ export function WhatChanged({
           from: change.from ? `${change.from}°` : unset,
           to: change.to ? `${change.to}°` : unset,
         });
-      case "uncertainty":
-        return t("runs.changeUncertainty");
       case "file":
         return t("runs.changeFile", { to });
     }

@@ -154,8 +154,7 @@ describe("buildScenarioBody", () => {
         site: { latitude: 1, longitude: 2, elevation: 3 },
         launchDatetime: "2026-06-01T09:54",
         atmosphere: STANDARD_ATMOSPHERE,
-        rail: null,
-        uncertainty: null,
+        railOverrides: {},
       }, "Europe/Madrid"),
     ).toEqual({
       name: "acme-1",
@@ -163,29 +162,60 @@ describe("buildScenarioBody", () => {
       // 09:54 in Madrid (CEST, UTC+2) is the 07 UTC hour.
       date: { year: 2026, month: 6, day: 1, hour: 7 },
       atmosphere: STANDARD_ATMOSPHERE,
-      rail: null,
-      uncertainty: null,
+      uncertainty: {},
     });
   });
 
-  it("passes through a null site/rail/uncertainty and a null launch date", () => {
+  it("passes through a null site and a null launch date", () => {
     expect(
       buildScenarioBody({
         name: "acme-1",
         site: null,
         launchDatetime: null,
         atmosphere: STANDARD_ATMOSPHERE,
-        rail: null,
-        uncertainty: null,
+        railOverrides: {},
       }),
     ).toEqual({
       name: "acme-1",
       site: null,
       date: null,
       atmosphere: STANDARD_ATMOSPHERE,
-      rail: null,
-      uncertainty: null,
+      uncertainty: {},
     });
+  });
+
+  it("sends no rail key at all when nothing is overridden", () => {
+    const body = buildScenarioBody({
+      name: "acme-1",
+      site: null,
+      launchDatetime: null,
+      atmosphere: STANDARD_ATMOSPHERE,
+      railOverrides: {},
+    });
+    expect("rail" in body).toBe(false);
+  });
+
+  it("sends only the overridden rail keys, never the file's defaults", () => {
+    const body = buildScenarioBody({
+      name: "acme-1",
+      site: null,
+      launchDatetime: null,
+      atmosphere: STANDARD_ATMOSPHERE,
+      railOverrides: { inclination: 84 },
+    });
+    expect(body.rail).toEqual({ inclination: 84 });
+  });
+
+  it("always sends an empty uncertainty: the simulate use-case ignores it", () => {
+    const body = buildScenarioBody({
+      name: "acme-1",
+      site: null,
+      launchDatetime: null,
+      atmosphere: STANDARD_ATMOSPHERE,
+      railOverrides: { length: 3, heading: 45 },
+    });
+    expect(body.uncertainty).toEqual({});
+    expect(body.rail).toEqual({ length: 3, heading: 45 });
   });
 });
 

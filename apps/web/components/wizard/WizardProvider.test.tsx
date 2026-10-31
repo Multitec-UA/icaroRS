@@ -238,10 +238,55 @@ describe("WizardProvider — reducer / navigation", () => {
       site: { latitude: 1, longitude: 2, elevation: 3 },
       date: { year: 2026, month: 6, day: 1, hour: 9 },
       atmosphere: result.current.state.atmosphere,
-      rail: null,
-      uncertainty: null,
+      uncertainty: {},
     });
     vi.restoreAllMocks();
+  });
+});
+
+describe("WizardProvider — launch rail defaults and overrides (S4)", () => {
+  const MANIFEST = { flight: { rail_length: 5.2, inclination: 85, heading: 90 } };
+
+  it("setExport derives the file's rail defaults from manifest.flight", () => {
+    const { result } = setup();
+    expect(result.current.state.railDefaults).toBeNull();
+    act(() => result.current.setExport("export-1", MANIFEST));
+    expect(result.current.state.railDefaults).toEqual({ length: 5.2, inclination: 85, heading: 90 });
+    expect(result.current.state.railOverrides).toEqual({});
+  });
+
+  it("an override is sent; reset deletes it so the body carries no rail again", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", MANIFEST));
+    act(() => result.current.setRailOverride("inclination", 84));
+    expect(result.current.state.railOverrides).toEqual({ inclination: 84 });
+    expect(result.current.scenarioBody().rail).toEqual({ inclination: 84 });
+
+    act(() => result.current.resetRailOverride("inclination"));
+    expect(result.current.state.railOverrides).toEqual({});
+    expect("inclination" in result.current.state.railOverrides).toBe(false);
+    expect("rail" in result.current.scenarioBody()).toBe(false);
+  });
+
+  it("overrides survive a file switch while the defaults follow the new file", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", MANIFEST));
+    act(() => result.current.setRailOverride("length", 3));
+    act(() => result.current.setExport("export-2", { flight: { rail_length: 2, inclination: 87, heading: 0 } }));
+    expect(result.current.state.railOverrides).toEqual({ length: 3 });
+    expect(result.current.state.railDefaults).toEqual({ length: 2, inclination: 87, heading: 0 });
+  });
+
+  it("setExport still records the export, its rocket and display metadata", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", MANIFEST, "rocket-1", { filename: "a.ork", rocketName: "A" }));
+    expect(result.current.state).toMatchObject({
+      exportId: "export-1",
+      rocketId: "rocket-1",
+      manifest: MANIFEST,
+      exportFilename: "a.ork",
+      rocketName: "A",
+    });
   });
 });
 

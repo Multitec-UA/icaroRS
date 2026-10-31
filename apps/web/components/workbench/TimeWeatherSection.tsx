@@ -8,6 +8,14 @@
  * atmosphere) and applies it; the segmented control lets the user override.
  * Forecast and sounding models need a date (`needsDate`), and the Run button
  * stays disabled until one is typed — the hint under the field says so.
+ *
+ * The model choice is forecast / standard / sounding only: `reanalysis`
+ * reads a server-side file path, never user input (S4). "If the forecast is
+ * unavailable" exposes `atmosphere.fallback`; the core sets the fallback
+ * model and always records a warning on the result when it is used
+ * (packages/icaro/icaro/simulation.py). The API passes the value straight to
+ * the atmosphere model, so the standard atmosphere is the only fallback it
+ * accepts — there is no "fail the run" value to offer.
  */
 
 import { useState } from "react";
@@ -22,6 +30,7 @@ import { launchDateToIso, needsDate, resolveTimeZone, toLaunchDate } from "@/lib
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Callout, Field, InfoTip, SegmentedControl, TextInput } from "@/components/ui";
+import { cn, selectClass } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { errorFor } from "./fieldErrors";
 import { Section } from "./Section";
@@ -30,7 +39,11 @@ const MODEL_OPTIONS: ReadonlyArray<{ value: AtmosphereModel; labelKey: `workbenc
   { value: "forecast", labelKey: "workbench.modelForecast" },
   { value: "standard_atmosphere", labelKey: "workbench.modelStandard" },
   { value: "wyoming_sounding", labelKey: "workbench.modelSounding" },
-  { value: "reanalysis", labelKey: "workbench.modelReanalysis" },
+];
+
+/** Fallback models the API accepts for `atmosphere.fallback`. */
+const FALLBACK_OPTIONS: ReadonlyArray<{ value: string; labelKey: "workbench.fallbackStandard" }> = [
+  { value: "standard_atmosphere", labelKey: "workbench.fallbackStandard" },
 ];
 
 export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
@@ -121,25 +134,26 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
           />
         </Field>
       )}
-      {model === "reanalysis" && (
-        <Field
-          label={t("advanced.fieldEra5Path")}
-          htmlFor="file"
-          hint={t("advanced.fieldEra5Hint")}
-          error={errorFor(errors, "atmosphere.file")}
+      <Field
+        label={t("workbench.fallbackLabel")}
+        htmlFor="fallback"
+        hint={t("workbench.fallbackHint")}
+        error={errorFor(errors, "atmosphere.fallback")}
+      >
+        <select
+          id="fallback"
+          name="atmosphere-fallback"
+          className={cn(selectClass, "h-9")}
+          value={state.atmosphere.fallback}
+          onChange={(e) => setAtmosphere({ ...state.atmosphere, fallback: e.target.value })}
         >
-          <TextInput
-            id="file"
-            name="era5-file"
-            autoComplete="off"
-            spellCheck={false}
-            className="h-9"
-            placeholder={t("advanced.era5Placeholder")}
-            value={state.atmosphere.file ?? ""}
-            onChange={(e) => setAtmosphere({ ...state.atmosphere, file: e.target.value || null })}
-          />
-        </Field>
-      )}
+          {FALLBACK_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {t(o.labelKey)}
+            </option>
+          ))}
+        </select>
+      </Field>
 
       {suggestion && (
         <Callout tone={suggestion.needs_internet ? "success" : "info"}>

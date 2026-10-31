@@ -23,13 +23,11 @@ import {
   getRocket,
   getResult,
   getSeries,
-  getScenarioTemplate,
   simulate,
   type ResultEnvelope,
   type ConvertResponse,
   type ExportDetail,
   type RocketDetail,
-  type ScenarioTemplate,
   type SimulateResult,
   type SimulationSummary,
   type RocketSummary,
@@ -48,7 +46,8 @@ export const queryKeys = {
   rocket: (rocketId: string) => ["rockets", rocketId] as const,
   result: (runId: string) => ["results", runId] as const,
   series: (runId: string) => ["results", runId, "series"] as const,
-  scenarioTemplate: ["scenario", "template"] as const,
+  /** One export with its manifest. Exports are immutable once converted. */
+  export: (exportId: string) => ["exports", exportId] as const,
 };
 
 /**
@@ -143,10 +142,17 @@ export function useSeriesQueries(runIds: string[]) {
   });
 }
 
-export function useScenarioTemplateQuery() {
-  return useQuery<ScenarioTemplate>({
-    queryKey: queryKeys.scenarioTemplate,
-    queryFn: getScenarioTemplate,
+/**
+ * GET /api/exports/{exportId} as data the screen keeps: the rocket panel's
+ * compact card of each file reads its manifest. A converted export never
+ * changes, so the result stays fresh for the whole session.
+ */
+export function useExportDetailQuery(exportId: string, options?: { enabled?: boolean }) {
+  return useQuery<ExportDetail>({
+    queryKey: queryKeys.export(exportId),
+    queryFn: () => getExport(exportId),
+    staleTime: Infinity,
+    enabled: options?.enabled ?? true,
   });
 }
 

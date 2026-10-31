@@ -119,20 +119,50 @@ const ROCKETS = [
 ];
 
 /**
+ * A manifest shaped like the `parameters.json` rocketserializer writes
+ * (packages/rocketserializer/rocketserializer/ork_extractor.py): rocket name
+ * under `id`, mass (kg, at burnout) and radius (m) under `rocket`, one solid
+ * motor's grain geometry under `motors`, parachutes keyed "0", "1"…, the rail
+ * already converted to RocketPy's inclination under `flight`, and
+ * OpenRocket's own results under `stored_results`. `name` mirrors what the
+ * API reads to name a converted rocket.
+ *
  * @param {string} name @param {number} mass @param {number} radius
  * @param {{apogee: number, speed: number, time: number}} stored
  */
 function manifest(name, mass, radius, stored) {
   return {
     name,
-    rocket: { mass, radius },
-    motors: [{ designation: "Cesaroni J450", total_impulse: 1195.0, burn_time: 2.65 }],
-    parachutes: [
-      { name: "Drogue", cd_s: 0.42, trigger: "apogee" },
-      { name: "Main", cd_s: 2.1, trigger: 300 },
-    ],
+    id: { rocket_name: name, comment: null, designer: null },
+    rocket: { mass, radius, inertia: [6.32, 6.32, 0.034], coordinate_system_orientation: "nose_to_tail" },
+    motors: {
+      grain_density: 1815.0,
+      grain_initial_inner_radius: 0.0145,
+      grain_outer_radius: 0.029,
+      grain_initial_height: 0.398,
+      grain_number: 1,
+      dry_mass: 0,
+      coordinate_system_orientation: "nozzle_to_combustion_chamber",
+    },
+    parachutes: {
+      0: { name: "Drogue", cd: 1.5, cds: 0.42, deploy_event: "apogee", deploy_delay: 1.0, deploy_altitude: null },
+      1: { name: "Main", cd: 2.2, cds: 2.1, deploy_event: "altitude", deploy_delay: 0.0, deploy_altitude: 300 },
+    },
     flight: { rail_length: 5.2, inclination: 85, heading: 90 },
-    stored_results: { max_altitude: stored.apogee, max_velocity: stored.speed, flight_time: stored.time },
+    stored_results: {
+      max_altitude: stored.apogee,
+      max_velocity: stored.speed,
+      max_acceleration: 98.4,
+      max_mach: 0.86,
+      time_to_apogee: 19.7,
+      flight_time: stored.time,
+      ground_hit_velocity: 6.1,
+      launch_rod_velocity: 24.3,
+      max_stability_margin: 2.71,
+      min_stability_margin: 1.62,
+      burnout_stability_margin: 2.05,
+      max_thrust: 1712.0,
+    },
   };
 }
 

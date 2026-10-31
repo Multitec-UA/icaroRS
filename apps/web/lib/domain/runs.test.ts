@@ -79,7 +79,6 @@ describe("whatChanged — compared run against the baseline", () => {
       { key: "railLength", from: "5.2", to: "6" },
       { key: "railInclination", from: "84", to: "88" },
       { key: "railHeading", from: "133", to: "90" },
-      { key: "uncertainty", from: null, to: null },
     ]);
   });
 
@@ -106,14 +105,13 @@ describe("whatChanged — compared run against the baseline", () => {
 });
 
 describe("scenarioFacts — what a scenario says, for labels", () => {
-  it("extracts the site, launch date, model, rail and uncertainty presence", () => {
+  it("extracts the site, launch date, model and rail", () => {
     expect(scenarioFacts(baseScenario)).toEqual({
       name: null,
       site: { latitude: 38.3452, longitude: -0.481, elevation: 12 },
       launchDateIso: "2026-11-07T11:00:00Z",
       model: "forecast",
       rail: { length: 5.2, inclination: 84, heading: 133 },
-      hasUncertainty: true,
     });
   });
 
@@ -124,7 +122,6 @@ describe("scenarioFacts — what a scenario says, for labels", () => {
       launchDateIso: null,
       model: null,
       rail: null,
-      hasUncertainty: false,
     });
     expect(scenarioFacts({ name: "Alicante pad" }).name).toBe("Alicante pad");
   });

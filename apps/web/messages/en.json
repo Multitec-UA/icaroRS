@@ -85,34 +85,9 @@
   },
 
   "advanced": {
-    "presetTypical": "Typical",
-    "presetConservative": "Conservative",
-    "presetPrecise": "Precise",
-    "tableHeaderParameter": "Parameter",
-    "tableHeaderStdDev": "Std deviation",
-    "tableHeaderKind": "Kind",
-    "kindRelative": "relative",
-    "kindAbsolute": "absolute",
-    "railLength": "Length (m)",
-    "railInclination": "Inclination (°)",
-    "railHeading": "Heading (°)",
     "fieldStationId": "Station id",
     "fieldStationHint": "Required for Wyoming soundings.",
-    "fieldEra5Path": "ERA5 file path",
-    "fieldEra5Hint": "Required for reanalysis.",
-    "paramLabels": {
-      "mass": "Mass",
-      "inclination": "Inclination",
-      "heading": "Heading",
-      "wind_factor": "Wind factor",
-      "thrust": "Thrust",
-      "rail_length": "Rail length"
-    },
-    "uncertaintyPresetLegend": "Uncertainty preset",
-    "stdDevFor": "Standard deviation for {param}",
-    "kindFor": "Kind for {param}",
-    "stationPlaceholder": "72493…",
-    "era5Placeholder": "/data/era5/2024-06.nc…"
+    "stationPlaceholder": "72493…"
   },
 
   "review": {
@@ -270,7 +245,6 @@
     "changeRailLength": "Rail length {from} → {to}",
     "changeRailInclination": "Rail inclination {from} → {to}",
     "changeRailHeading": "Rail heading {from} → {to}",
-    "changeUncertainty": "Uncertainty spread changed",
     "changeFile": "Different file: {to}"
   },
 
@@ -289,10 +263,7 @@
     "configElevation": "Elevation",
     "configLaunch": "Launch",
     "configWeather": "Weather",
-    "configRail": "Rail",
-    "configUncertainty": "Uncertainty",
-    "uncertaintyCustom": "Custom spread",
-    "uncertaintyDefault": "Default"
+    "configRail": "Rail"
   },
 
   "glossary": {
@@ -301,8 +272,7 @@
     "rail_departure": "The moment the rocket leaves the launch rail. A faster, more stable departure means a straighter, safer flight.",
     "stability_margin": "How stable the rocket is, measured in calibers (body diameters). Roughly 1–2 cal is a healthy, controllable flight.",
     "forecast": "Real weather forecast (GFS) for your launch date and place. Available for dates within about 16 days from now.",
-    "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate.",
-    "uncertainty": "How much each input (mass, wind, thrust…) might vary in reality. It feeds the dispersion / landing-spread analysis."
+    "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate."
   },
 
   "workbench": {
@@ -323,22 +293,16 @@
     "launchSite": "Launch site",
     "timeWeather": "Time & weather",
     "launchRail": "Launch rail",
-    "uncertainty": "Uncertainty presets",
     "atmosphereModel": "Atmosphere model",
     "modelForecast": "Forecast",
     "modelStandard": "Standard",
     "modelSounding": "Sounding",
-    "modelReanalysis": "ERA5",
     "launchTime": "Launch · your time, {timeZone}",
     "launchTimeHint": "Simulated to the whole hour. Within about 16 days a real weather forecast is used.",
     "needsDate": "This weather model needs a launch date.",
-    "fineTune": "Fine-tune",
-    "fineTuneHint": "Edit each parameter's spread. Any edit switches the preset to custom.",
-    "presetCustom": "Custom",
     "resultsPlaceholder": "Results, the 3D replay and plots appear here after the first run.",
     "runThisFile": "Run this file",
     "convertingContext": "{filename} converting…",
-    "inputsNeedExport": "Defaults come from your .ork once it's loaded",
     "dropTitle": "Drop your OpenRocket file here",
     "dropHint": "Any .ork straight from OpenRocket · or",
     "dropBrowse": "browse",
@@ -391,7 +355,37 @@
     "panelDropInputLabel": "OpenRocket .ork file to add to {rocket}",
     "panelOthers": "Other rockets",
     "panelNewRocket": "+ New rocket from .ork",
-    "panelClose": "Close rocket panel"
+    "panelClose": "Close rocket panel",
+    "railLength": "Rail length (m)",
+    "railInclination": "Inclination (°)",
+    "railHeading": "Heading (°)",
+    "railFromOrk": "From .ork",
+    "railOverridden": "Overridden",
+    "railReset": "Reset to {value}",
+    "railPlaceholder": "From your .ork",
+    "railInclinationHint": "From horizontal: 90° = vertical",
+    "railHeadingHint": "Compass bearing the rail leans toward: 90° = east",
+    "fallbackLabel": "If the forecast is unavailable",
+    "fallbackStandard": "Use the standard atmosphere",
+    "fallbackHint": "A fallback is always reported as a warning on the result.",
+    "cardEyebrow": "Rocket",
+    "cardLabel": "Rocket {rocket}",
+    "cardDryMass": "Dry mass",
+    "cardLiftoffMass": "Liftoff mass",
+    "cardWithPropellant": "with propellant",
+    "cardDiameter": "Diameter",
+    "cardMotor": "Motor",
+    "cardPropellant": "{mass} propellant",
+    "cardParachutes": "Parachutes",
+    "cardRailDefaults": "Rail defaults",
+    "cardRailOrder": "length · inclination · heading",
+    "cardStoredTitle": "OpenRocket stored results",
+    "cardStoredNote": "its own conditions, saved in the file",
+    "cardApogee": "Apogee",
+    "cardMaxSpeed": "Max speed",
+    "cardFlightTime": "Flight time",
+    "cardReady": "Ready to run",
+    "cardReadyLine": "Review the scenario on the left, then run the simulation. Results appear here."
   },
 
   "flight": {

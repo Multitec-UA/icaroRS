@@ -16,9 +16,7 @@
 import type {
   Atmosphere,
   AtmosphereModel,
-  Dispersion,
   LaunchDate,
-  Rail,
   Site,
   SimulateResult,
 } from "@/lib/api";
@@ -166,32 +164,45 @@ export function formatLaunchDate(
 // Scenario body (validate/simulate payload)
 // ---------------------------------------------------------------------------
 
+/**
+ * Launch rail values the user typed over the file's own (S4). A key is
+ * present only while that field is overridden; Reset deletes it.
+ */
+export type RailOverrides = Partial<Record<"length" | "inclination" | "heading", number>>;
+
 /** The subset of the wizard draft needed to build the API payload. */
 export interface ScenarioDraft {
   name: string;
   site: Site | null;
   launchDatetime: string | null;
   atmosphere: Atmosphere;
-  rail: Rail | null;
-  uncertainty: Record<string, Dispersion> | null;
+  railOverrides: RailOverrides;
 }
 
 /**
  * Build the scenario body sent to /api/scenario/validate and /api/simulate.
  * `draft.launchDatetime` is the user's wall clock in `timeZone`; the body
  * carries it converted to UTC.
+ *
+ * `rail` carries ONLY the overridden fields and is omitted when none is:
+ * the core falls back to the export's own `flight` values per missing key,
+ * so the file's defaults are never frozen into a run. `uncertainty` is always
+ * empty: the simulate use-case does not read it (S5).
  */
 export function buildScenarioBody(
   draft: ScenarioDraft,
   timeZone: string = resolveTimeZone(),
 ): Record<string, unknown> {
+  const rail = Object.fromEntries(
+    Object.entries(draft.railOverrides).filter(([, value]) => typeof value === "number"),
+  );
   return {
     name: draft.name,
     site: draft.site,
     date: toLaunchDate(draft.launchDatetime, timeZone),
     atmosphere: draft.atmosphere,
-    rail: draft.rail,
-    uncertainty: draft.uncertainty,
+    ...(Object.keys(rail).length > 0 ? { rail } : {}),
+    uncertainty: {},
   };
 }
 

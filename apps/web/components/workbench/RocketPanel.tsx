@@ -3,7 +3,10 @@
 /**
  * RocketPanel — the dialog behind the top bar's rocket context button
  * (S8/A3): the active rocket's files (GET /api/rockets/{id}, newest first)
- * as a radio list where the checked one feeds the Workbench, a "Compare two
+ * as a radio list where the checked one feeds the Workbench, each with a
+ * compact RocketSummaryCard of what that file says (S3: the active file's
+ * manifest from the draft, the others' from GET /api/exports/{id}, cached
+ * for the session since exports never change), a "Compare two
  * files" link, a drop zone that adds a `.ork` to THIS rocket (destination
  * known, no card), the org's other rockets as chips, and "+ New rocket from
  * .ork" which goes through the destination card with "New rocket" preselected.
@@ -20,6 +23,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, type KeyboardEvent, type RefObject } from "react";
 import {
   useExportDetailMutation,
+  useExportDetailQuery,
   useHistoryQuery,
   useRocketDetailQuery,
   useRocketLatestExportMutation,
@@ -27,11 +31,13 @@ import {
 } from "@/lib/queries";
 import type { ExportSummary } from "@/lib/api";
 import { plural } from "@/lib/i18n";
+import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { Spinner } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cn, focusRing } from "@/lib/styles";
 import { ImportDropZone } from "./ImportDropZone";
+import { RocketSummaryCard } from "./RocketSummaryCard";
 import { CloseIcon, RocketIcon } from "./icons";
 import { chipButton, textLink } from "./styles";
 import type { OrkImport } from "./useOrkImport";
@@ -210,42 +216,48 @@ export function RocketPanel({
               const active = exp.export_id === state.exportId;
               const loading = loadExport.isPending && loadExport.variables === exp.export_id;
               return (
-                <label
-                  key={exp.export_id}
-                  className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-[border-color,background-color] duration-300 ease-[var(--ease-spring)]",
-                    active ? "border-accent bg-accent-soft/40" : "border-transparent hover:bg-surface-2",
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name="active-file"
-                    value={exp.export_id}
-                    checked={active}
-                    disabled={busy}
-                    onChange={() => activate(exp)}
-                    className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                <div key={exp.export_id} className="flex flex-col gap-1">
+                  <label
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-[border-color,background-color] duration-300 ease-[var(--ease-spring)]",
+                      active ? "border-accent bg-accent-soft/40" : "border-transparent hover:bg-surface-2",
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name="active-file"
+                      value={exp.export_id}
+                      checked={active}
+                      disabled={busy}
+                      onChange={() => activate(exp)}
+                      className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                    />
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate font-mono text-[13px] text-ink">
+                        {exp.ork_filename ?? exp.export_id}
+                      </span>
+                      <span className="truncate text-xs text-muted">
+                        <span translate="no">{exp.created_by}</span>
+                        {" · "}
+                        <span className="tabular-nums">{dateFormat.format(new Date(exp.created_at))}</span>
+                        {runs.data && (
+                          <>
+                            {" · "}
+                            <span className="tabular-nums">
+                              {plural(locale, runCounts.get(exp.export_id) ?? 0, "workbench.panelRuns")}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                    </span>
+                    {loading && <Spinner decorative className="h-3.5 w-3.5 text-accent-ink" />}
+                  </label>
+                  <FileSummary
+                    exportId={exp.export_id}
+                    manifest={active ? state.manifest : null}
+                    name={rocketName}
                   />
-                  <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                    <span className="truncate font-mono text-[13px] text-ink">
-                      {exp.ork_filename ?? exp.export_id}
-                    </span>
-                    <span className="truncate text-xs text-muted">
-                      <span translate="no">{exp.created_by}</span>
-                      {" · "}
-                      <span className="tabular-nums">{dateFormat.format(new Date(exp.created_at))}</span>
-                      {runs.data && (
-                        <>
-                          {" · "}
-                          <span className="tabular-nums">
-                            {plural(locale, runCounts.get(exp.export_id) ?? 0, "workbench.panelRuns")}
-                          </span>
-                        </>
-                      )}
-                    </span>
-                  </span>
-                  {loading && <Spinner decorative className="h-3.5 w-3.5 text-accent-ink" />}
-                </label>
+                </div>
               );
             })}
           </div>
@@ -309,5 +321,29 @@ export function RocketPanel({
         </section>
       </div>
     </section>
+  );
+}
+
+/**
+ * The compact card of one file. The active file reads the draft's manifest;
+ * any other file fetches its own export once (immutable, cached).
+ */
+function FileSummary({
+  exportId,
+  manifest,
+  name,
+}: {
+  exportId: string;
+  manifest: Record<string, unknown> | null;
+  name: string;
+}) {
+  const detail = useExportDetailQuery(exportId, { enabled: manifest === null });
+  const source = manifest ?? detail.data?.manifest ?? null;
+  const summary = useMemo(() => (source ? rocketSummaryFromManifest(source) : null), [source]);
+  if (!summary) return null;
+  return (
+    <div className="pl-10 pr-3">
+      <RocketSummaryCard compact summary={summary} name={name} />
+    </div>
   );
 }

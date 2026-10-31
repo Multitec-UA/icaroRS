@@ -118,8 +118,6 @@ export interface ScenarioFacts {
   /** The atmosphere model id (`forecast`, `standard_atmosphere`, …). */
   model: string | null;
   rail: ScenarioRail | null;
-  /** Whether the run set any uncertainty spread at all. */
-  hasUncertainty: boolean;
 }
 
 function pad(value: number): string {
@@ -145,7 +143,6 @@ export function scenarioFacts(scenario: unknown): ScenarioFacts {
   const longitude = finite(site?.longitude);
   const atmosphere = record(s.atmosphere);
   const rail = record(s.rail);
-  const uncertainty = record(s.uncertainty);
   return {
     name,
     site:
@@ -157,7 +154,6 @@ export function scenarioFacts(scenario: unknown): ScenarioFacts {
     rail: rail
       ? { length: finite(rail.length), inclination: finite(rail.inclination), heading: finite(rail.heading) }
       : null,
-    hasUncertainty: uncertainty !== null && Object.keys(uncertainty).length > 0,
   };
 }
 
@@ -177,7 +173,6 @@ export type RunChangeKey =
   | "railLength"
   | "railInclination"
   | "railHeading"
-  | "uncertainty"
   | "file";
 
 export interface RunChange {
@@ -195,21 +190,9 @@ function str(value: number | null | undefined): string | null {
   return value === null || value === undefined ? null : String(value);
 }
 
-/** JSON with sorted keys at every level, so equal spreads compare equal. */
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
-  const obj = record(value);
-  if (!obj) return JSON.stringify(value) ?? "";
-  return `{${Object.keys(obj)
-    .sort()
-    .map((key) => `${JSON.stringify(key)}:${stableJson(obj[key])}`)
-    .join(",")}}`;
-}
-
 /**
  * Every input of `run` that differs from `baseline`, in a fixed order: site,
- * launch date, atmosphere model, the three rail values, the uncertainty
- * spread (reported without values — a whole table changed) and the file. A
+ * launch date, atmosphere model, the three rail values and the file. A
  * run of a different export is a different file even when the names match.
  */
 export function whatChanged(baseline: RunInputs, run: RunInputs): RunChange[] {
@@ -226,10 +209,6 @@ export function whatChanged(baseline: RunInputs, run: RunInputs): RunChange[] {
   push("railLength", str(a.rail?.length), str(b.rail?.length));
   push("railInclination", str(a.rail?.inclination), str(b.rail?.inclination));
   push("railHeading", str(a.rail?.heading), str(b.rail?.heading));
-
-  const baseSpread = stableJson(record(baseline.scenario)?.uncertainty ?? null);
-  const runSpread = stableJson(record(run.scenario)?.uncertainty ?? null);
-  if (baseSpread !== runSpread) changes.push({ key: "uncertainty", from: null, to: null });
 
   if (baseline.export_id !== run.export_id || baseline.ork_filename !== run.ork_filename) {
     changes.push({ key: "file", from: baseline.ork_filename, to: run.ork_filename });

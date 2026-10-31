@@ -8,7 +8,9 @@
  *     org has rockets, "Or pick one already converted";
  *   - a file picked and waiting for its destination: the DestinationCard;
  *   - converting / failed (A2): the ImportStatusCard, honest about progress;
- *   - an export active before the first run: the quiet placeholder;
+ *   - an export active before the first run: the RocketSummaryCard (S3),
+ *     what the file says about the rocket, "Ready to run";
+ *   - a file importing with no export yet: the quiet placeholder;
  *   - after a run (S9): warnings → flight replay → KPI cards → series panel
  *     → flight timeline, from `components/flight/`. While the series loads
  *     the replay and the chart are skeletons; when the series is missing
@@ -19,7 +21,9 @@
  * messages, 503 hints, network failures) are shown here, above the results.
  */
 
+import { useMemo } from "react";
 import { ApiError, type FieldError, type SimulateResult } from "@/lib/api";
+import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { useRocketsQuery, useSeriesQuery } from "@/lib/queries";
 import { Callout } from "@/components/ui";
@@ -39,6 +43,7 @@ import { ImportDropZone } from "./ImportDropZone";
 import { RocketPicker } from "./RocketPicker";
 import { DestinationCard } from "./DestinationCard";
 import { ImportStatusCard } from "./ImportStatusCard";
+import { RocketSummaryCard } from "./RocketSummaryCard";
 import type { OrkImport } from "./useOrkImport";
 
 export function ResultsColumn({
@@ -57,6 +62,7 @@ export function ResultsColumn({
   const general = unplacedErrors(errors);
   const { phase } = importer;
   const hasExport = state.exportId !== null;
+  const summary = useMemo(() => rocketSummaryFromManifest(state.manifest), [state.manifest]);
 
   return (
     <section aria-label={t("workbench.results")} className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5">
@@ -93,7 +99,9 @@ export function ResultsColumn({
             <RunResults result={result} />
           </ReplayProvider>
         </FadeSwap>
-      ) : hasExport || phase.kind !== "idle" ? (
+      ) : hasExport ? (
+        <RocketSummaryCard summary={summary} name={state.rocketName} file={state.exportFilename} />
+      ) : phase.kind !== "idle" ? (
         <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-border bg-surface-2 px-4 py-3 text-sm text-ink-2">
           <InfoIcon className="shrink-0 text-muted" />
           {t("workbench.resultsPlaceholder")}

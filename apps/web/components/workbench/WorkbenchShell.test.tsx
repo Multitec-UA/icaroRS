@@ -6,10 +6,9 @@ import { ApiError } from "@/lib/api";
 import { useWizard } from "@/components/wizard/WizardProvider";
 import { WorkbenchShell } from "./WorkbenchShell";
 
-const { simulateMock, getScenarioTemplateMock, suggestAtmosphereMock, getElevationMock, getSeriesMock } =
+const { simulateMock, suggestAtmosphereMock, getElevationMock, getSeriesMock } =
   vi.hoisted(() => ({
     simulateMock: vi.fn(),
-    getScenarioTemplateMock: vi.fn(),
     suggestAtmosphereMock: vi.fn(),
     getElevationMock: vi.fn(),
     getSeriesMock: vi.fn(),
@@ -25,8 +24,6 @@ vi.mock("@/lib/api", async (importOriginal) => {
       email: "pilot@multitec.dev",
     }),
     simulate: (...args: Parameters<typeof actual.simulate>) => simulateMock(...args),
-    getScenarioTemplate: (...args: Parameters<typeof actual.getScenarioTemplate>) =>
-      getScenarioTemplateMock(...args),
     suggestAtmosphere: (...args: Parameters<typeof actual.suggestAtmosphere>) =>
       suggestAtmosphereMock(...args),
     getElevation: (...args: Parameters<typeof actual.getElevation>) => getElevationMock(...args),
@@ -49,20 +46,6 @@ vi.mock("@/components/charts/Trajectory3D", () => ({
 vi.mock("@/components/charts/SeriesChart", () => ({
   SeriesChart: () => <div>series-chart-stub</div>,
 }));
-
-const TEMPLATE = {
-  name: "template",
-  site: null,
-  date: null,
-  atmosphere: { model: "standard_atmosphere", file: null, station: null, fallback: "standard_atmosphere" },
-  rail: null,
-  uncertainty: null,
-  uncertainty_presets: {
-    Typical: { mass: { std: 0.02, kind: "relative" } },
-    Conservative: { mass: { std: 0.05, kind: "relative" } },
-    Precise: { mass: { std: 0.01, kind: "relative" } },
-  },
-};
 
 const RESULT: { run_id: string; scalars: Record<string, number>; plot_urls: string[]; warnings: string[] } = {
   run_id: "run-7f3a",
@@ -148,7 +131,6 @@ async function seedReady() {
 
 afterEach(() => {
   simulateMock.mockReset();
-  getScenarioTemplateMock.mockReset();
   suggestAtmosphereMock.mockReset();
   getElevationMock.mockReset();
   getSeriesMock.mockReset();
@@ -156,7 +138,6 @@ afterEach(() => {
 
 function arm() {
   getSeriesMock.mockResolvedValue(SERIES);
-  getScenarioTemplateMock.mockResolvedValue(TEMPLATE);
   suggestAtmosphereMock.mockResolvedValue({
     model: "forecast",
     reason: "GFS forecast available — launch is 14 days out.",
@@ -211,7 +192,7 @@ describe("WorkbenchShell — running in place (S7)", () => {
     });
     const run = await seedReady();
 
-    const placeholder = "Results, the 3D replay and plots appear here after the first run.";
+    const placeholder = "Ready to run";
     expect(screen.getByText(placeholder)).toBeInTheDocument();
     expect(screen.queryByText(/Up to date/)).toBeNull();
 
@@ -223,9 +204,12 @@ describe("WorkbenchShell — running in place (S7)", () => {
         expect.objectContaining({
           site: { latitude: 38.3452, longitude: -0.481, elevation: 12 },
           atmosphere: expect.objectContaining({ model: "standard_atmosphere" }),
+          uncertainty: {},
         }),
       ),
     );
+    // No rail override typed: the file's own rail is used, no rail key is sent.
+    expect(simulateMock.mock.calls[0][1]).not.toHaveProperty("rail");
     expect(await screen.findByText("trajectory-3d-stub")).toBeInTheDocument();
     expect(getSeriesMock).toHaveBeenCalledWith("run-7f3a");
     expect(screen.getByText("Stability margin at rail exit is low.")).toBeInTheDocument();
@@ -319,14 +303,15 @@ describe("WorkbenchShell — behaviour kept from T6 while T7 touched the shared 
     expect(screen.queryByRole("button", { name: /Run this file/ })).toBeNull();
   });
 
-  it("keeps the results placeholder, and no status pill, once an export is active before the first run", async () => {
+  it("shows the rocket card, and no status pill, once an export is active before the first run", async () => {
     arm();
     await renderShell();
 
     fireEvent.click(screen.getByText("seed-export"));
 
+    expect(await screen.findByText("Ready to run")).toBeInTheDocument();
     expect(
-      await screen.findByText("Results, the 3D replay and plots appear here after the first run."),
+      screen.getByText("Review the scenario on the left, then run the simulation. Results appear here."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Drop your OpenRocket file here")).toBeNull();
     expect(screen.queryByText(/Up to date/)).toBeNull();
