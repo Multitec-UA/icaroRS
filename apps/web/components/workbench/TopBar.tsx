@@ -6,13 +6,12 @@
  * a `.ork` converts), the status pill, and the primary Run button with its
  * ⌘↵ hint.
  *
- * Status pill contract:
- *   - nothing before the first run;
- *   - "Up to date · run {id}" while the results on screen come from the
- *     active export;
- *   - "Results are from {filename} · run {id}" once the active export changed
- *     after the last run, so stale numbers never pass for current ones — the
- *     Run button then reads "Run this file".
+ * Status pill contract (S6, from `simulation.status`): "No run yet",
+ * "Running…" with a spinner, "Up to date · run {id}", or "Changed since run
+ * {id}" followed by one chip per changed group (File, Site, Date, Weather,
+ * Rail) — the /runs "what changed" chip. The Run button reads "Run
+ * simulation" before the first run and "Run again" afterwards; it is
+ * disabled only while a run is in flight or the draft cannot run.
  *
  * The rocket button opens the RocketPanel dialog (S8/A3) once a rocket is
  * active; while nothing is selected, or a file is converting, it only shows
@@ -21,7 +20,9 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
-import { Spinner } from "@/components/ui";
+import { Spinner, StatusPill } from "@/components/ui";
+import { ChangeChip } from "@/components/runs/WhatChanged";
+import type { ChangeGroup } from "@/lib/domain/runs";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { cn, focusRing } from "@/lib/styles";
 import { ChevronDownIcon, PlayIcon } from "./icons";
@@ -30,10 +31,18 @@ import { primaryButton } from "./styles";
 import type { RunSimulation } from "./useRunSimulation";
 import type { OrkImport } from "./useOrkImport";
 
+const GROUP_LABEL = {
+  file: "runs.groupFile",
+  site: "runs.groupSite",
+  date: "runs.groupDate",
+  weather: "runs.groupWeather",
+  rail: "runs.groupRail",
+} as const satisfies Record<ChangeGroup, string>;
+
 export function TopBar({ simulation, importer }: { simulation: RunSimulation; importer: OrkImport }) {
   const t = useT();
   const { state } = useWizardDraft();
-  const { run, ready, busy, stale } = simulation;
+  const { run, ready, busy, status, hasRun } = simulation;
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
@@ -50,9 +59,6 @@ export function TopBar({ simulation, importer }: { simulation: RunSimulation; im
       : state.rocketName
         ? t("workbench.rocketContext", { rocket: state.rocketName, file })
         : file;
-
-  const runId = state.runId ?? "";
-  const staleFile = state.resultExportFilename ?? state.resultExportId ?? "";
 
   // The panel needs a rocket to show; it is also left closed while a file
   // converts, since the context button then describes the conversion.
@@ -115,36 +121,35 @@ export function TopBar({ simulation, importer }: { simulation: RunSimulation; im
         />
       )}
 
-      {/* Always mounted so the pill's appearance and wording changes are announced. */}
-      <div aria-live="polite" className="min-w-0">
-        {state.result !== null && (
-          <span
-            className={cn(
-              "inline-flex h-[26px] max-w-full items-center gap-1.5 rounded-full px-2.5 text-xs font-medium",
-              stale ? "bg-warn-soft text-warn-ink" : "bg-ok-soft text-ok-ink",
-            )}
-          >
-            <span
-              aria-hidden
-              className={cn("h-1.5 w-1.5 shrink-0 rounded-full", stale ? "bg-warn" : "bg-ok motion-safe:animate-pulse")}
-            />
-            <span className="truncate">
-              {stale
-                ? t("workbench.statusStale", { filename: staleFile, runId })
-                : t("workbench.statusUpToDate", { runId })}
-            </span>
-          </span>
+      {/* StatusPill is a polite live region: every state change is announced. */}
+      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+        {status.kind === "none" && <StatusPill>{t("workbench.statusNone")}</StatusPill>}
+        {status.kind === "running" && <StatusPill spinner>{t("workbench.statusRunning")}</StatusPill>}
+        {status.kind === "upToDate" && (
+          <StatusPill tone="ok">{t("workbench.statusUpToDate", { runId: status.runId })}</StatusPill>
+        )}
+        {status.kind === "changed" && (
+          <>
+            <StatusPill tone="warn">{t("workbench.statusChanged", { runId: status.runId })}</StatusPill>
+            <ul aria-label={t("workbench.changesLabel")} className="flex flex-wrap gap-1.5">
+              {status.changes.map((group) => (
+                <ChangeChip key={group} tone="warn">
+                  {t(GROUP_LABEL[group])}
+                </ChangeChip>
+              ))}
+            </ul>
+          </>
         )}
       </div>
 
       <div className="flex-1" />
 
-      <span aria-live="polite" className="sr-only">
-        {busy && t("review.running")}
-      </span>
-      <button type="button" onClick={() => void run()} disabled={!ready} className={primaryButton}>
+      <button type="button" onClick={() => void run()} disabled={!ready}
+        // A disabled Run stays readable (opacity 60 %, not the kit's 50 %; `!` wins over it).
+        className={cn(primaryButton, "disabled:text-on-primary disabled:opacity-60!")}
+      >
         {busy ? <Spinner decorative className="h-3.5 w-3.5" /> : <PlayIcon />}
-        {busy ? t("workbench.running") : stale ? t("workbench.runThisFile") : t("workbench.run")}
+        {busy ? t("workbench.running") : hasRun ? t("workbench.runAgain") : t("workbench.run")}
         <kbd aria-hidden className="font-mono text-[11px] opacity-75">
           ⌘↵
         </kbd>

@@ -175,6 +175,16 @@ export type RunChangeKey =
   | "railHeading"
   | "file";
 
+/**
+ * The five groups the inputs of a run fall into (S6): the Workbench status
+ * names the changed groups (`scenarioDiff` in ./scenario), `/runs` details
+ * each change within them (`RunChangeKey`). Both render the same chip
+ * (components/runs/WhatChanged `ChangeChip`).
+ */
+export type ChangeGroup = "file" | "site" | "date" | "weather" | "rail";
+
+export const CHANGE_GROUPS: ChangeGroup[] = ["file", "site", "date", "weather", "rail"];
+
 export interface RunChange {
   key: RunChangeKey;
   /** Raw "before" value (unformatted); null when unset or when the key has no single value. */

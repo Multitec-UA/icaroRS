@@ -6,12 +6,18 @@
  * body from WizardProvider, then keep the result in the draft so the results
  * column renders it in place.
  *
+ * A successful run becomes the displayed run (WizardProvider.showRun) with
+ * the exact body it was sent, so the status compares like with like.
+ *
  * Also owns the two derived facts the command row shows about a run:
  *   - `ready`: the guard (export + finite site + date when the model needs
  *     one, nothing in flight, and not held by the caller — e.g. while a
  *     `.ork` is converting, S8/A2);
- *   - `stale`: the results on screen belong to a previous export, so the
- *     status pill says "Results are from …" and the button "Run this file".
+ *   - `status` (S6): "none" before any run, "running" while one is in
+ *     flight, else the displayed run compared with the current draft
+ *     (`scenarioDiff` over canonical bodies + export id): "upToDate" when
+ *     nothing differs, "changed" with the groups that do. Edits made while a
+ *     run is in flight are kept, so its result can arrive already "changed".
  *
  * Error contract (unchanged from the wizard):
  *   401 → handled globally by lib/query-client.ts, nothing to do here
@@ -19,13 +25,20 @@
  *   503 → the server's `hint` verbatim; other codes map to t("errors.<code>")
  */
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ApiError, type FieldError } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
-import { canRun } from "@/lib/domain/scenario";
+import { canRun, scenarioDiff } from "@/lib/domain/scenario";
+import type { ChangeGroup } from "@/lib/domain/runs";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { focusFirstError } from "./fieldErrors";
+
+export type RunStatus =
+  | { kind: "none" }
+  | { kind: "running" }
+  | { kind: "upToDate"; runId: string }
+  | { kind: "changed"; runId: string; changes: ChangeGroup[] };
 
 export interface RunSimulation {
   /** Send the draft to /api/simulate. No-op while not `ready`. */
@@ -33,14 +46,16 @@ export interface RunSimulation {
   /** True when the draft can run right now (guard satisfied, nothing in flight, not held). */
   ready: boolean;
   busy: boolean;
-  /** True when the results on screen were computed from a different export than the active one. */
-  stale: boolean;
+  /** The draft compared with the displayed run (S6). */
+  status: RunStatus;
+  /** True once a run is on screen: the button then reads "Run again". */
+  hasRun: boolean;
   errors: FieldError[];
   fatal: string | null;
 }
 
 export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
-  const { state, setResult, scenarioBody } = useWizardDraft();
+  const { state, showRun, scenarioBody } = useWizardDraft();
   const t = useT();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
@@ -48,16 +63,26 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
 
   const hold = options?.hold ?? false;
   const ready = canRun(state) && !isPending && !hold;
-  const stale = state.result !== null && state.resultExportId !== state.exportId;
   const exportId = state.exportId;
+  const { displayedRun, exportFilename, manifest } = state;
+
+  const status = useMemo<RunStatus>(() => {
+    if (isPending) return { kind: "running" };
+    if (!displayedRun) return { kind: "none" };
+    const changes = scenarioDiff(displayedRun, { exportId, scenario: scenarioBody() });
+    return changes.length === 0
+      ? { kind: "upToDate", runId: displayedRun.runId }
+      : { kind: "changed", runId: displayedRun.runId, changes };
+  }, [isPending, displayedRun, exportId, scenarioBody]);
 
   const run = useCallback(async () => {
     if (!exportId || !ready) return;
     setErrors([]);
     setFatal(null);
     try {
-      const result = await mutateAsync({ exportId, scenario: scenarioBody() });
-      setResult(result);
+      const scenario = scenarioBody();
+      const result = await mutateAsync({ exportId, scenario });
+      showRun({ runId: result.run_id, exportId, scenario, result, exportFilename, manifest });
     } catch (err) {
       if (err instanceof ApiError && err.isUnauthorized) return;
       if (err instanceof ApiError && err.isValidation) {
@@ -70,7 +95,7 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
         setFatal(t("review.errorGeneric"));
       }
     }
-  }, [exportId, ready, mutateAsync, scenarioBody, setResult, t]);
+  }, [exportId, exportFilename, manifest, ready, mutateAsync, scenarioBody, showRun, t]);
 
-  return { run, ready, busy: isPending, stale, errors, fatal };
+  return { run, ready, busy: isPending, status, hasRun: displayedRun !== null, errors, fatal };
 }

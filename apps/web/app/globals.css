@@ -223,3 +223,26 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Print (S7): the run report is the printout. The app sidebar (the shell's
+ * <aside> holding the primary <nav>) and the ambient orbs are hidden; every
+ * disclosure prints expanded (RunResults also opens them on `beforeprint`,
+ * `::details-content` covers browsers that print a closed <details> body);
+ * the WebGL replay is swapped for the `trajectory_3d` PNG through Tailwind's
+ * `print:` variant in RunResults.
+ */
+@media print {
+  aside:has(> nav),
+  .orb-a,
+  .orb-b {
+    display: none !important;
+  }
+  details::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
+  details > summary svg {
+    display: none;
+  }
+}

@@ -20,6 +20,7 @@ import type {
   Site,
   SimulateResult,
 } from "@/lib/api";
+import { CHANGE_GROUPS, type ChangeGroup } from "./runs";
 
 // ---------------------------------------------------------------------------
 // Steps
@@ -204,6 +205,97 @@ export function buildScenarioBody(
     ...(Object.keys(rail).length > 0 ? { rail } : {}),
     uncertainty: {},
   };
+}
+
+// ---------------------------------------------------------------------------
+// Canonical scenario and diff (S6: "stale is real")
+// ---------------------------------------------------------------------------
+
+type Json = null | boolean | number | string | Json[] | { [key: string]: Json };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function round(value: unknown, decimals: number): unknown {
+  if (typeof value !== "number" || !Number.isFinite(value)) return value;
+  const factor = 10 ** decimals;
+  // `+ 0` folds -0 into 0, so a rounded -0.000001 equals 0.
+  return Math.round(value * factor) / factor + 0;
+}
+
+/** Recursively rebuild `value` with sorted object keys; `undefined` keys are dropped. */
+function sortKeys(value: unknown): Json {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (!isRecord(value)) return (value ?? null) as Json;
+  return Object.fromEntries(
+    Object.keys(value)
+      .filter((key) => value[key] !== undefined)
+      .sort()
+      .map((key) => [key, sortKeys(value[key])]),
+  );
+}
+
+/**
+ * The comparable form of a scenario body — the one sent to /api/simulate
+ * or the one a run stored. Two bodies that would simulate the same flight
+ * yield the same canonical form:
+ *   - object keys sorted at every level;
+ *   - coordinates rounded to 5 decimals (about a metre), elevation to 1;
+ *   - `rail` holds only the keys that carry a value and is absent when none
+ *     does (an override that was reset, or a stored `rail: null`);
+ *   - `uncertainty` is dropped: the simulate use-case ignores it (S5).
+ */
+export function canonicalScenario(body: unknown): Record<string, Json> {
+  const source = isRecord(body) ? { ...body } : {};
+  delete source.uncertainty;
+
+  if (isRecord(source.site)) {
+    const site = source.site;
+    source.site = {
+      ...site,
+      latitude: round(site.latitude, 5),
+      longitude: round(site.longitude, 5),
+      ...("elevation" in site ? { elevation: round(site.elevation, 1) } : {}),
+    };
+  }
+
+  const rail = isRecord(source.rail)
+    ? Object.fromEntries(Object.entries(source.rail).filter(([, value]) => typeof value === "number"))
+    : {};
+  if (Object.keys(rail).length > 0) source.rail = rail;
+  else delete source.rail;
+
+  return sortKeys(source) as Record<string, Json>;
+}
+
+/** What decides a run: the export it simulates and the scenario it was sent. */
+export interface RunReference {
+  exportId: string | null;
+  scenario: unknown;
+}
+
+const GROUP_FIELD: Record<Exclude<ChangeGroup, "file">, string> = {
+  site: "site",
+  date: "date",
+  weather: "atmosphere",
+  rail: "rail",
+};
+
+/**
+ * The input groups that differ between two runs' inputs, in the fixed
+ * order file, site, date, weather, rail; empty when they would simulate the
+ * same flight. Compares canonical forms, so key order, sub-metre noise and
+ * uncertainty never count as a change.
+ */
+export function scenarioDiff(a: RunReference, b: RunReference): ChangeGroup[] {
+  const ca = canonicalScenario(a.scenario);
+  const cb = canonicalScenario(b.scenario);
+  return CHANGE_GROUPS.filter((group) =>
+    group === "file"
+      ? a.exportId !== b.exportId
+      : JSON.stringify(ca[GROUP_FIELD[group]] ?? null) !== JSON.stringify(cb[GROUP_FIELD[group]] ?? null),
+  );
 }
 
 // ---------------------------------------------------------------------------

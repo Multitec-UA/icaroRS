@@ -14,10 +14,11 @@ import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 
 // A pure-CSS/SVG pin — avoids bundling Leaflet's default marker PNG assets.
 // The marker itself carries the accessible name (`title`), so the SVG is
-// decorative.
+// decorative. Colours are the theme tokens (CSS variables), so the pin
+// follows light and dark like the rest of the UI.
 const pinIcon = L.divIcon({
   className: "",
-  html: `<svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" fill="#22d3ee" stroke="#050505" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" fill="#050505"/></svg>`,
+  html: `<svg aria-hidden="true" width="28" height="28" viewBox="0 0 24 24" style="fill:var(--accent);stroke:var(--ink)" stroke-width="1.5" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5" style="fill:var(--surface)"/></svg>`,
   iconSize: [28, 28],
   iconAnchor: [14, 28],
 });

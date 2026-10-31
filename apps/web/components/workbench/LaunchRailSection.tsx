@@ -66,30 +66,42 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
         const override = state.railOverrides[field];
         const fileValue = defaults?.[field] ?? null;
         const overridden = override !== undefined;
+        const label = t(labelKey);
         return (
-          <Field
-            key={field}
-            label={t(labelKey)}
-            htmlFor={id}
-            hint={hintKey ? t(hintKey) : undefined}
-            error={errorFor(errors, `rail.${field}`)}
-          >
-            <RailInput
-              id={id}
-              name={name}
-              disabled={!hasFile}
-              placeholder={hasFile ? undefined : t("workbench.railPlaceholder")}
-              value={hasFile ? (override ?? fileValue) : null}
-              overridden={overridden}
-              onValue={(value) => setRailOverride(field, value)}
-              onClear={() => resetRailOverride(field)}
-            />
+          <div key={field} className="relative min-w-0">
+            <Field
+              label={label}
+              htmlFor={id}
+              hint={hintKey ? t(hintKey) : undefined}
+              error={errorFor(errors, `rail.${field}`)}
+            >
+              <RailInput
+                id={id}
+                name={name}
+                disabled={!hasFile}
+                placeholder={hasFile ? undefined : t("workbench.railPlaceholder")}
+                value={hasFile ? (override ?? fileValue) : null}
+                overridden={overridden}
+                onValue={(value) => setRailOverride(field, value)}
+                onClear={() => resetRailOverride(field)}
+              />
+            </Field>
+            {/* The badge sits inline after the label (artboard 01). The kit's
+                Field takes a plain-text label, so this row overlays the label
+                line: an invisible copy of the label reserves its width. */}
             {hasFile && (
-              <div className="flex items-center gap-2">
+              <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 text-[13px] font-medium">
+                <span aria-hidden className="invisible whitespace-nowrap">
+                  {label}
+                </span>
                 {overridden ? (
                   <>
                     <span className={cn(badge, "bg-accent-soft text-accent-ink")}>{t("workbench.railOverridden")}</span>
-                    <button type="button" className={cn(textLink, "ml-auto")} onClick={() => resetRailOverride(field)}>
+                    <button
+                      type="button"
+                      className={cn(textLink, "pointer-events-auto ml-auto font-normal")}
+                      onClick={() => resetRailOverride(field)}
+                    >
                       {t("workbench.railReset", { value: fileValue === null ? "—" : `${fileValue}${unit}` })}
                     </button>
                   </>
@@ -98,7 +110,7 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
                 )}
               </div>
             )}
-          </Field>
+          </div>
         );
       })}
     </Section>

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useRouter } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
 import { ApiError } from "@/lib/api";
@@ -129,6 +129,11 @@ async function seedReady() {
   return run;
 }
 
+/** The chips naming what changed since the displayed run. */
+function changedChips() {
+  return screen.getByRole("list", { name: "What changed" });
+}
+
 afterEach(() => {
   simulateMock.mockReset();
   suggestAtmosphereMock.mockReset();
@@ -217,7 +222,7 @@ describe("WorkbenchShell — running in place (S7)", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("shows 'Up to date' after a run and 'Results are from …' once another export is active", async () => {
+  it("shows 'Up to date' after a run and 'Changed since run' with a File chip once another export is active", async () => {
     arm();
     simulateMock.mockResolvedValueOnce(RESULT);
     const run = await seedReady();
@@ -228,7 +233,8 @@ describe("WorkbenchShell — running in place (S7)", () => {
 
     fireEvent.click(screen.getByText("seed-export-2"));
 
-    expect(await screen.findByText("Results are from icarus2.ork · run run-7f3a")).toBeInTheDocument();
+    expect(await screen.findByText("Changed since run run-7f3a")).toBeInTheDocument();
+    expect(within(changedChips()).getByText("File")).toBeInTheDocument();
     expect(screen.queryByText("Up to date · run run-7f3a")).toBeNull();
   });
 
@@ -290,17 +296,66 @@ describe("WorkbenchShell — running in place (S7)", () => {
   });
 });
 
-describe("WorkbenchShell — behaviour kept from T6 while T7 touched the shared code", () => {
-  it("keeps the Run button reading 'Run simulation' while the results are up to date", async () => {
+describe("WorkbenchShell — status from the displayed run (S6)", () => {
+  it("reads 'No run yet' and 'Run simulation' before the first run, 'Run again' afterwards", async () => {
     arm();
     simulateMock.mockResolvedValueOnce(RESULT);
     const run = await seedReady();
+    expect(screen.getByText("No run yet")).toBeInTheDocument();
 
     fireEvent.click(run);
 
     expect(await screen.findByText("Up to date · run run-7f3a")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run simulation/ })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Run this file/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /Run again/ })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: /Run simulation/ })).toBeNull();
+  });
+
+  it("editing the site after a run shows Changed since run with a Site chip", async () => {
+    arm();
+    simulateMock.mockResolvedValueOnce(RESULT);
+    const run = await seedReady();
+    fireEvent.click(run);
+    expect(await screen.findByText("Up to date · run run-7f3a")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Elevation (m)"), { target: { value: "40" } });
+
+    expect(await screen.findByText("Changed since run run-7f3a")).toBeInTheDocument();
+    const chips = changedChips();
+    expect(within(chips).getByText("Site")).toBeInTheDocument();
+    expect(within(chips).queryByText("File")).toBeNull();
+    // Never disabled only because something (or nothing) changed.
+    expect(screen.getByRole("button", { name: /Run again/ })).toBeEnabled();
+  });
+
+  it("a run of the same scenario twice stays Up to date", async () => {
+    arm();
+    simulateMock.mockResolvedValueOnce(RESULT).mockResolvedValueOnce({ ...RESULT, run_id: "run-8b1c" });
+    const run = await seedReady();
+    fireEvent.click(run);
+    expect(await screen.findByText("Up to date · run run-7f3a")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Run again/ }));
+
+    expect(await screen.findByText("Up to date · run run-8b1c")).toBeInTheDocument();
+    expect(screen.queryByText(/Changed since run/)).toBeNull();
+  });
+
+  it("says Running… while a run is in flight and keeps edits made meanwhile, showing the result as changed", async () => {
+    arm();
+    let resolveRun: (value: typeof RESULT) => void = () => {};
+    simulateMock.mockReturnValueOnce(new Promise<typeof RESULT>((resolve) => (resolveRun = resolve)));
+    const run = await seedReady();
+    fireEvent.click(run);
+
+    expect(await screen.findByText("Running…")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Simulating…/ })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Elevation (m)"), { target: { value: "40" } });
+    resolveRun(RESULT);
+
+    expect(await screen.findByText("Changed since run run-7f3a")).toBeInTheDocument();
+    expect(within(changedChips()).getByText("Site")).toBeInTheDocument();
+    expect(screen.getByLabelText("Elevation (m)")).toHaveValue(40);
   });
 
   it("shows the rocket card, and no status pill, once an export is active before the first run", async () => {
@@ -315,7 +370,7 @@ describe("WorkbenchShell — behaviour kept from T6 while T7 touched the shared 
     ).toBeInTheDocument();
     expect(screen.queryByText("Drop your OpenRocket file here")).toBeNull();
     expect(screen.queryByText(/Up to date/)).toBeNull();
-    expect(screen.queryByText(/Results are from/)).toBeNull();
+    expect(screen.getByText("No run yet")).toBeInTheDocument();
   });
 });
 
@@ -383,9 +438,10 @@ describe("WorkbenchShell — results column (S9)", () => {
     const run = await seedReady();
     fireEvent.click(run);
 
+    expect(await screen.findByText("This run has no flight data to replay. The static plots are under Plots.")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Plots"));
     expect(await screen.findByText("Linear kinematics")).toBeInTheDocument();
     expect(screen.getByText("Energy")).toBeInTheDocument();
-    expect(screen.getByText("This run has no flight data to replay, so the static plots are shown instead.")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Apogee" })).toHaveTextContent("at 21.8 s");
     expect(screen.getByRole("list", { name: "Flight timeline" })).toBeInTheDocument();
     expect(screen.queryByText("trajectory-3d-stub")).toBeNull();

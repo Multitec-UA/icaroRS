@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { AppProviders } from "@/test/test-providers";
 import { ApiError } from "@/lib/api";
 import { makeT } from "@/lib/i18n";
 import { SCALARS } from "@/components/flight/fixtures";
 import { ResultsContentServer } from "./ResultsContentServer";
 
-const { getRunSummaryMock, getSeriesMock } = vi.hoisted(() => ({
+const { getRunSummaryMock, getSeriesMock, getExportMock } = vi.hoisted(() => ({
   getRunSummaryMock: vi.fn(),
   getSeriesMock: vi.fn(),
+  getExportMock: vi.fn(),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -18,6 +19,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     getIdentity: vi.fn().mockResolvedValue({ user_id: "u1", org_id: "o1", email: "pilot@multitec.dev" }),
     getRunSummary: (...args: Parameters<typeof actual.getRunSummary>) => getRunSummaryMock(...args),
     getSeries: (...args: Parameters<typeof actual.getSeries>) => getSeriesMock(...args),
+    getExport: (...args: Parameters<typeof actual.getExport>) => getExportMock(...args),
   };
 });
 
@@ -73,6 +75,16 @@ const SUMMARY = {
 async function renderReport() {
   getRunSummaryMock.mockResolvedValue(SUMMARY);
   getSeriesMock.mockRejectedValue(new ApiError(404, "Run 'run-1' has no series.", { code: "requestFailed" }));
+  getExportMock.mockResolvedValue({
+    export_id: "exp-1",
+    rocket_id: "r2",
+    ork_filename: "icarus2.ork",
+    manifest: {
+      id: { rocket_name: "Icarus-2" },
+      rocket: { mass: 9.5, radius: 0.05 },
+      stored_results: { max_altitude: 1790, max_velocity: 279, flight_time: 142 },
+    },
+  });
   const tree = await ResultsContentServer({ runId: "run-1", t: makeT("en"), locale: "en" });
   return render(<AppProviders>{tree}</AppProviders>);
 }
@@ -118,12 +130,26 @@ describe("Run report — body", () => {
     expect(within(config).getByText("Rail").nextElementSibling).toHaveTextContent("5.2 m · 84° · 133°");
   });
 
-  it("falls back to the PNG plots when the run has no series (404)", async () => {
+  it("keeps the PNG plots under Plots, mounted when opened, when the run has no series (404)", async () => {
     await renderReport();
 
     expect(await screen.findByText(/no flight data to replay/)).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "Energy" })).toBeNull();
+    fireEvent.click(screen.getByText("Plots"));
     expect(await screen.findByRole("img", { name: "Energy" })).toBeInTheDocument();
     expect(getSeriesMock).toHaveBeenCalledWith("run-1");
+  });
+
+  it("renders the shared results composition: the OpenRocket row from the run's export and the rocket card", async () => {
+    await renderReport();
+
+    const row = await screen.findByTestId("openrocket-row");
+    expect(row).toHaveTextContent("OpenRocket, its own conditions saved in the file:");
+    expect(row).toHaveTextContent("apogee 1,790 m");
+    expect(row).toHaveTextContent("flight time 142 s");
+    expect(getExportMock).toHaveBeenCalledWith("exp-1");
+    const config = screen.getByRole("region", { name: "Configuration" });
+    expect(await within(config).findByRole("group", { name: /Icarus-2/ })).toBeInTheDocument();
   });
 
   it("keeps the actions reachable", async () => {

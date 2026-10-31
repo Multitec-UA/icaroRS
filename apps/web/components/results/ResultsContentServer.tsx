@@ -3,16 +3,16 @@
  * Run report (S9, canvas board C).
  *
  * A Server Component: fetches GET /api/results/{runId} directly
- * (lib/server-api.ts, forwarding the session cookie) and renders what needs
- * no client state itself — the warnings, "All results" (every scalar with
- * its catalog label) and the plot gallery. The parts that need the browser
- * are client islands with serialisable props:
+ * (lib/server-api.ts, forwarding the session cookie) and hands the envelope
+ * to client islands with serialisable props:
  *   - ReportHeader: breadcrumb, "{rocket} over {site}", file · date · author
  *     and the actions. The results envelope carries only the numbers, so the
  *     header looks the run up in the history (useRunSummaryQuery);
- *   - ReportFlight: the flight replay (series via useSeriesQuery, the PNG
- *     plots stand in on 404) and the KPI cards with their sparklines;
- *   - ReportConfiguration: the stored scenario as a definition list.
+ *   - ReportRunResults: RunResults (S7), the one results composition the
+ *     Workbench renders too — warnings, replay, KPIs, the OpenRocket row,
+ *     series, timeline, "All results" and "Plots";
+ *   - ReportConfiguration: the stored scenario and the rocket card.
+ * Print rules (app/globals.css) hide the sidebar and the actions.
  *
  * Known trade-off (unchanged from issue #52): a Server Component cannot read
  * the just-simulated result held in WizardProvider, so the Workbench → report
@@ -20,26 +20,23 @@
  */
 
 import Link from "next/link";
-import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
 import { ApiError, type SimulateResult } from "@/lib/api";
 import { getResultServer } from "@/lib/server-api";
 import type { Locale, TranslateFn } from "@/lib/i18n";
 import { Callout } from "@/components/ui";
-import { PlotGallery } from "@/components/flight/PlotGallery";
 import { ReplayProvider } from "@/components/flight/ReplayContext";
-import { WarningsBanner } from "@/components/flight/WarningsBanner";
-import { cardClass, ghostButton } from "@/components/ui/classes";
+import { ghostButton } from "@/components/ui/classes";
 import { ReportConfiguration } from "./ReportConfiguration";
-import { ReportFlight } from "./ReportFlight";
 import { ReportHeader } from "./ReportHeader";
+import { ReportRunResults } from "./ReportRunResults";
 
 export async function ResultsContentServer({
   runId,
   t,
-  locale,
 }: {
   runId: string;
   t: TranslateFn;
+  /** The request's locale; the client islands read their own from LocaleProvider. */
   locale: Locale;
 }) {
   let result: SimulateResult;
@@ -68,43 +65,13 @@ export async function ResultsContentServer({
     );
   }
 
-  const { scalars, warnings, plot_urls: plotUrls } = result;
-  const allResults = SCALAR_SPECS.filter((spec) => spec.key in scalars);
+  const { scalars, warnings, plot_urls } = result;
 
   return (
     <ReplayProvider>
       <ReportHeader runId={runId} />
-
-      <ReportFlight runId={runId} scalars={scalars} />
-
-      <WarningsBanner warnings={warnings} />
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section
-          aria-labelledby="report-all-results"
-          className={`flex flex-col gap-2 p-4 ${cardClass}`}
-        >
-          <h2 id="report-all-results" className="text-sm font-semibold text-ink">
-            {t("report.allResults")}
-          </h2>
-          <dl className="flex flex-col text-sm">
-            {allResults.map((spec) => (
-              <div
-                key={spec.key}
-                className="flex items-baseline justify-between gap-4 border-t border-divider py-2 first:border-t-0"
-              >
-                <dt className="text-ink-2">{t(`scalars.${spec.key}`)}</dt>
-                <dd className="tabular-nums font-medium text-ink">{formatScalar(scalars[spec.key], spec.unit, locale)}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <ReportConfiguration runId={runId} />
-      </div>
-
-      {/* The complete set of static plots, whether or not the run has series. */}
-      <PlotGallery urls={plotUrls} />
+      <ReportRunResults runId={runId} result={{ scalars, warnings, plot_urls }} />
+      <ReportConfiguration runId={runId} />
     </ReplayProvider>
   );
 }

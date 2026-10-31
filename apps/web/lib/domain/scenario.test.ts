@@ -7,6 +7,8 @@ import {
   FALLBACK_TIME_ZONE,
   canAdvance,
   canRun,
+  canonicalScenario,
+  scenarioDiff,
   formatLaunchDate,
   launchDateToIso,
   needsDate,
@@ -338,5 +340,89 @@ describe("canAdvance", () => {
         result: { run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] },
       }),
     ).toBe(false);
+  });
+});
+
+describe("canonicalScenario — the comparable form of a scenario body (S6)", () => {
+  const body = {
+    uncertainty: {},
+    site: { longitude: -0.4810004, latitude: 38.345234, elevation: 12.04 },
+    name: "my_scenario",
+    atmosphere: { station: null, model: "forecast", fallback: "standard_atmosphere", file: null },
+    date: { hour: 11, day: 7, month: 11, year: 2026 },
+  };
+
+  it("sorts keys at every level so key order never makes two bodies differ", () => {
+    const canonical = canonicalScenario(body);
+    expect(Object.keys(canonical)).toEqual(["atmosphere", "date", "name", "site"]);
+    expect(Object.keys(canonical.atmosphere as object)).toEqual(["fallback", "file", "model", "station"]);
+    expect(JSON.stringify(canonicalScenario({ ...body }))).toBe(
+      JSON.stringify(canonicalScenario(Object.fromEntries(Object.entries(body).reverse()))),
+    );
+  });
+
+  it("rounds coordinates to 5 decimals and the elevation to 1", () => {
+    expect(canonicalScenario(body).site).toEqual({ elevation: 12, latitude: 38.34523, longitude: -0.481 });
+  });
+
+  it("drops uncertainty, whatever it holds", () => {
+    expect(canonicalScenario({ ...body, uncertainty: { mass: 0.1 } })).not.toHaveProperty("uncertainty");
+    expect(canonicalScenario({ ...body, uncertainty: null })).not.toHaveProperty("uncertainty");
+  });
+
+  it("keeps only the rail keys that carry a value, and no rail when none does", () => {
+    expect(canonicalScenario({ ...body, rail: { length: 5.2, inclination: null } }).rail).toEqual({ length: 5.2 });
+    expect(canonicalScenario({ ...body, rail: { length: null } })).not.toHaveProperty("rail");
+    expect(canonicalScenario({ ...body, rail: null })).not.toHaveProperty("rail");
+  });
+});
+
+describe("scenarioDiff — which input groups differ between two runs' inputs (S6)", () => {
+  const base = {
+    exportId: "exp-1",
+    scenario: {
+      name: "my_scenario",
+      site: { latitude: 38.3452, longitude: -0.481, elevation: 12 },
+      date: { year: 2026, month: 11, day: 7, hour: 11 },
+      atmosphere: { model: "forecast", file: null, station: null, fallback: "standard_atmosphere" },
+      uncertainty: {},
+    },
+  };
+  const edit = (patch: Record<string, unknown>, exportId = "exp-1") => ({
+    exportId,
+    scenario: { ...base.scenario, ...patch },
+  });
+
+  it("is empty for the same scenario, even with noise below the rounding and a different uncertainty", () => {
+    expect(scenarioDiff(base, edit({ site: { latitude: 38.345200001, longitude: -0.481, elevation: 12.01 }, uncertainty: null }))).toEqual([]);
+  });
+
+  it("names each changed group in a fixed order: file, site, date, weather, rail", () => {
+    expect(
+      scenarioDiff(
+        base,
+        edit(
+          {
+            rail: { heading: 90 },
+            atmosphere: { ...base.scenario.atmosphere, model: "standard_atmosphere" },
+            date: { ...base.scenario.date, hour: 12 },
+            site: { ...base.scenario.site, elevation: 40 },
+          },
+          "exp-2",
+        ),
+      ),
+    ).toEqual(["file", "site", "date", "weather", "rail"]);
+  });
+
+  it("counts an elevation-only edit as a site change and a fallback-only edit as weather", () => {
+    expect(scenarioDiff(base, edit({ site: { ...base.scenario.site, elevation: 100 } }))).toEqual(["site"]);
+    expect(
+      scenarioDiff(base, edit({ atmosphere: { ...base.scenario.atmosphere, fallback: "other" } })),
+    ).toEqual(["weather"]);
+  });
+
+  it("treats a rail override that was reset as no rail at all", () => {
+    expect(scenarioDiff(edit({ rail: { length: 5 } }), base)).toEqual(["rail"]);
+    expect(scenarioDiff(edit({ rail: {} }), base)).toEqual([]);
   });
 });

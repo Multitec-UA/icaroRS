@@ -89,13 +89,27 @@ interface WizardState {
    */
   railOverrides: RailOverrides;
 
-  // Results (from /api/simulate), plus the export they were computed from:
-  // when the active export changes after a run, the Workbench's status pill
-  // says the results on screen belong to the previous file.
-  runId: string | null;
-  result: SimulateResult | null;
-  resultExportId: string | null;
-  resultExportFilename: string | null;
+  /**
+   * The run on screen (S6): the reference the Workbench's status compares
+   * the draft with. Set by a successful run (useRunSimulation) and, later,
+   * when a run is opened from /runs. Null before the first run.
+   */
+  displayedRun: DisplayedRun | null;
+}
+
+/**
+ * One run as the Workbench shows it: its id, the export and scenario it was
+ * sent (verbatim, as the request body or the stored history row), the
+ * result, and the export's display metadata at that time so the results
+ * keep describing the file they came from after another one is loaded.
+ */
+export interface DisplayedRun {
+  runId: string;
+  exportId: string;
+  scenario: Record<string, unknown>;
+  result: SimulateResult;
+  exportFilename?: string | null;
+  manifest?: Record<string, unknown> | null;
 }
 
 /** Optional display metadata recorded alongside an export (see `setExport`). */
@@ -119,7 +133,7 @@ type WizardAction =
   | { type: "SET_ATMOSPHERE"; atmosphere: Atmosphere }
   | { type: "SET_RAIL_OVERRIDE"; field: RailField; value: number }
   | { type: "RESET_RAIL_OVERRIDE"; field: RailField }
-  | { type: "SET_RESULT"; result: SimulateResult }
+  | { type: "SHOW_RUN"; run: DisplayedRun }
   | { type: "GOTO"; step: WizardStep }
   | { type: "RESET" };
 
@@ -136,10 +150,7 @@ const INITIAL_STATE: WizardState = {
   launchDatetime: null,
   atmosphere: DEFAULT_ATMOSPHERE,
   railOverrides: {},
-  runId: null,
-  result: null,
-  resultExportId: null,
-  resultExportFilename: null,
+  displayedRun: null,
 };
 
 /**
@@ -189,14 +200,8 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       // Back to the initial reference when empty, so the draft can be clean again.
       return { ...state, railOverrides: Object.keys(rest).length > 0 ? rest : INITIAL_STATE.railOverrides };
     }
-    case "SET_RESULT":
-      return {
-        ...state,
-        result: action.result,
-        runId: action.result.run_id,
-        resultExportId: state.exportId,
-        resultExportFilename: state.exportFilename,
-      };
+    case "SHOW_RUN":
+      return { ...state, displayedRun: action.run };
     case "GOTO":
       return { ...state, step: action.step };
     case "RESET":
@@ -262,7 +267,8 @@ interface WizardDraftContextValue {
   setRailOverride: (field: RailField, value: number) => void;
   /** Drop one rail override: the field shows the file's value again. */
   resetRailOverride: (field: RailField) => void;
-  setResult: (result: SimulateResult) => void;
+  /** Put a run on screen: the results column renders it and the status compares the draft with it. */
+  showRun: (run: DisplayedRun) => void;
   /** Snapshot of the scenario body for validate/simulate calls. */
   scenarioBody: () => Record<string, unknown>;
 }
@@ -339,10 +345,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     (field: RailField) => dispatch({ type: "RESET_RAIL_OVERRIDE", field }),
     [],
   );
-  const setResult = useCallback(
-    (result: SimulateResult) => dispatch({ type: "SET_RESULT", result }),
-    [],
-  );
+  const showRun = useCallback((run: DisplayedRun) => dispatch({ type: "SHOW_RUN", run }), []);
   const goto = useCallback(
     (step: WizardStep) => dispatch({ type: "GOTO", step }),
     [],
@@ -364,7 +367,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   // it away. Once a run exists the work is persisted server-side, so leaving
   // is safe again. The listener is attached only while it matters, so a
   // clean wizard never blocks navigation.
-  const warnOnUnload = state.runId === null && isDraftDirty(state);
+  const warnOnUnload = state.displayedRun === null && isDraftDirty(state);
   useEffect(() => {
     if (!warnOnUnload) return;
     const handler = (e: BeforeUnloadEvent) => {
@@ -391,7 +394,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   const draftValue = useMemo<WizardDraftContextValue>(
     () => ({
       state,
-      canAdvance: computeCanAdvance(state.step, state),
+      canAdvance: computeCanAdvance(state.step, { ...state, result: state.displayedRun?.result ?? null }),
       needsDate: computeNeedsDate(state.atmosphere.model),
       setExport,
       setName,
@@ -400,7 +403,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setAtmosphere,
       setRailOverride,
       resetRailOverride,
-      setResult,
+      showRun,
       scenarioBody,
     }),
     [
@@ -412,7 +415,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setAtmosphere,
       setRailOverride,
       resetRailOverride,
-      setResult,
+      showRun,
       scenarioBody,
     ],
   );

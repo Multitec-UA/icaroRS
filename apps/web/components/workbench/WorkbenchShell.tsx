@@ -13,7 +13,8 @@
  *     (context + Run held while converting) and the rocket panel;
  *   - the Run action (useRunSimulation, S7), reachable three ways with one
  *     implementation: the TopBar button, ⌘↵ / Ctrl+Enter anywhere on the
- *     page, and the rocket panel's switch to another file ("Run this file").
+ *     page, and the rocket panel's switch to another file. Its `status`
+ *     (S6) compares the draft with the displayed run for the TopBar pill.
  */
 
 import { useEffect } from "react";

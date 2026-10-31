@@ -2,8 +2,8 @@
 
 /**
  * ReportConfiguration — the run's stored scenario as a definition list (S9,
- * board C): rocket file, site, elevation, launch time, weather model, rail
- * The scenario lives on the run's
+ * board C): rocket file, site, elevation, launch time, weather model, rail;
+ * then the compact card of the rocket the file describes (S7). The scenario lives on the run's
  * history row (useRunSummaryQuery), hence a client island; the facts come
  * from lib/domain/runs so they read the same way as the /runs chips.
  */
@@ -15,6 +15,7 @@ import { cn } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { formatQuantity } from "@/components/flight/flightMath";
 import { useRunFormatters } from "@/components/runs/useRunFormatters";
+import { ReportRocketCard } from "./ReportRocketCard";
 
 const BLOCK = "rounded-md bg-chip motion-safe:animate-pulse";
 
@@ -97,6 +98,7 @@ export function ReportConfiguration({ runId }: { runId: string }) {
           ))}
         </dl>
       )}
+      <ReportRocketCard runId={runId} />
     </section>
   );
 }

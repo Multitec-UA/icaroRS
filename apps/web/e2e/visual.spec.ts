@@ -54,7 +54,18 @@ for (const theme of THEMES) {
 
     test("workbench result", async ({ page }) => {
       await runIcarus(page);
+      // S6/S7: the status names the displayed run; the shared results
+      // composition carries the OpenRocket row and both disclosures.
+      await expect(page.getByRole("status").filter({ hasText: /^Up to date · run / })).toBeVisible();
+      await expect(page.getByTestId("openrocket-row")).toContainText("OpenRocket, its own conditions saved in the file:");
+      await expect(page.locator("summary", { hasText: "All results (16 values)" })).toBeVisible();
+      await expect(page.locator("summary", { hasText: "Plots (12)" })).toBeVisible();
       await snap(page, `workbench-result-${theme}`);
+
+      // Behaviour: editing the site after the run marks it changed, naming the group.
+      await page.locator("#elev").fill("120");
+      await expect(page.getByRole("status").filter({ hasText: /^Changed since run / })).toBeVisible();
+      await expect(page.getByRole("list", { name: "What changed" }).getByText("Site", { exact: true })).toBeVisible();
     });
 
     test("rocket panel", async ({ page }) => {

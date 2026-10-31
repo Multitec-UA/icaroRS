@@ -8,7 +8,7 @@
  * is never compared with itself.
  */
 
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 import type { SimulationSummary } from "@/lib/api";
 import { shortRunId, whatChanged, type RunChange } from "@/lib/domain/runs";
 import { cn } from "@/lib/styles";
@@ -102,12 +102,7 @@ export function WhatChanged({
                 ) : (
                   <ul className="flex flex-wrap gap-1.5 pl-4">
                     {changes.map((change) => (
-                      <li
-                        key={change.key}
-                        className="rounded-full bg-chip px-2.5 py-0.5 text-xs text-ink-2"
-                      >
-                        {describe(change)}
-                      </li>
+                      <ChangeChip key={change.key}>{describe(change)}</ChangeChip>
                     ))}
                   </ul>
                 )}
@@ -117,5 +112,23 @@ export function WhatChanged({
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * One "what changed" chip, as a list item. The /runs comparison uses the
+ * neutral look with the full change; the Workbench status (S6) uses the warn
+ * look with the group name only. One component, so both read alike.
+ */
+export function ChangeChip({ tone = "neutral", children }: { tone?: "neutral" | "warn"; children: ReactNode }) {
+  return (
+    <li
+      className={cn(
+        "rounded-full px-2.5 py-0.5 text-xs",
+        tone === "warn" ? "bg-warn-soft font-medium text-warn-ink" : "bg-chip text-ink-2",
+      )}
+    >
+      {children}
+    </li>
   );
 }

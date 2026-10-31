@@ -14,6 +14,14 @@ import {
 // needed there. This file covers the React wiring: the reducer, the two
 // contexts, and the render-isolation the split is for.
 
+const RUN_1 = {
+  runId: "run-1",
+  exportId: "export-1",
+  exportFilename: "icarus2.ork",
+  scenario: { name: "my_scenario", uncertainty: {} },
+  result: { run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] },
+};
+
 function wrapper({ children }: { children: ReactNode }) {
   return <WizardProvider>{children}</WizardProvider>;
 }
@@ -101,16 +109,9 @@ describe("WizardProvider — canAdvance per step", () => {
     act(() => result.current.goto("review"));
     expect(result.current.canAdvance).toBe(false);
 
-    act(() =>
-      result.current.setResult({
-        run_id: "run-1",
-        scalars: {},
-        plot_urls: [],
-        warnings: [],
-      }),
-    );
+    act(() => result.current.showRun(RUN_1));
     expect(result.current.canAdvance).toBe(true);
-    expect(result.current.state.runId).toBe("run-1");
+    expect(result.current.state.displayedRun?.runId).toBe("run-1");
   });
 
   it("results: always false (terminal step)", () => {
@@ -156,25 +157,20 @@ describe("WizardProvider — export metadata and result provenance (Workbench)",
     });
   });
 
-  it("setResult records the export the result came from, and a later setExport leaves it alone", () => {
+  it("showRun keeps the run on screen with its own export and scenario; a later setExport leaves it alone", () => {
     const { result } = setup();
-    expect(result.current.state.resultExportId).toBeNull();
+    expect(result.current.state.displayedRun).toBeNull();
 
     act(() => result.current.setExport("export-1", {}, null, { filename: "icarus2.ork" }));
-    act(() =>
-      result.current.setResult({ run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] }),
-    );
-    expect(result.current.state.resultExportId).toBe("export-1");
-    expect(result.current.state.resultExportFilename).toBe("icarus2.ork");
+    act(() => result.current.showRun(RUN_1));
+    expect(result.current.state.displayedRun).toEqual(RUN_1);
 
     act(() => result.current.setExport("export-2", {}, null, { filename: "icarus2_v2.ork" }));
     expect(result.current.state.exportId).toBe("export-2");
-    expect(result.current.state.resultExportId).toBe("export-1");
-    expect(result.current.state.resultExportFilename).toBe("icarus2.ork");
+    expect(result.current.state.displayedRun).toEqual(RUN_1);
 
     act(() => result.current.reset());
-    expect(result.current.state.resultExportId).toBeNull();
-    expect(result.current.state.resultExportFilename).toBeNull();
+    expect(result.current.state.displayedRun).toBeNull();
   });
 });
 
@@ -384,9 +380,7 @@ describe("WizardProvider — unsaved-changes warning", () => {
     act(() => result.current.setExport("export-1", { name: "My rocket" }));
     expect(fireBeforeUnload()).toBe(true);
 
-    act(() =>
-      result.current.setResult({ run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] }),
-    );
+    act(() => result.current.showRun(RUN_1));
     expect(fireBeforeUnload()).toBe(false);
 
     act(() => result.current.reset());
