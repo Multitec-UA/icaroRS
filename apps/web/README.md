@@ -95,3 +95,40 @@ Users still need the `org_id` custom claim. Create one against the emulator
 with `firebase-admin` (same env as the API):
 `auth.create_user(email=..., password=...)` then
 `auth.set_custom_user_claims(uid, {"org_id": "..."})`.
+
+## Visual regression
+
+`e2e/` holds a Playwright suite that screenshots every screen (Workbench
+empty / destination / converting / ready / with result, Rocket panel,
+`/rockets`, `/runs` with the compare overlay, the run report, login) in both
+themes at 1440×900, plus the Workbench with a result at 390×844.
+
+```bash
+npm run e2e:visual          # compare against the committed snapshots (Docker)
+npm run e2e:visual:update   # regenerate every snapshot after an intended UI change
+npm run e2e:visual:native   # host browser, for debugging only
+```
+
+> **Current baseline (2026-10-31):** the committed snapshots were rendered
+> natively on macOS because Docker could not pull the Playwright image on the
+> authoring machine. Until they are regenerated with `npm run e2e:visual:update`
+> inside Docker, run `npm run e2e:visual:native` locally to compare, and CI runs
+> the suite with `--ignore-snapshots` (every screen must still render).
+
+- **What runs:** `playwright.config.ts` boots `e2e/stub-api.mjs` (a
+  deterministic stub of the icaro API on `:4010`: one org, two rockets, three
+  files, four runs) and a production build on `:4011` built with
+  `ICARO_API_ORIGIN` pointing at the stub. Tests freeze the clock, pin the
+  time zone and locale, reduce motion, serve a flat map tile and mask only the
+  WebGL flight replay. The cookie `e2e-anon=1` makes the stub answer 401 on
+  `/api/auth/me` (login screen).
+- **Snapshots:** `e2e/__screenshots__/<spec file>/<name>.png`. Review the
+  diff images in `playwright-report/` when a run fails.
+- **Why Docker:** font rasterisation differs between macOS, Linux and CPU
+  architectures, so snapshots are only generated inside
+  `mcr.microsoft.com/playwright:v1.64.1-noble` (linux/amd64, the same image
+  as the `web-visual` CI job). `e2e/run-in-docker.sh` keeps `node_modules`
+  and `.next` in Docker volumes and re-runs `npm ci` only when
+  `package-lock.json` changes. On Apple Silicon the image runs under
+  emulation, so the first run is slow. Native runs will not match the
+  committed pixels.

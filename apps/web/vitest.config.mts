@@ -18,6 +18,8 @@ export default defineConfig({
     // named *.test.tsx (Ignored.test.tsx, proving test files are excluded
     // from the real scan). Vitest's default glob would otherwise try to run
     // it as an actual test file and fail on "no test suite found".
-    exclude: ["node_modules/**", ".next/**", "scripts/__fixtures__/**"],
+    // e2e/ holds the Playwright visual suite (playwright.config.ts), which
+    // runs against a real browser, never under Vitest.
+    exclude: ["node_modules/**", ".next/**", "scripts/__fixtures__/**", "e2e/**"],
   },
 });
