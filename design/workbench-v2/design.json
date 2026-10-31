@@ -1,0 +1,14 @@
+{
+  "title": "Workbench v2: Rocket → Scenario → Run",
+  "brief": "Redesign of the icaro Workbench for university rocketry teams so the web, the API contract and the core tell one story: a Rocket (OpenRocket files), a Scenario edited in the Workbench, and Runs listed in the logbook with a permanent report. Tokens from design/system.md, both palettes.",
+  "feature": "odd/tasks/workbench-product-polish.md",
+  "artboards": [
+    { "file": "01-workbench-ready.html", "title": "Workbench · file loaded, no run yet", "tradeoff": "The results column shows the rocket itself (S3) instead of an empty placeholder; rail defaults come from the .ork with per-field Overridden/Reset (S4); no Uncertainty section (S5)", "width": 1440, "height": 900 },
+    { "file": "02-workbench-result.html", "title": "Workbench · after a run", "tradeoff": "One long results column (warnings → replay → KPIs → OpenRocket row → series → timeline → disclosures) shared with the report; stale state lives in the top bar with change chips, not in the results", "width": 1440, "height": 900 },
+    { "file": "03-rocket-panel.html", "title": "Rocket panel (plus legacy-file variant)", "tradeoff": "One popover owns file switching, comparison and import once a file is active; the Workbench stays visible but inert behind a scrim", "width": 1440, "height": 900 },
+    { "file": "04-runs.html", "title": "Runs logbook with compare overlay", "tradeoff": "Compare chart on top, full-width tables grouped by rocket with deltas against a baseline; every row reopens in the Workbench instead of re-running silently", "width": 1440, "height": 900 },
+    { "file": "05-report.html", "title": "Run report /results/{id}", "tradeoff": "Printout reuses the exact Workbench result composition, adds breadcrumb, header and Configuration; plots collapsed by default to keep the page short", "width": 1440, "height": 900 },
+    { "file": "06-phone.html", "title": "Workbench on a phone · Result tab", "tradeoff": "Results first on phones; inputs behind a tab, sidebar becomes a bottom bar, stale shown as a dot plus chips under the tabs", "width": 390, "height": 844 },
+    { "file": "07-phone-report.html", "title": "Run report on a phone", "tradeoff": "Single column for shared links: full-width replay, KPIs 2×2, disclosures collapsed, Configuration stacked at the end", "width": 390, "height": 844 }
+  ]
+}
