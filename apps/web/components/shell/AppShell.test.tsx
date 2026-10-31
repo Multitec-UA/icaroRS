@@ -1,9 +1,10 @@
 import { useEffect } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { usePathname } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
 import { useWizard } from "@/components/wizard/WizardProvider";
+import { clearToasts, showToast } from "@/components/ui/Toast";
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -67,12 +68,12 @@ describe("AppShell — the sidebar on every authenticated route", () => {
       return screen.getByRole("link", { name: "Workbench" });
     }
 
-    it("resets the wizard draft on a plain click", async () => {
+    it("keeps the draft on a plain click: the Workbench URL owns its state now (S8)", async () => {
       const link = await renderOnResults();
 
       fireEvent.click(link);
 
-      expect(screen.getByTestId("export-id")).toHaveTextContent("");
+      expect(screen.getByTestId("export-id")).toHaveTextContent("export-1");
     });
 
     it("keeps the draft on a modified click (a new tab is a navigation only)", async () => {
@@ -84,5 +85,21 @@ describe("AppShell — the sidebar on every authenticated route", () => {
 
       expect(screen.getByTestId("export-id")).toHaveTextContent("export-1");
     });
+  });
+
+  it("renders toasts raised from anywhere, with their link, on every route (S8)", async () => {
+    vi.mocked(usePathname).mockReturnValue("/runs");
+    render(<AppProviders>content</AppProviders>);
+    await screen.findByRole("navigation", { name: "Primary navigation" });
+
+    act(() => {
+      showToast({ tone: "ok", message: "Run run-9 finished", action: { href: "/?run=run-9", label: "Open" } });
+    });
+
+    expect(screen.getByText("Run run-9 finished")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/?run=run-9");
+    fireEvent.click(screen.getByRole("button", { name: "Dismiss" }));
+    expect(screen.queryByText("Run run-9 finished")).toBeNull();
+    clearToasts();
   });
 });

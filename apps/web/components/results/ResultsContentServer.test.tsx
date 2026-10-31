@@ -155,7 +155,7 @@ describe("Run report — body", () => {
   it("keeps the actions reachable", async () => {
     await renderReport();
 
-    expect(await screen.findByRole("link", { name: "Simulate again" })).toHaveAttribute("href", "/");
+    expect(await screen.findByRole("link", { name: "Open in Workbench" })).toHaveAttribute("href", "/?run=run-1");
     expect(screen.getByRole("button", { name: "New rocket" })).toBeInTheDocument();
   });
 });

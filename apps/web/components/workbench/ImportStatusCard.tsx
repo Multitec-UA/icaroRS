@@ -7,8 +7,8 @@
  * indeterminate bar (static under prefers-reduced-motion) and the four
  * server steps listed as an explanation of what takes the time — never as
  * checkmarks ticking on a timer. On failure the message is shown inline with
- * a "Try another file" action; a Java-related hint is a warning about the
- * server, not about the user's file.
+ * a "Try another file" action; a 503 (converter unavailable) is a warning
+ * about the server, not about the user's file (`phase.tone`, S9).
  */
 
 import { motion, useReducedMotion } from "motion/react";
@@ -42,6 +42,7 @@ export function ImportStatusCard({
       <Reveal>
         <section
           role="alert"
+          data-tone={phase.tone}
           className={cn(
             "flex flex-col gap-3 rounded-2xl px-4 py-4 text-sm",
             warning ? "bg-warn-soft text-warn-ink" : "bg-bad-soft text-bad-ink",
@@ -51,6 +52,7 @@ export function ImportStatusCard({
             {t("workbench.convertFailedTitle", { filename: phase.file.name })}
           </p>
           <p className="break-words">{phase.message}</p>
+          {phase.detail && <p className="break-words">{phase.detail}</p>}
           <div>
             <button type="button" onClick={onRetry} className={ghostButton}>
               {t("workbench.tryAnotherFile")}

@@ -5,10 +5,9 @@
  * server-rendered RocketsListServer (issue #52, on the theme tokens since
  * S9). A rocket groups the .ork files (exports) uploaded for it.
  *
- * "Use this rocket" loads the rocket's newest export and calls
- * setExport(export_id, manifest, rocket_id, { filename, rocketName }) in
- * WizardProvider (the Workbench's rocket button shows those), then opens the
- * Workbench — NO .ork re-upload and no wizard step to jump to. Owns its own
+ * "Use this rocket" finds the rocket's newest export and opens the
+ * Workbench at `/?file={export_id}` (S8): the Workbench loads the file from
+ * its URL, so the link survives a refresh and NO .ork is re-uploaded. Owns its own
  * mutation state (issue #50) so a failure shows an inline error without
  * affecting any other card. "Runs" opens the comparison board filtered to
  * this rocket.
@@ -22,8 +21,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ApiError, type RocketSummary } from "@/lib/api";
-import { useRocketLatestExportMutation } from "@/lib/queries";
-import { useWizardDraft } from "@/components/wizard/WizardProvider";
+import { useRocketNewestExportMutation } from "@/lib/queries";
 import { Spinner, cardClass, ghostButton, textLink } from "@/components/ui";
 import { cn } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
@@ -34,8 +32,7 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
   const t = useT();
   const { locale } = useLocale();
   const router = useRouter();
-  const { setExport } = useWizardDraft();
-  const useRocket = useRocketLatestExportMutation();
+  const useRocket = useRocketNewestExportMutation();
 
   const dateFormat = useMemo(
     () => new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeZone: "UTC" }),
@@ -48,13 +45,7 @@ export function RocketCard({ rocket, index = 0 }: { rocket: RocketSummary; index
 
   function handleUseRocket() {
     useRocket.mutate(rocket.rocket_id, {
-      onSuccess: ({ rocket: detail, export: exp }) => {
-        setExport(exp.export_id, exp.manifest, detail.rocket_id, {
-          filename: exp.ork_filename,
-          rocketName: detail.name,
-        });
-        router.push("/");
-      },
+      onSuccess: (newest) => router.push(`/?file=${encodeURIComponent(newest.export_id)}`),
     });
   }
 

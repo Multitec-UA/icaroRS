@@ -432,20 +432,6 @@ export function getScenarioTemplate(): Promise<ScenarioTemplate> {
   return request<ScenarioTemplate>("/api/scenario/template");
 }
 
-/** Validate/normalize a (possibly partial) scenario dict. Throws ApiError(422). */
-export function validateScenario(body: unknown): Promise<Scenario> {
-  // Safe to repeat: validation only reads the body and stores nothing.
-  return request<Scenario>(
-    "/api/scenario/validate",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    },
-    { retryable: true },
-  );
-}
-
 export function suggestAtmosphere(dateIso: string): Promise<AtmosphereSuggestion> {
   const q = new URLSearchParams({ date: dateIso });
   return request<AtmosphereSuggestion>(`/api/atmosphere/suggest?${q}`);

@@ -1,30 +1,24 @@
 "use client";
 
 /**
- * WizardProvider — the explicit state machine driving the scenario wizard.
+ * WizardProvider — the Workbench's draft: the active export (converted
+ * `.ork`), the scenario being edited and the run on screen. It outlives the
+ * Workbench (it sits in the root layout), so moving to /runs or a report and
+ * back keeps the draft in memory; the Workbench mirrors its identity into
+ * the URL (`useWorkbenchUrl`, S8). The name predates the Workbench; renaming
+ * it would touch the root layout and the shared test providers.
  *
- * Flow:  rocket → basics → advanced → review → results
+ * The API (/api/simulate) is the single source of truth for correctness;
+ * the local guards (lib/domain/scenario.ts: `canRun`, `needsDate`) only give
+ * fast feedback. Domain rules live there as plain functions; this file is
+ * the React wiring: the reducer and two contexts.
  *
- * It holds the scenario draft assembled across steps plus the convert/simulate
- * artifacts (exportId, runId, result). "Can advance" guards use LOCAL state
- * only — they gate the Next button for fast UX feedback. The API
- * (/api/scenario/validate, /api/simulate) remains the single source of truth
- * for correctness; the wizard never decides a scenario is valid on its own.
+ * Two contexts, not one (issue #50): `WizardNavContext` carries only the
+ * active export id and `reset`, so a nav-only consumer (the report's
+ * actions) never re-renders on a draft keystroke; `WizardDraftContext`
+ * carries the rest and is memoized separately.
  *
- * React context must live in a Client Component (Next 16 — server components
- * can't hold context), hence "use client" at the top.
- *
- * Domain rules (toLaunchDate, buildScenarioBody, canAdvance, needsDate,
- * STEP_ORDER) live in lib/domain/scenario.ts (issue #50) — plain functions,
- * unit-testable without rendering anything. This file is just the React
- * wiring: the reducer and two contexts.
- *
- * Two contexts, not one (issue #50): a single context whose value depends on
- * the whole draft meant every consumer re-rendered on every keystroke,
- * including AppNav/Stepper/WizardShell, which only care about the step and
- * whether a rocket has been uploaded. `WizardNavContext` carries exactly
- * that; `WizardDraftContext` carries the rest and is memoized separately, so
- * a draft-only change never invalidates a nav-only consumer.
+ * React context must live in a Client Component (Next 16), hence "use client".
  */
 
 import {
@@ -38,12 +32,10 @@ import {
 } from "react";
 import type { Atmosphere, Site, SimulateResult } from "@/lib/api";
 import {
-  STEP_ORDER,
   buildScenarioBody,
-  canAdvance as computeCanAdvance,
   needsDate as computeNeedsDate,
   type RailOverrides,
-  type WizardStep,
+  type ScenarioDraft,
 } from "@/lib/domain/scenario";
 import { railDefaultsFromManifest, type RailDefaults } from "@/lib/domain/rocket";
 
@@ -61,9 +53,7 @@ const DEFAULT_ATMOSPHERE: Atmosphere = {
 // ---------------------------------------------------------------------------
 
 interface WizardState {
-  step: WizardStep;
-
-  // Step 1 — the export (converted .ork) from /api/convert, and the rocket it
+  // The export (converted .ork) from /api/convert, and the rocket it
   // belongs to (null for responses that predate the Rocket/Export split).
   exportId: string | null;
   rocketId: string | null;
@@ -133,12 +123,11 @@ type WizardAction =
   | { type: "SET_ATMOSPHERE"; atmosphere: Atmosphere }
   | { type: "SET_RAIL_OVERRIDE"; field: RailField; value: number }
   | { type: "RESET_RAIL_OVERRIDE"; field: RailField }
-  | { type: "SHOW_RUN"; run: DisplayedRun }
-  | { type: "GOTO"; step: WizardStep }
+  | { type: "LOAD_SCENARIO"; draft: ScenarioDraft }
+  | { type: "SHOW_RUN"; run: DisplayedRun | null }
   | { type: "RESET" };
 
 const INITIAL_STATE: WizardState = {
-  step: "rocket",
   exportId: null,
   rocketId: null,
   manifest: null,
@@ -157,8 +146,7 @@ const INITIAL_STATE: WizardState = {
  * True once any user-entered draft data differs from the initial state. The
  * reducer only ever replaces these fields with new references (or resets
  * them to the INITIAL_STATE values), so identity checks are both cheap and
- * exact — no deep compare needed. `step` is deliberately excluded: moving
- * between steps is not data.
+ * exact — no deep compare needed.
  */
 function isDraftDirty(state: WizardState): boolean {
   return (
@@ -200,10 +188,19 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       // Back to the initial reference when empty, so the draft can be clean again.
       return { ...state, railOverrides: Object.keys(rest).length > 0 ? rest : INITIAL_STATE.railOverrides };
     }
+    case "LOAD_SCENARIO": {
+      const { name, site, launchDatetime, atmosphere, railOverrides } = action.draft;
+      return {
+        ...state,
+        name,
+        site,
+        launchDatetime,
+        atmosphere,
+        railOverrides: Object.keys(railOverrides).length > 0 ? railOverrides : INITIAL_STATE.railOverrides,
+      };
+    }
     case "SHOW_RUN":
       return { ...state, displayedRun: action.run };
-    case "GOTO":
-      return { ...state, step: action.step };
     case "RESET":
       return INITIAL_STATE;
     default:
@@ -212,18 +209,15 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
 }
 
 // ---------------------------------------------------------------------------
-// Nav context — step + navigation only. Consumers: AppNav, Stepper,
-// WizardShell. Memoized on just `state.step` / `state.exportId`, so it never
-// changes identity when a draft field (name, site, rail, ...) changes.
+// Nav context — the active export id and `reset` only. Memoized on just
+// `state.exportId`, so it never changes identity when a draft field (name,
+// site, rail, ...) changes.
 // ---------------------------------------------------------------------------
 
 interface WizardNavContextValue {
-  step: WizardStep;
-  /** Whether a rocket has been uploaded — Stepper uses this to gate jumping ahead. */
+  /** The active export, or null before a file is loaded. */
   exportId: string | null;
-  goto: (step: WizardStep) => void;
-  next: () => void;
-  back: () => void;
+  /** Back to an empty Workbench: no file, default scenario, no run. */
   reset: () => void;
 }
 
@@ -239,15 +233,13 @@ export function useWizardNav(): WizardNavContextValue {
 
 // ---------------------------------------------------------------------------
 // Draft context — the scenario draft, its setters, and the derived guards
-// that depend on it. Consumers: the step components, ResultsDashboard,
-// RocketsList. Memoized on the whole `state`, so it changes on every
+// that depend on it. Consumers: the Workbench sections, top bar and results
+// column, the rocket cards. Memoized on the whole `state`, so it changes on every
 // keystroke — expected, since these consumers render the draft itself.
 // ---------------------------------------------------------------------------
 
 interface WizardDraftContextValue {
   state: WizardState;
-  /** True when the current step's local guard is satisfied. */
-  canAdvance: boolean;
   needsDate: boolean;
   /**
    * Record the converted export (and, when known, the rocket it belongs to
@@ -267,9 +259,13 @@ interface WizardDraftContextValue {
   setRailOverride: (field: RailField, value: number) => void;
   /** Drop one rail override: the field shows the file's value again. */
   resetRailOverride: (field: RailField) => void;
+  /** Replace the scenario fields at once — a stored run opened from its URL (S8). */
+  loadScenario: (draft: ScenarioDraft) => void;
   /** Put a run on screen: the results column renders it and the status compares the draft with it. */
   showRun: (run: DisplayedRun) => void;
-  /** Snapshot of the scenario body for validate/simulate calls. */
+  /** Take the displayed run off screen and keep the draft (back to `/?file=`). */
+  clearRun: () => void;
+  /** Snapshot of the scenario body for the simulate call. */
   scenarioBody: () => Record<string, unknown>;
 }
 
@@ -284,11 +280,8 @@ export function useWizardDraft(): WizardDraftContextValue {
 }
 
 // ---------------------------------------------------------------------------
-// Combined convenience hook — for consumers that already need both slices
-// (most step components: a draft field AND `next()`/`back()`). Re-renders
-// whenever either slice changes, which is correct for these — they already
-// read decision fields from both. Nav-only consumers should use
-// `useWizardNav` directly instead of this, or they lose the isolation.
+// Combined convenience hook — both slices; re-renders whenever either
+// changes. Nav-only consumers should use `useWizardNav` directly instead.
 // ---------------------------------------------------------------------------
 
 export function useWizard(): WizardNavContextValue & WizardDraftContextValue {
@@ -345,28 +338,16 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     (field: RailField) => dispatch({ type: "RESET_RAIL_OVERRIDE", field }),
     [],
   );
+  const loadScenario = useCallback((draft: ScenarioDraft) => dispatch({ type: "LOAD_SCENARIO", draft }), []);
   const showRun = useCallback((run: DisplayedRun) => dispatch({ type: "SHOW_RUN", run }), []);
-  const goto = useCallback(
-    (step: WizardStep) => dispatch({ type: "GOTO", step }),
-    [],
-  );
-  const next = useCallback(() => {
-    const i = STEP_ORDER.indexOf(state.step);
-    if (i >= 0 && i < STEP_ORDER.length - 1) {
-      dispatch({ type: "GOTO", step: STEP_ORDER[i + 1] });
-    }
-  }, [state.step]);
-  const back = useCallback(() => {
-    const i = STEP_ORDER.indexOf(state.step);
-    if (i > 0) dispatch({ type: "GOTO", step: STEP_ORDER[i - 1] });
-  }, [state.step]);
+  const clearRun = useCallback(() => dispatch({ type: "SHOW_RUN", run: null }), []);
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
   const scenarioBody = useCallback(() => buildScenarioBody(state), [state]);
 
   // The draft lives only in memory: warn before a reload/close would throw
   // it away. Once a run exists the work is persisted server-side, so leaving
   // is safe again. The listener is attached only while it matters, so a
-  // clean wizard never blocks navigation.
+  // clean draft never blocks navigation.
   const warnOnUnload = state.displayedRun === null && isDraftDirty(state);
   useEffect(() => {
     if (!warnOnUnload) return;
@@ -380,21 +361,13 @@ export function WizardProvider({ children }: { children: ReactNode }) {
   }, [warnOnUnload]);
 
   const navValue = useMemo<WizardNavContextValue>(
-    () => ({
-      step: state.step,
-      exportId: state.exportId,
-      goto,
-      next,
-      back,
-      reset,
-    }),
-    [state.step, state.exportId, goto, next, back, reset],
+    () => ({ exportId: state.exportId, reset }),
+    [state.exportId, reset],
   );
 
   const draftValue = useMemo<WizardDraftContextValue>(
     () => ({
       state,
-      canAdvance: computeCanAdvance(state.step, { ...state, result: state.displayedRun?.result ?? null }),
       needsDate: computeNeedsDate(state.atmosphere.model),
       setExport,
       setName,
@@ -403,7 +376,9 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setAtmosphere,
       setRailOverride,
       resetRailOverride,
+      loadScenario,
       showRun,
+      clearRun,
       scenarioBody,
     }),
     [
@@ -415,7 +390,9 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setAtmosphere,
       setRailOverride,
       resetRailOverride,
+      loadScenario,
       showRun,
+      clearRun,
       scenarioBody,
     ],
   );

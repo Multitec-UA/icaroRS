@@ -17,10 +17,14 @@
  * (the rocket panel's own drop zone) or when the org has no rockets to
  * choose from. Nothing is ever inferred from the file name (L3).
  *
- * Error contract (RocketStep's, kept): 401 → handled globally; 422 → the
- * "not an OpenRocket file" message; 503 → the server's hint verbatim; other
- * API codes → t("errors.<code>"); anything Java-related is a warning, not a
- * failure of the user's file.
+ * Error contract (S9), the tone from the HTTP status, never from the words:
+ *   401     → handled globally (lib/query-client.ts);
+ *   503     → warning: "The converter is unavailable right now" + the
+ *             server's hint when it sends one — not a fault of the file;
+ *   4xx     → error with the server's detail (422 a file the converter
+ *             rejects, 404 an unknown rocket);
+ *   network → error: "Could not reach the icaro API";
+ *   other   → error with t("errors.<code>").
  */
 
 import { useCallback, useState } from "react";
@@ -33,7 +37,7 @@ export type ImportPhase =
   | { kind: "idle" }
   | { kind: "choosing"; file: File }
   | { kind: "converting"; file: File; rocketId: string | null }
-  | { kind: "failed"; file: File; message: string; tone: "error" | "warning" };
+  | { kind: "failed"; file: File; message: string; detail?: string; tone: "error" | "warning" };
 
 export interface OrkImport {
   phase: ImportPhase;
@@ -56,8 +60,28 @@ export interface OrkImport {
  * name without its extension (S4) — mirrored here for the context button.
  */
 export function rocketNameFor(file: File, manifest: Record<string, unknown>): string {
-  const name = manifest["name"];
-  return typeof name === "string" && name.trim() !== "" ? name : file.name.replace(/\.ork$/i, "");
+  // rocketserializer stores the design name at id.rocket_name; older fixtures
+  // and the API's own fallback use a top-level name. Honour both, like the API.
+  const id = manifest["id"];
+  const candidates = [manifest["name"], id && typeof id === "object" ? (id as Record<string, unknown>)["rocket_name"] : null];
+  const name = candidates.find((c) => typeof c === "string" && c.trim() !== "") as string | undefined;
+  return name ?? file.name.replace(/\.ork$/i, "");
+}
+
+/** The message and tone of a failed conversion, from the HTTP status (S9). */
+export function convertFailure(
+  err: unknown,
+  t: ReturnType<typeof useT>,
+): { message: string; detail?: string; tone: "error" | "warning" } {
+  if (!(err instanceof ApiError)) return { message: t("rocket.errorGeneric"), tone: "error" };
+  if (err.isUnavailable) {
+    return { message: t("workbench.converterUnavailable"), detail: err.hint, tone: "warning" };
+  }
+  if (err.code === "network" || err.status === 0) return { message: t("workbench.converterUnreachable"), tone: "error" };
+  if (err.status >= 400 && err.status < 500) {
+    return { message: err.isValidation && err.fieldErrors ? t("rocket.errorNotOrk") : err.message, tone: "error" };
+  }
+  return { message: t(`errors.${err.code}`, { status: err.status }), tone: "error" };
 }
 
 function isOrk(file: File): boolean {
@@ -96,16 +120,7 @@ export function useOrkImport(): OrkImport {
               setPhase({ kind: "idle" });
               return;
             }
-            let message: string;
-            if (err instanceof ApiError && err.isValidation) message = t("rocket.errorNotOrk");
-            else if (err instanceof ApiError) message = err.hint ?? t(`errors.${err.code}`, { status: err.status });
-            else message = t("rocket.errorGeneric");
-            setPhase({
-              kind: "failed",
-              file,
-              message,
-              tone: message.toLowerCase().includes("java") ? "warning" : "error",
-            });
+            setPhase({ kind: "failed", file, ...convertFailure(err, t) });
           },
         },
       );

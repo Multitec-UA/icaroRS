@@ -96,12 +96,34 @@ with `firebase-admin` (same env as the API):
 `auth.create_user(email=..., password=...)` then
 `auth.set_custom_user_claims(uid, {"org_id": "..."})`.
 
+## Workbench URL
+
+The Workbench keeps its state in the query string, so refresh, the back
+button and shared links keep it (`components/workbench/useWorkbenchUrl.ts`):
+
+| URL | Shows |
+| --- | --- |
+| `/` | nothing loaded (the drop zone), or the in-memory draft, written into the URL |
+| `/?file={export_id}` | that file loaded, no run on screen |
+| `/?run={run_id}` | that run's file, scenario and result, "Up to date · run {id}" |
+
+Loading a file replaces the URL; a new run pushes it, so back returns to the
+state before the run. Scenario edits never touch the URL. "Open in Workbench"
+on `/runs` and on the report links to `/?run={id}`; "Use this rocket" links
+to `/?file={newest export}`. A run or file the API no longer has (404) shows
+"This run's file is no longer available" / "This file is no longer
+available" with "Start fresh". A run still in flight when the user leaves the
+Workbench keeps going and announces itself with a toast.
+
 ## Visual regression
 
 `e2e/` holds a Playwright suite that screenshots every screen (Workbench
 empty / destination / converting / ready / with result, Rocket panel,
 `/rockets`, `/runs` with the compare overlay, the run report, login) in both
 themes at 1440×900, plus the Workbench with a result at 390×844.
+`e2e/flows.spec.ts` adds behaviour flows without screenshots: run and file
+URLs, "Open in Workbench" from `/runs` and back, the 404 message, a `.ork`
+dropped anywhere on the Workbench, and leaving and coming back.
 
 ```bash
 npm run e2e:visual          # compare against the committed snapshots (Docker)

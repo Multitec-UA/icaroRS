@@ -3,9 +3,7 @@
 /**
  * One query key + hook per API endpoint (issue #48). Every read that used to
  * be a hand-rolled `useEffect` + `active` flag + loading/error/data triple is
- * a `useQuery` call defined here; the two write flows that share the same
- * underlying endpoint (the wizard's "Run simulation" and history's "Re-run")
- * share the one `useSimulateMutation`.
+ * a `useQuery` call defined here.
  *
  * 401 handling is NOT done here — see lib/query-client.ts. Every hook below
  * throws through the shared QueryClient, so a 401 from any of them logs the
@@ -21,12 +19,11 @@ import {
   getRockets,
   getExport,
   getRocket,
-  getResult,
   getSeries,
   simulate,
-  type ResultEnvelope,
   type ConvertResponse,
   type ExportDetail,
+  type ExportSummary,
   type RocketDetail,
   type SimulateResult,
   type SimulationSummary,
@@ -73,9 +70,18 @@ export function useHistoryQuery(options?: { rocketId?: string | null; limit?: nu
  * shows what it has without a name instead of erroring.
  */
 export function useRunSummaryQuery(runId: string) {
-  return useQuery<SimulationSummary | null>({
+  return useQuery(runSummaryQuery(runId));
+}
+
+/**
+ * The run summary query's key and fetch, shared by useRunSummaryQuery and
+ * the Workbench's URL loader (`queryClient.fetchQuery`, S8), so both read
+ * one cache entry with one meaning: `null` is a 404.
+ */
+export function runSummaryQuery(runId: string) {
+  return {
     queryKey: queryKeys.run(runId),
-    queryFn: async () => {
+    queryFn: async (): Promise<SimulationSummary | null> => {
       try {
         return await getRunSummary(runId);
       } catch (err) {
@@ -83,7 +89,16 @@ export function useRunSummaryQuery(runId: string) {
         throw err;
       }
     },
-  });
+  };
+}
+
+/** GET /api/exports/{exportId}: key and fetch shared by useExportDetailQuery and the URL loader. */
+export function exportDetailQuery(exportId: string) {
+  return {
+    queryKey: queryKeys.export(exportId),
+    queryFn: () => getExport(exportId),
+    staleTime: Infinity,
+  };
 }
 
 export function useRocketsQuery() {
@@ -103,19 +118,6 @@ export function useRocketDetailQuery(rocketId: string | null) {
     queryKey: queryKeys.rocket(rocketId ?? "none"),
     queryFn: () => getRocket(rocketId as string),
     enabled: rocketId !== null,
-  });
-}
-
-/**
- * `enabled: false` short-circuits the fetch entirely — used when the caller
- * already has the result in hand (e.g. the wizard just produced it) and a
- * network round-trip would only refetch what's already on screen.
- */
-export function useResultQuery(runId: string, options?: { enabled?: boolean }) {
-  return useQuery<ResultEnvelope>({
-    queryKey: queryKeys.result(runId),
-    queryFn: () => getResult(runId),
-    enabled: options?.enabled ?? true,
   });
 }
 
@@ -148,15 +150,10 @@ export function useSeriesQueries(runIds: string[]) {
  * changes, so the result stays fresh for the whole session.
  */
 export function useExportDetailQuery(exportId: string, options?: { enabled?: boolean }) {
-  return useQuery<ExportDetail>({
-    queryKey: queryKeys.export(exportId),
-    queryFn: () => getExport(exportId),
-    staleTime: Infinity,
-    enabled: options?.enabled ?? true,
-  });
+  return useQuery<ExportDetail>({ ...exportDetailQuery(exportId), enabled: options?.enabled ?? true });
 }
 
-/** POST /api/simulate — shared by the wizard's initial run and history's re-run. */
+/** POST /api/simulate — the Workbench's Run. */
 export function useSimulateMutation() {
   return useMutation<SimulateResult, unknown, { exportId: string; scenario: unknown }>({
     mutationFn: ({ exportId, scenario }) => simulate(exportId, scenario),
@@ -191,23 +188,40 @@ export function useExportDetailMutation() {
 }
 
 /**
- * "Use this rocket" (issue #50): GET /api/rockets/{rocketId} for the rocket's
- * exports, then GET /api/exports/{exportId} of the newest one for its
- * manifest. A rocket with no exports yet rejects with an ApiError(404) so the
- * card shows its inline error instead of silently doing nothing. Going
- * through useMutation gives loading + error state plus the shared 401
- * handling every other call in this file already gets.
+ * The newest export of a rocket: GET /api/rockets/{rocketId} (exports come
+ * newest first). A rocket with no exports yet rejects with an ApiError(404)
+ * so the caller shows its inline error instead of silently doing nothing.
+ */
+async function newestExport(rocketId: string): Promise<{ rocket: RocketDetail; newest: ExportSummary }> {
+  const rocket = await getRocket(rocketId);
+  const newest = rocket.exports[0];
+  if (!newest) {
+    throw new ApiError(404, `Rocket '${rocketId}' has no exports yet.`, { code: "requestFailed" });
+  }
+  return { rocket, newest };
+}
+
+/**
+ * "Use this rocket" on /rockets (S8): only the newest export's id, since
+ * the card navigates to `/?file={id}` and the Workbench loads the file from
+ * its URL. Going through useMutation gives loading + error state plus the
+ * shared 401 handling every other call in this file already gets.
+ */
+export function useRocketNewestExportMutation() {
+  return useMutation<ExportSummary, unknown, string>({
+    mutationFn: async (rocketId) => (await newestExport(rocketId)).newest,
+  });
+}
+
+/**
+ * Switching rocket inside the Workbench's rocket panel: the newest export
+ * of the rocket with its manifest (GET /api/exports/{exportId}), loaded
+ * into the draft on the spot.
  */
 export function useRocketLatestExportMutation() {
   return useMutation<{ rocket: RocketDetail; export: ExportDetail }, unknown, string>({
     mutationFn: async (rocketId) => {
-      const rocket = await getRocket(rocketId);
-      const newest = rocket.exports[0];
-      if (!newest) {
-        throw new ApiError(404, `Rocket '${rocketId}' has no exports yet.`, {
-          code: "requestFailed",
-        });
-      }
+      const { rocket, newest } = await newestExport(rocketId);
       return { rocket, export: await getExport(newest.export_id) };
     },
   });

@@ -400,6 +400,43 @@ describe("Workbench import — A2 converting (S8)", () => {
     expect(screen.getByText("Drop your OpenRocket file here")).toBeInTheDocument();
   });
 
+  it("tones a 503 as a warning naming the converter, with the server hint (S9)", async () => {
+    arm();
+    convertMock.mockRejectedValueOnce(new ApiError(503, "unavailable", { code: "unavailable", hint: "Retry in a minute." }));
+    await renderShellWithEmptyOrg();
+
+    chooseFile(dropZoneInput(), orkFile());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveAttribute("data-tone", "warning");
+    expect(alert).toHaveTextContent("The converter is unavailable right now");
+    expect(alert).toHaveTextContent("Retry in a minute.");
+  });
+
+  it("tones a 4xx as an error with the server detail, whatever its words (no 'java' sniffing, S9)", async () => {
+    arm();
+    convertMock.mockRejectedValueOnce(new ApiError(422, "Java could not parse this .ork: bad XML.", { code: "requestFailed" }));
+    await renderShellWithEmptyOrg();
+
+    chooseFile(dropZoneInput(), orkFile());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveAttribute("data-tone", "error");
+    expect(alert).toHaveTextContent("Java could not parse this .ork: bad XML.");
+  });
+
+  it("tones a network failure as an error saying the API is unreachable (S9)", async () => {
+    arm();
+    convertMock.mockRejectedValueOnce(new ApiError(0, "offline", { code: "network" }));
+    await renderShellWithEmptyOrg();
+
+    chooseFile(dropZoneInput(), orkFile());
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveAttribute("data-tone", "error");
+    expect(alert).toHaveTextContent("Could not reach the icaro API");
+  });
+
   it("rejects a file that is not .ork before any request", async () => {
     arm();
     await renderShellWithEmptyOrg();
@@ -569,5 +606,84 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
     expect(screen.getByRole("radio", { name: /New rocket/ })).toBeChecked();
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(convertMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("Workbench import — always reachable (S9)", () => {
+  /** Loads a file that predates rockets: no rocket id, no rocket name. */
+  function LegacyDriver() {
+    const { setExport } = useWizard();
+    return (
+      <button type="button" onClick={() => setExport("ex-legacy", {}, null, { filename: "old_design.ork" })}>
+        load-legacy
+      </button>
+    );
+  }
+
+  it("opens the rocket panel for a file that is in no rocket, showing the file alone with the drop zone", async () => {
+    arm();
+    armRocketApi();
+    render(
+      <AppProviders>
+        <LegacyDriver />
+        <WorkbenchShell />
+      </AppProviders>,
+    );
+    fireEvent.click(await screen.findByText("load-legacy"));
+
+    const trigger = await screen.findByRole("button", { name: /old_design\.ork/ });
+    expect(trigger).toBeEnabled();
+    fireEvent.click(trigger);
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "This file isn't in a rocket yet" })).toBeInTheDocument();
+    expect(within(dialog).getByText("old_design.ork")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("radio")).toBeNull();
+    expect(getRocketMock).not.toHaveBeenCalled();
+
+    // Its drop zone goes through the destination card: there is no rocket to add to.
+    chooseFile(within(dialog).getByLabelText("OpenRocket .ork file"), orkFile());
+    expect(await screen.findByText("Where does this file go?")).toBeInTheDocument();
+    expect(convertMock).not.toHaveBeenCalled();
+  });
+
+  it("shows a drop overlay while a file is dragged over the Workbench and opens the destination card on drop", async () => {
+    arm();
+    armRocketApi();
+    const run = await renderShell();
+    await useRocket("Icarus-2");
+    const file = orkFile("icarus2_v6.ork");
+    const dataTransfer = { types: ["Files"], files: [file] };
+
+    fireEvent.dragEnter(run, { dataTransfer });
+    expect(screen.getByText("Drop your .ork to import it")).toBeInTheDocument();
+    fireEvent.dragLeave(run, { dataTransfer });
+    expect(screen.queryByText("Drop your .ork to import it")).toBeNull();
+
+    fireEvent.dragEnter(run, { dataTransfer });
+    fireEvent.dragOver(run, { dataTransfer });
+    fireEvent.drop(run, { dataTransfer });
+
+    expect(screen.queryByText("Drop your .ork to import it")).toBeNull();
+    expect(await screen.findByText("Where does this file go?")).toBeInTheDocument();
+    expect(convertMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a drag that carries no file (text, links)", async () => {
+    arm();
+    const run = await renderShellWithEmptyOrg();
+    fireEvent.dragEnter(run, { dataTransfer: { types: ["text/plain"], files: [] } });
+    expect(screen.queryByText("Drop your .ork to import it")).toBeNull();
+  });
+
+  it("keeps the big drop zone working once without the overlay double-picking", async () => {
+    arm();
+    armRocketApi();
+    await renderShell();
+    const file = orkFile();
+    const zone = (await screen.findByText("Drop your OpenRocket file here")).closest("label") as HTMLElement;
+    fireEvent.dragEnter(zone, { dataTransfer: { types: ["Files"], files: [file] } });
+    fireEvent.drop(zone, { dataTransfer: { types: ["Files"], files: [file] } });
+    expect(await screen.findAllByText("Where does this file go?")).toHaveLength(1);
   });
 });

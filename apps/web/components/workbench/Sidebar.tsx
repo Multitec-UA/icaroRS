@@ -7,15 +7,14 @@
  * collapses to a wrapping top row so nothing scrolls sideways at phone widths.
  *
  * Destinations are real links (Cmd/Ctrl-click, middle-click and "open in new
- * tab" keep working); the active one carries `aria-current="page"`. Leaving
- * the run report through one of them ends that run for the Workbench: the
- * draft is reset so `/` starts clean rather than on the spent run's state.
+ * tab" keep working); the active one carries `aria-current="page"`. They
+ * never touch the draft (S8): the Workbench keeps it in memory and mirrors
+ * it into its URL, so coming back to `/` shows the same file, scenario and
+ * run.
  */
 
-import type { MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useWizardNav } from "@/components/wizard/WizardProvider";
 import { AccountMenu } from "@/components/auth/AccountMenu";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useT } from "@/components/i18n/LocaleProvider";
@@ -36,15 +35,6 @@ function isActive(pathname: string, href: string): boolean {
 export function Sidebar() {
   const t = useT();
   const pathname = usePathname();
-  // Nav-only slice: this never re-renders on draft keystrokes.
-  const { reset } = useWizardNav();
-
-  function handleNav(event: MouseEvent<HTMLAnchorElement>) {
-    // A modified click (new tab/window) leaves this tab on the report, so
-    // the draft must survive; onClick still fires for those, hence the guard.
-    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
-    if (pathname.startsWith("/results")) reset();
-  }
 
   const items: NavItem[] = [
     { href: "/", label: t("workbench.navWorkbench"), Icon: WorkbenchIcon },
@@ -71,7 +61,6 @@ export function Sidebar() {
             <Link
               key={href}
               href={href}
-              onClick={handleNav}
               aria-current={active ? "page" : undefined}
               className={cn(
                 "flex h-9 items-center gap-2.5 rounded-[9px] px-2.5 text-sm transition-[background-color,color,box-shadow,transform] duration-300 ease-[var(--ease-spring)] active:scale-[0.98]",

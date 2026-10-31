@@ -4,7 +4,7 @@
  * RunsTable — one rocket's runs as a table (S9): a compare checkbox and a
  * baseline radio per row, the run (date, file, id), the launch (date,
  * weather model, site), the four compared numbers with their delta against
- * the baseline, the status and the actions (View report, Re-run). Deltas
+ * the baseline, the status and the actions (View report, Open in Workbench). Deltas
  * and metrics come from lib/domain/runs so the chips agree with them.
  */
 
@@ -28,7 +28,7 @@ import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cardClass, textLink } from "@/components/ui/classes";
 import { RUN_COLORS } from "./colors";
 import { MAX_OVERLAY } from "./colors";
-import { ReRunButton } from "./ReRunButton";
+import { OpenInWorkbenchButton } from "./OpenInWorkbenchButton";
 import { useRunFormatters } from "./useRunFormatters";
 
 const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
@@ -201,7 +201,7 @@ export function RunsTable({
                         {t("runs.viewReport")}
                       </Link>
                     )}
-                    <ReRunButton run={run} />
+                    <OpenInWorkbenchButton run={run} />
                   </span>
                 </td>
               </tr>

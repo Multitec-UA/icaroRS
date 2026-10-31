@@ -12,7 +12,10 @@
  *     what the file says about the rocket, "Ready to run";
  *   - a file importing with no export yet: the quiet placeholder;
  *   - after a run: the displayed run (S6) through RunResults (S7), the
- *     same composition the run report renders.
+ *     same composition the run report renders;
+ *   - while the URL resolves (S8): a skeleton; when its run or file is gone
+ *     (404): "This run's file is no longer available" / "This file is no
+ *     longer available" with "Start fresh", never a blank column.
  *
  * Errors the input sections could not place next to a field (general 422
  * messages, 503 hints, network failures) are shown here, above the results.
@@ -23,7 +26,8 @@ import type { FieldError } from "@/lib/api";
 import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
 import { useWizardDraft, type DisplayedRun } from "@/components/wizard/WizardProvider";
 import { useRocketsQuery, useSeriesQuery } from "@/lib/queries";
-import { Callout } from "@/components/ui";
+import { Button, Callout } from "@/components/ui";
+import { ResultsSkeleton } from "@/components/results/ResultsSkeleton";
 import { FadeSwap } from "@/components/motion";
 import { ReplayProvider } from "@/components/flight/ReplayContext";
 import { RunResults } from "@/components/results/RunResults";
@@ -36,15 +40,18 @@ import { DestinationCard } from "./DestinationCard";
 import { ImportStatusCard } from "./ImportStatusCard";
 import { RocketSummaryCard } from "./RocketSummaryCard";
 import type { OrkImport } from "./useOrkImport";
+import type { WorkbenchUrl } from "./useWorkbenchUrl";
 
 export function ResultsColumn({
   errors,
   fatal,
   importer,
+  url,
 }: {
   errors: FieldError[];
   fatal: string | null;
   importer: OrkImport;
+  url: WorkbenchUrl;
 }) {
   const t = useT();
   const { state } = useWizardDraft();
@@ -54,12 +61,14 @@ export function ResultsColumn({
   const { phase } = importer;
   const hasExport = state.exportId !== null;
   const summary = useMemo(() => rocketSummaryFromManifest(state.manifest), [state.manifest]);
+  const urlStatus = url.status;
+  const urlProblem = urlStatus.kind === "missing" || urlStatus.kind === "failed";
 
   return (
     <section aria-label={t("workbench.results")} className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5">
       {fatal && <Callout tone="error">{fatal}</Callout>}
       {general.length > 0 && (
-        <Callout tone="error" title={t("review.errorsTitle")}>
+        <Callout tone="error" title={t("workbench.errorsTitle")}>
           <ul className="list-disc pl-5">
             {general.map((e, i) => (
               <li key={i}>
@@ -84,7 +93,11 @@ export function ResultsColumn({
         <ImportStatusCard phase={phase} onRetry={importer.cancel} />
       )}
 
-      {displayedRun ? (
+      {urlStatus.kind === "loading" ? (
+        <ResultsSkeleton label={t("workbench.loadingUrl")} />
+      ) : urlProblem && phase.kind === "idle" ? (
+        <UrlProblem status={urlStatus} onStartFresh={url.startFresh} />
+      ) : displayedRun ? (
         <FadeSwap key={displayedRun.runId} className="flex flex-col gap-4">
           <ReplayProvider>
             <DisplayedRunResults run={displayedRun} />
@@ -132,4 +145,38 @@ function DisplayedRunResults({ run }: { run: DisplayedRun }) {
     [run.manifest],
   );
   return <RunResults runId={run.runId} result={run.result} exportSummary={exportSummary} series={series} />;
+}
+
+/**
+ * The Workbench URL names a run or file the API no longer has (404), or
+ * could not be resolved at all: say which, and offer to start fresh.
+ */
+function UrlProblem({
+  status,
+  onStartFresh,
+}: {
+  status: Extract<WorkbenchUrl["status"], { kind: "missing" | "failed" }>;
+  onStartFresh: () => void;
+}) {
+  const t = useT();
+  const message =
+    status.kind === "failed"
+      ? t("workbench.loadFailed")
+      : status.target === "run"
+        ? t("workbench.runMissing")
+        : t("workbench.fileMissing");
+  const detail =
+    status.kind === "failed" && status.error
+      ? (status.error.hint ?? t(`errors.${status.error.code}`, { status: status.error.status }))
+      : null;
+  return (
+    <div className="flex flex-col items-start gap-3">
+      <Callout tone="warning" title={message} className="self-stretch">
+        {detail}
+      </Callout>
+      <Button variant="ghost" onClick={onStartFresh}>
+        {t("workbench.startFresh")}
+      </Button>
+    </div>
+  );
 }

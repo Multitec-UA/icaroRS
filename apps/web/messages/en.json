@@ -52,16 +52,6 @@
     "fileInputLabel": "OpenRocket .ork file"
   },
 
-  "basics": {
-    "fieldLatitude": "Latitude",
-    "fieldLongitude": "Longitude",
-    "fieldElevation": "Elevation (m)",
-    "elevationLookingUp": "Looking up elevation…",
-    "elevationAutoFilled": "Elevation auto-filled ({source}).",
-    "elevationEnterManually": "Enter elevation manually.",
-    "elevationFetchFailed": "Couldn't fetch elevation — enter it manually below."
-  },
-
   "sitePicker": {
     "loadingMap": "Loading map…",
     "searchPlaceholder": "Search a place (e.g. Alicante, Spain)…",
@@ -84,20 +74,7 @@
     "reanalysis": "Reanalysis (ERA5 file)"
   },
 
-  "advanced": {
-    "fieldStationId": "Station id",
-    "fieldStationHint": "Required for Wyoming soundings.",
-    "stationPlaceholder": "72493…"
-  },
-
-  "review": {
-    "errorsTitle": "The scenario needs attention",
-    "running": "Running the 6-DOF simulation — this can take a moment…",
-    "errorGeneric": "Simulation failed."
-  },
-
   "results": {
-    "simulateAgain": "Simulate again",
     "newRocket": "New rocket",
     "warningsTitle": "Heads up",
     "backToStart": "← Back to start",
@@ -222,9 +199,9 @@
     "statusDone": "Done",
     "statusError": "Failed",
     "viewReport": "View report",
-    "reRun": "Re-run",
-    "reRunUnavailable": "Re-run is unavailable for failed runs.",
-    "reRunNoExport": "Re-run is unavailable for runs saved before their file was tracked.",
+    "openInWorkbench": "Open in Workbench",
+    "openUnavailable": "Failed runs have no result to open.",
+    "openNoExport": "Runs saved before their file was tracked cannot be opened in the Workbench.",
     "unset": "unset",
     "overlayTitle": "Altitude",
     "overlayCount": {
@@ -281,6 +258,16 @@
   },
 
   "workbench": {
+    "fieldLatitude": "Latitude",
+    "fieldLongitude": "Longitude",
+    "fieldElevation": "Elevation (m)",
+    "elevationLookingUp": "Looking up elevation…",
+    "elevationAutoFilled": "Elevation auto-filled ({source}).",
+    "elevationEnterManually": "Enter elevation manually.",
+    "elevationFetchFailed": "Couldn't fetch elevation — enter it manually below.",
+    "fieldStationId": "Station id",
+    "fieldStationHint": "Required for Wyoming soundings.",
+    "stationPlaceholder": "72493…",
     "brand": "icaro",
     "navWorkbench": "Workbench",
     "navRockets": "Rockets",
@@ -393,7 +380,22 @@
     "cardMaxSpeed": "Max speed",
     "cardFlightTime": "Flight time",
     "cardReady": "Ready to run",
-    "cardReadyLine": "Review the scenario on the left, then run the simulation. Results appear here."
+    "cardReadyLine": "Review the scenario on the left, then run the simulation. Results appear here.",
+    "errorsTitle": "The scenario needs attention",
+    "runFailed": "Simulation failed.",
+    "runMissing": "This run's file is no longer available",
+    "fileMissing": "This file is no longer available",
+    "loadFailed": "Could not open this run or file.",
+    "startFresh": "Start fresh",
+    "loadingUrl": "Opening…",
+    "dropAnywhere": "Drop your .ork to import it",
+    "panelLegacyTitle": "This file isn't in a rocket yet",
+    "converterUnavailable": "The converter is unavailable right now",
+    "converterUnreachable": "Could not reach the icaro API",
+    "toastRunFinished": "Run {runId} finished",
+    "toastRunFailed": "Run failed: {detail}",
+    "toastOpen": "Open",
+    "toastDismiss": "Dismiss"
   },
 
   "flight": {

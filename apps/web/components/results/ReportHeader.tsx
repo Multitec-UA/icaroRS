@@ -79,7 +79,7 @@ export function ReportHeader({ runId }: { runId: string }) {
           )}
           {!run && !summary.isPending && <p className="text-sm text-muted">{t("report.detailsUnavailable")}</p>}
         </div>
-        <ResultsActions />
+        <ResultsActions runId={runId} />
       </div>
     </header>
   );

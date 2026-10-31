@@ -13,9 +13,12 @@
  * simulation" before the first run and "Run again" afterwards; it is
  * disabled only while a run is in flight or the draft cannot run.
  *
- * The rocket button opens the RocketPanel dialog (S8/A3) once a rocket is
- * active; while nothing is selected, or a file is converting, it only shows
- * the context. While the panel is open the header sits above a scrim.
+ * The rocket button opens the RocketPanel dialog (S8/A3, S9) whenever a file
+ * is active — including a file that predates rockets (`rocketId` null), for
+ * which the panel shows the file alone with an import drop zone. While no
+ * file is loaded, or a file is converting, it only shows the context. While
+ * the Workbench URL resolves (S8) it reads "Opening…". While the panel is
+ * open the header sits above a scrim.
  */
 
 import { useCallback, useId, useRef, useState } from "react";
@@ -30,6 +33,7 @@ import { RocketPanel } from "./RocketPanel";
 import { primaryButton } from "./styles";
 import type { RunSimulation } from "./useRunSimulation";
 import type { OrkImport } from "./useOrkImport";
+import type { WorkbenchUrl } from "./useWorkbenchUrl";
 
 const GROUP_LABEL = {
   file: "runs.groupFile",
@@ -39,7 +43,15 @@ const GROUP_LABEL = {
   rail: "runs.groupRail",
 } as const satisfies Record<ChangeGroup, string>;
 
-export function TopBar({ simulation, importer }: { simulation: RunSimulation; importer: OrkImport }) {
+export function TopBar({
+  simulation,
+  importer,
+  url,
+}: {
+  simulation: RunSimulation;
+  importer: OrkImport;
+  url: WorkbenchUrl;
+}) {
   const t = useT();
   const { state } = useWizardDraft();
   const { run, ready, busy, status, hasRun } = simulation;
@@ -55,15 +67,18 @@ export function TopBar({ simulation, importer }: { simulation: RunSimulation; im
     phase.kind === "converting"
       ? t("workbench.convertingContext", { filename: phase.file.name })
       : !hasExport
-      ? t("workbench.noRocket")
-      : state.rocketName
-        ? t("workbench.rocketContext", { rocket: state.rocketName, file })
-        : file;
+        ? url.status.kind === "loading"
+          ? t("workbench.loadingUrl")
+          : t("workbench.noRocket")
+        : state.rocketName
+          ? t("workbench.rocketContext", { rocket: state.rocketName, file })
+          : file;
 
-  // The panel needs a rocket to show; it is also left closed while a file
-  // converts, since the context button then describes the conversion.
+  // The panel needs an active file (a rocket-less one included, S9); it is
+  // left closed while a file converts, since the context button then
+  // describes the conversion.
   const rocketId = state.rocketId;
-  const canOpen = rocketId !== null && !converting;
+  const canOpen = hasExport && !converting;
   const panelOpen = open && canOpen;
 
   const closePanel = useCallback((returnFocus: boolean) => {
@@ -111,7 +126,7 @@ export function TopBar({ simulation, importer }: { simulation: RunSimulation; im
         />
       </button>
 
-      {panelOpen && rocketId !== null && (
+      {panelOpen && (
         <RocketPanel
           id={panelId}
           rocketId={rocketId}

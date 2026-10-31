@@ -52,16 +52,6 @@
     "fileInputLabel": "Archivo .ork de OpenRocket"
   },
 
-  "basics": {
-    "fieldLatitude": "Latitud",
-    "fieldLongitude": "Longitud",
-    "fieldElevation": "Elevación (m)",
-    "elevationLookingUp": "Buscando elevación…",
-    "elevationAutoFilled": "Elevación completada automáticamente ({source}).",
-    "elevationEnterManually": "Introduce la elevación manualmente.",
-    "elevationFetchFailed": "No se pudo obtener la elevación — introdúcela manualmente."
-  },
-
   "sitePicker": {
     "loadingMap": "Cargando mapa…",
     "searchPlaceholder": "Busca un lugar (p. ej., Alicante, España)…",
@@ -84,20 +74,7 @@
     "reanalysis": "Reanálisis (archivo ERA5)"
   },
 
-  "advanced": {
-    "fieldStationId": "ID de estación",
-    "fieldStationHint": "Requerido para sondeos de Wyoming.",
-    "stationPlaceholder": "72493…"
-  },
-
-  "review": {
-    "errorsTitle": "El escenario necesita correcciones",
-    "running": "Ejecutando la simulación de 6 grados de libertad — esto puede tardar un momento…",
-    "errorGeneric": "Falló la simulación."
-  },
-
   "results": {
-    "simulateAgain": "Simular de nuevo",
     "newRocket": "Nuevo cohete",
     "warningsTitle": "Atención",
     "backToStart": "← Volver al inicio",
@@ -222,9 +199,9 @@
     "statusDone": "Completada",
     "statusError": "Fallida",
     "viewReport": "Ver informe",
-    "reRun": "Volver a lanzar",
-    "reRunUnavailable": "No se puede repetir una simulación fallida.",
-    "reRunNoExport": "No se puede repetir una simulación guardada antes de registrar su archivo.",
+    "openInWorkbench": "Abrir en la mesa de trabajo",
+    "openUnavailable": "Una simulación fallida no tiene resultado que abrir.",
+    "openNoExport": "Las simulaciones guardadas antes de registrar su archivo no se pueden abrir en la mesa de trabajo.",
     "unset": "sin definir",
     "overlayTitle": "Altitud",
     "overlayCount": {
@@ -281,6 +258,16 @@
   },
 
   "workbench": {
+    "fieldLatitude": "Latitud",
+    "fieldLongitude": "Longitud",
+    "fieldElevation": "Elevación (m)",
+    "elevationLookingUp": "Buscando elevación…",
+    "elevationAutoFilled": "Elevación completada automáticamente ({source}).",
+    "elevationEnterManually": "Introduce la elevación manualmente.",
+    "elevationFetchFailed": "No se pudo obtener la elevación — introdúcela manualmente.",
+    "fieldStationId": "ID de estación",
+    "fieldStationHint": "Requerido para sondeos de Wyoming.",
+    "stationPlaceholder": "72493…",
     "brand": "icaro",
     "navWorkbench": "Mesa de trabajo",
     "navRockets": "Cohetes",
@@ -393,7 +380,22 @@
     "cardMaxSpeed": "Velocidad máx.",
     "cardFlightTime": "Tiempo de vuelo",
     "cardReady": "Listo para ejecutar",
-    "cardReadyLine": "Revisa el escenario a la izquierda y ejecuta la simulación. Los resultados aparecen aquí."
+    "cardReadyLine": "Revisa el escenario a la izquierda y ejecuta la simulación. Los resultados aparecen aquí.",
+    "errorsTitle": "El escenario necesita correcciones",
+    "runFailed": "Falló la simulación.",
+    "runMissing": "El archivo de esta simulación ya no está disponible",
+    "fileMissing": "Este archivo ya no está disponible",
+    "loadFailed": "No se pudo abrir esta simulación o archivo.",
+    "startFresh": "Empezar de cero",
+    "loadingUrl": "Abriendo…",
+    "dropAnywhere": "Suelta tu .ork para importarlo",
+    "panelLegacyTitle": "Este archivo aún no está en un cohete",
+    "converterUnavailable": "El convertidor no está disponible ahora mismo",
+    "converterUnreachable": "No se pudo conectar con la API de icaro",
+    "toastRunFinished": "Simulación {runId} terminada",
+    "toastRunFailed": "Falló la simulación: {detail}",
+    "toastOpen": "Abrir",
+    "toastDismiss": "Cerrar"
   },
 
   "flight": {

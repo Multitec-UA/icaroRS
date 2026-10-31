@@ -3,8 +3,8 @@
  *
  * Extracted out of components/wizard/WizardProvider.tsx: which atmosphere
  * models require a launch date, how a `datetime-local` string typed in the
- * user's time zone maps to the hour-granular UTC domain `LaunchDate`, what shape the
- * API expects for validate/simulate, and which step transitions are allowed.
+ * user's time zone maps to the hour-granular UTC domain `LaunchDate` and back,
+ * what shape the API expects for simulate, and when the Workbench can run.
  *
  * Plain functions over plain data — no React, no context. Mirrors
  * packages/icaro/icaro/scenario.py; apps/web can't import the Python package
@@ -13,28 +13,12 @@
  * a context provider.
  */
 
-import type {
-  Atmosphere,
-  AtmosphereModel,
-  LaunchDate,
-  Site,
-  SimulateResult,
-} from "@/lib/api";
+import type { Atmosphere, AtmosphereModel, LaunchDate, Site } from "@/lib/api";
 import { CHANGE_GROUPS, type ChangeGroup } from "./runs";
 
 // ---------------------------------------------------------------------------
-// Steps
+// Atmosphere
 // ---------------------------------------------------------------------------
-
-export type WizardStep = "rocket" | "basics" | "advanced" | "review" | "results";
-
-export const STEP_ORDER: WizardStep[] = [
-  "rocket",
-  "basics",
-  "advanced",
-  "review",
-  "results",
-];
 
 /** Atmosphere models that require a launch date (and an internet fetch). */
 export function needsDate(model: AtmosphereModel): boolean {
@@ -136,6 +120,27 @@ export function toLaunchDate(
   };
 }
 
+/**
+ * The inverse of `toLaunchDate`: a UTC LaunchDate as the `datetime-local`
+ * string ("2026-11-07T11:00") of the same instant on the wall clock of
+ * `timeZone`. `toLaunchDate` of the result gives back `date`, including in
+ * zones with a half-hour offset (their minutes are kept, then dropped again
+ * after the conversion to UTC).
+ */
+export function toLocalDatetime(
+  date: LaunchDate | null,
+  timeZone: string = resolveTimeZone(),
+): string | null {
+  if (!date) return null;
+  const utcMs = Date.UTC(date.year, date.month - 1, date.day, date.hour);
+  const wall = new Date(utcMs + zoneOffsetMs(utcMs, timeZone));
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return (
+    `${wall.getUTCFullYear()}-${pad(wall.getUTCMonth() + 1)}-${pad(wall.getUTCDate())}` +
+    `T${pad(wall.getUTCHours())}:${pad(wall.getUTCMinutes())}`
+  );
+}
+
 /** Serialize a UTC LaunchDate as an ISO 8601 string with an explicit offset. */
 export function launchDateToIso(date: LaunchDate): string {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -204,6 +209,49 @@ export function buildScenarioBody(
     atmosphere: draft.atmosphere,
     ...(Object.keys(rail).length > 0 ? { rail } : {}),
     uncertainty: {},
+  };
+}
+
+/** The scenario name the API defaults to; the UI never asks for one. */
+export const DEFAULT_SCENARIO_NAME = "my_scenario";
+
+function isLaunchDate(value: unknown): value is LaunchDate {
+  return (
+    isRecord(value) &&
+    ["year", "month", "day", "hour"].every((key) => typeof value[key] === "number")
+  );
+}
+
+/**
+ * The inverse of `buildScenarioBody` (S8): a scenario as a run stored it
+ * (`GET /api/history/{id}`) back into the draft, so opening a run in the
+ * Workbench shows exactly what it was sent. Site and atmosphere are kept
+ * verbatim, the UTC date becomes the user's wall clock in `timeZone`, and
+ * every rail key that carries a number becomes an override (a stored run
+ * only carries the keys that were overridden when it was sent).
+ */
+export function draftFromScenario(
+  scenario: unknown,
+  timeZone: string = resolveTimeZone(),
+): ScenarioDraft {
+  const source = isRecord(scenario) ? scenario : {};
+  const site = isRecord(source.site) ? (source.site as unknown as Site) : null;
+  const atmosphere = isRecord(source.atmosphere)
+    ? ({ ...DEFAULT_ATMOSPHERE, ...source.atmosphere } as Atmosphere)
+    : DEFAULT_ATMOSPHERE;
+  const railOverrides: RailOverrides = {};
+  if (isRecord(source.rail)) {
+    for (const key of ["length", "inclination", "heading"] as const) {
+      const value = source.rail[key];
+      if (typeof value === "number") railOverrides[key] = value;
+    }
+  }
+  return {
+    name: typeof source.name === "string" ? source.name : DEFAULT_SCENARIO_NAME,
+    site,
+    launchDatetime: toLocalDatetime(isLaunchDate(source.date) ? source.date : null, timeZone),
+    atmosphere,
+    railOverrides,
   };
 }
 
@@ -299,16 +347,15 @@ export function scenarioDiff(a: RunReference, b: RunReference): ChangeGroup[] {
 }
 
 // ---------------------------------------------------------------------------
-// Step-advance guard
+// Run guard
 // ---------------------------------------------------------------------------
 
-/** The subset of wizard progress needed to decide whether "Next" is enabled. */
-export interface ScenarioProgress {
+/** The subset of the draft the Workbench's Run button depends on. */
+export interface RunReadiness {
   exportId: string | null;
   site: Site | null;
   atmosphere: Atmosphere;
   launchDatetime: string | null;
-  result: SimulateResult | null;
 }
 
 /** A site the simulation can place: both coordinates are finite numbers. */
@@ -317,45 +364,16 @@ function hasFiniteSite(site: Site | null): site is Site {
 }
 
 /** True when the atmosphere model needs a launch date and none is parseable. */
-function missesRequiredDate(progress: Pick<ScenarioProgress, "atmosphere" | "launchDatetime">): boolean {
+function missesRequiredDate(progress: Pick<RunReadiness, "atmosphere" | "launchDatetime">): boolean {
   return needsDate(progress.atmosphere.model) && toLaunchDate(progress.launchDatetime) === null;
 }
-
-/** The subset of the draft the Workbench's Run button depends on. */
-export type RunReadiness = Pick<
-  ScenarioProgress,
-  "exportId" | "site" | "atmosphere" | "launchDatetime"
->;
 
 /**
  * True when the Workbench can send the draft to /api/simulate: an export is
  * loaded, the launch site is placed, and a launch date exists whenever the
  * atmosphere model needs one. Local gate for fast feedback only — the API
- * still validates the scenario (same contract as `canAdvance`).
+ * still validates the scenario.
  */
 export function canRun(progress: RunReadiness): boolean {
   return progress.exportId !== null && hasFiniteSite(progress.site) && !missesRequiredDate(progress);
-}
-
-/**
- * True when the current step's local guard is satisfied — gates the "Next"
- * button for fast UX feedback only. The API (/api/scenario/validate,
- * /api/simulate) remains the single source of truth for correctness; this
- * never decides a scenario is valid on its own.
- */
-export function canAdvance(step: WizardStep, progress: ScenarioProgress): boolean {
-  switch (step) {
-    case "rocket":
-      return progress.exportId !== null;
-    case "basics":
-      return hasFiniteSite(progress.site) && !missesRequiredDate(progress);
-    case "advanced":
-      return true; // advanced overrides are all optional
-    case "review":
-      return progress.result !== null; // only after a successful simulate
-    case "results":
-      return false;
-    default:
-      return false;
-  }
 }

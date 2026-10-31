@@ -117,9 +117,9 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
 
       {model === "wyoming_sounding" && (
         <Field
-          label={t("advanced.fieldStationId")}
+          label={t("workbench.fieldStationId")}
           htmlFor="station"
-          hint={t("advanced.fieldStationHint")}
+          hint={t("workbench.fieldStationHint")}
           error={errorFor(errors, "atmosphere.station")}
         >
           <TextInput
@@ -128,7 +128,7 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
             autoComplete="off"
             spellCheck={false}
             className="h-9"
-            placeholder={t("advanced.stationPlaceholder")}
+            placeholder={t("workbench.stationPlaceholder")}
             value={state.atmosphere.station ?? ""}
             onChange={(e) => setAtmosphere({ ...state.atmosphere, station: e.target.value || null })}
           />

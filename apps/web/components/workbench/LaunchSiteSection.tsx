@@ -27,19 +27,19 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
   const pickPoint = useCallback(
     async (lat: number, lon: number) => {
       setSite({ latitude: lat, longitude: lon, elevation: null });
-      setElevationNote(t("basics.elevationLookingUp"));
+      setElevationNote(t("workbench.elevationLookingUp"));
       try {
         const { elevation, source } = await getElevation(lat, lon);
         setSite({ latitude: lat, longitude: lon, elevation });
         setElevationNote(
           elevation !== null
-            ? t("basics.elevationAutoFilled", { source })
-            : t("basics.elevationEnterManually"),
+            ? t("workbench.elevationAutoFilled", { source })
+            : t("workbench.elevationEnterManually"),
         );
       } catch (err) {
         // getElevation() is a direct call, not a query: a 401 is ours to handle.
         if (err instanceof ApiError && err.isUnauthorized) return logout();
-        setElevationNote(t("basics.elevationFetchFailed"));
+        setElevationNote(t("workbench.elevationFetchFailed"));
       }
     },
     [setSite, logout, t],
@@ -67,7 +67,7 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
           numeric keypad lacks); inputMode="decimal" picks the right mobile
           keyboard. autoComplete="off" keeps password managers away. */}
       <div className="grid grid-cols-3 gap-2">
-        <Field label={t("basics.fieldLatitude")} htmlFor="lat" error={errorFor(errors, "site.latitude")}>
+        <Field label={t("workbench.fieldLatitude")} htmlFor="lat" error={errorFor(errors, "site.latitude")}>
           <TextInput
             id="lat"
             name="latitude"
@@ -80,7 +80,7 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
             onChange={(e) => updateSiteField("latitude", e.target.value)}
           />
         </Field>
-        <Field label={t("basics.fieldLongitude")} htmlFor="lon" error={errorFor(errors, "site.longitude")}>
+        <Field label={t("workbench.fieldLongitude")} htmlFor="lon" error={errorFor(errors, "site.longitude")}>
           <TextInput
             id="lon"
             name="longitude"
@@ -93,7 +93,7 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
             onChange={(e) => updateSiteField("longitude", e.target.value)}
           />
         </Field>
-        <Field label={t("basics.fieldElevation")} htmlFor="elev" error={errorFor(errors, "site.elevation")}>
+        <Field label={t("workbench.fieldElevation")} htmlFor="elev" error={errorFor(errors, "site.elevation")}>
           <TextInput
             id="elev"
             name="elevation"

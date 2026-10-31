@@ -2,11 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Atmosphere } from "@/lib/api";
 import { mockBrowserTimeZone } from "@/test/mock-time-zone";
 import {
-  STEP_ORDER,
   buildScenarioBody,
   FALLBACK_TIME_ZONE,
-  canAdvance,
   canRun,
+  draftFromScenario,
   canonicalScenario,
   scenarioDiff,
   formatLaunchDate,
@@ -29,12 +28,6 @@ const FORECAST_ATMOSPHERE: Atmosphere = {
   station: null,
   fallback: "standard_atmosphere",
 };
-
-describe("STEP_ORDER", () => {
-  it("lists every step exactly once, in wizard order", () => {
-    expect(STEP_ORDER).toEqual(["rocket", "basics", "advanced", "review", "results"]);
-  });
-});
 
 describe("needsDate", () => {
   it("is true for forecast and wyoming_sounding", () => {
@@ -253,96 +246,6 @@ describe("canRun", () => {
   });
 });
 
-describe("canAdvance", () => {
-  it("rocket: requires an exportId", () => {
-    const progress = {
-      exportId: null,
-      site: null,
-      atmosphere: STANDARD_ATMOSPHERE,
-      launchDatetime: null,
-      result: null,
-    };
-    expect(canAdvance("rocket", progress)).toBe(false);
-    expect(canAdvance("rocket", { ...progress, exportId: "export-1" })).toBe(true);
-  });
-
-  it("basics: requires a finite site, and a launch date only when the model needs one", () => {
-    const base = {
-      exportId: "export-1",
-      site: { latitude: 10, longitude: 20, elevation: null },
-      atmosphere: STANDARD_ATMOSPHERE,
-      launchDatetime: null,
-      result: null,
-    };
-    expect(canAdvance("basics", base)).toBe(true);
-    expect(canAdvance("basics", { ...base, site: null })).toBe(false);
-    expect(
-      canAdvance("basics", {
-        ...base,
-        site: { latitude: Number.NaN, longitude: 20, elevation: null },
-      }),
-    ).toBe(false);
-
-    // forecast needs a date
-    expect(canAdvance("basics", { ...base, atmosphere: FORECAST_ATMOSPHERE })).toBe(false);
-    expect(
-      canAdvance("basics", {
-        ...base,
-        atmosphere: FORECAST_ATMOSPHERE,
-        launchDatetime: "2026-06-01T09:54",
-      }),
-    ).toBe(true);
-    expect(
-      canAdvance("basics", {
-        ...base,
-        atmosphere: FORECAST_ATMOSPHERE,
-        launchDatetime: "not-a-date",
-      }),
-    ).toBe(false);
-  });
-
-  it("advanced: always true — overrides are optional", () => {
-    expect(
-      canAdvance("advanced", {
-        exportId: null,
-        site: null,
-        atmosphere: STANDARD_ATMOSPHERE,
-        launchDatetime: null,
-        result: null,
-      }),
-    ).toBe(true);
-  });
-
-  it("review: requires a result", () => {
-    const progress = {
-      exportId: "export-1",
-      site: null,
-      atmosphere: STANDARD_ATMOSPHERE,
-      launchDatetime: null,
-      result: null,
-    };
-    expect(canAdvance("review", progress)).toBe(false);
-    expect(
-      canAdvance("review", {
-        ...progress,
-        result: { run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] },
-      }),
-    ).toBe(true);
-  });
-
-  it("results: always false — terminal step", () => {
-    expect(
-      canAdvance("results", {
-        exportId: "export-1",
-        site: null,
-        atmosphere: STANDARD_ATMOSPHERE,
-        launchDatetime: null,
-        result: { run_id: "run-1", scalars: {}, plot_urls: [], warnings: [] },
-      }),
-    ).toBe(false);
-  });
-});
-
 describe("canonicalScenario — the comparable form of a scenario body (S6)", () => {
   const body = {
     uncertainty: {},
@@ -424,5 +327,45 @@ describe("scenarioDiff — which input groups differ between two runs' inputs (S
   it("treats a rail override that was reset as no rail at all", () => {
     expect(scenarioDiff(edit({ rail: { length: 5 } }), base)).toEqual(["rail"]);
     expect(scenarioDiff(edit({ rail: {} }), base)).toEqual([]);
+  });
+});
+
+describe("draftFromScenario — a stored run's scenario back into the draft (S8)", () => {
+  const STORED = {
+    name: "workbench",
+    site: { latitude: 38.2655, longitude: -0.6981, elevation: 42 },
+    date: { year: 2026, month: 11, day: 7, hour: 10 },
+    atmosphere: { model: "forecast", fallback: "standard_atmosphere", file: "GFS", station: null },
+    rail: { length: 5.2, inclination: 85, heading: 90 },
+    uncertainty: {},
+  };
+
+  it("maps site, atmosphere and rail verbatim and the UTC date to the user's wall clock", () => {
+    const draft = draftFromScenario(STORED, "Europe/Madrid");
+    expect(draft.name).toBe("workbench");
+    expect(draft.site).toEqual(STORED.site);
+    // 10:00 UTC on 7 Nov 2026 is 11:00 in Madrid (CET, UTC+1).
+    expect(draft.launchDatetime).toBe("2026-11-07T11:00");
+    expect(draft.atmosphere).toEqual(STORED.atmosphere);
+    expect(draft.railOverrides).toEqual({ length: 5.2, inclination: 85, heading: 90 });
+  });
+
+  it("round-trips: the draft rebuilds the canonical stored body", () => {
+    for (const timeZone of ["Europe/Madrid", "America/New_York", "Asia/Kolkata", "UTC"]) {
+      const body = buildScenarioBody(draftFromScenario(STORED, timeZone), timeZone);
+      expect(canonicalScenario(body)).toEqual(canonicalScenario(STORED));
+    }
+  });
+
+  it("keeps only the rail keys present and tolerates a missing date, rail and atmosphere", () => {
+    const draft = draftFromScenario(
+      { site: { latitude: 1, longitude: 2 }, date: null, rail: { length: null, heading: 45 } },
+      "UTC",
+    );
+    expect(draft.railOverrides).toEqual({ heading: 45 });
+    expect(draft.launchDatetime).toBeNull();
+    expect(draft.atmosphere.model).toBe("standard_atmosphere");
+    expect(draft.name).toBe("my_scenario");
+    expect(draftFromScenario(null, "UTC").site).toBeNull();
   });
 });

@@ -1,14 +1,12 @@
 "use client";
 
 /**
- * ResultsActions — "Simulate again" / "New rocket" on the run report (S9).
- * A client island: both drive the client-side WizardProvider (goto/reset are
- * nav-only — see WizardProvider.tsx's issue #50 context split) before
- * navigating back to the Workbench.
+ * ResultsActions — "Open in Workbench" / "New rocket" on the run report (S8).
  *
- * "Simulate again" is a real link (Cmd/Ctrl-click, middle-click and
- * "open in new tab" keep working) that moves the draft to the basics step
- * on the way out. "New rocket" stays a button: it discards the draft before
+ * "Open in Workbench" is a real link to `/?run={id}` (Cmd/Ctrl-click,
+ * middle-click and "open in new tab" keep working): the Workbench resolves
+ * that URL into the run's file, scenario and result, the same action as the
+ * /runs rows. "New rocket" stays a button: it discards the draft before
  * navigating, which is a mutation, not a navigation — and because it is
  * destructive it asks first instead of resetting on the spot.
  */
@@ -17,13 +15,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useWizardNav } from "@/components/wizard/WizardProvider";
+import { workbenchRunHref } from "@/components/runs/OpenInWorkbenchButton";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { buttonClass, ghostButton } from "@/components/ui/classes";
 
-export function ResultsActions() {
+export function ResultsActions({ runId }: { runId: string }) {
   const t = useT();
   const router = useRouter();
-  const { goto, reset } = useWizardNav();
+  const { reset } = useWizardNav();
   const [confirming, setConfirming] = useState(false);
 
   function newRocket() {
@@ -49,8 +48,8 @@ export function ResultsActions() {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <Link href="/" onClick={() => goto("basics")} className={ghostButton}>
-        {t("results.simulateAgain")}
+      <Link href={workbenchRunHref(runId)} className={ghostButton}>
+        {t("runs.openInWorkbench")}
       </Link>
       <button type="button" onClick={() => setConfirming(true)} className={ghostButton}>
         {t("results.newRocket")}

@@ -53,18 +53,16 @@ interface SeenState {
   manifest: Record<string, unknown> | null;
   exportFilename: string | null;
   rocketName: string | null;
-  step: string;
 }
 
 function WizardSpy({ onState }: { onState: (s: SeenState) => void }) {
-  const { state, step } = useWizard();
+  const { state } = useWizard();
   onState({
     exportId: state.exportId,
     rocketId: state.rocketId,
     manifest: state.manifest,
     exportFilename: state.exportFilename,
     rocketName: state.rocketName,
-    step,
   });
   return null;
 }
@@ -81,15 +79,11 @@ describe("RocketCard (issue #52 — client island in the server-rendered /rocket
     expect(screen.getByText("pilot@multitec.dev")).toBeInTheDocument();
   });
 
-  it("uses the rocket's newest export and navigates to the Workbench without touching the wizard step", async () => {
+  it("opens the rocket's newest file in the Workbench through its URL, without touching the draft (S8)", async () => {
     getRocketMock.mockResolvedValueOnce({
       ...rocketSummary,
       // Newest first, as the API returns them.
       exports: [exportSummary("export-new", "2026-02-01T00:00:00Z"), exportSummary("export-old", "2026-01-01T00:00:00Z")],
-    });
-    getExportMock.mockResolvedValueOnce({
-      ...exportSummary("export-new", "2026-02-01T00:00:00Z"),
-      manifest: { name: "acme-1 v2" },
     });
     const seen: SeenState[] = [];
     const push = vi.fn();
@@ -111,19 +105,11 @@ describe("RocketCard (issue #52 — client island in the server-rendered /rocket
 
     fireEvent.click(await screen.findByText("Use this rocket"));
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/?file=export-new"));
     expect(getRocketMock).toHaveBeenCalledWith("rocket-1");
-    expect(getExportMock).toHaveBeenCalledWith("export-new");
-    expect(seen.at(-1)).toEqual({
-      exportId: "export-new",
-      rocketId: "rocket-1",
-      manifest: { name: "acme-1 v2" },
-      // The Workbench's rocket context button reads these (S7).
-      exportFilename: "export-new.ork",
-      rocketName: "acme-1",
-      // The Workbench has no steps to jump to: the step is left as it was.
-      step: seen[0].step,
-    });
+    // The Workbench loads the file from its URL; the card leaves the draft alone.
+    expect(getExportMock).not.toHaveBeenCalled();
+    expect(seen.at(-1)?.exportId).toBeNull();
   });
 
   it("shows the inline error when the rocket has no exports yet", async () => {

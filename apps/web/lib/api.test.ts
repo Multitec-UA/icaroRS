@@ -6,7 +6,6 @@ import {
   getIdentity,
   logout,
   simulate,
-  validateScenario,
 } from "./api";
 
 interface MockResponseInit {
@@ -85,7 +84,7 @@ describe("ApiError status → code mapping", () => {
     const fieldErrors = [{ loc: ["body", "name"], field: "name", message: "required" }];
     mockFetchResolve({ ok: false, status: 422, json: jsonOf({ detail: fieldErrors }) });
 
-    const err: ApiError = await validateScenario({}).catch((e) => e);
+    const err: ApiError = await simulate("export-1", {}).catch((e) => e);
 
     expect(err.status).toBe(422);
     expect(err.code).toBe("validation");
@@ -96,7 +95,7 @@ describe("ApiError status → code mapping", () => {
   it("does not take the validation branch for a non-array 422 detail", async () => {
     mockFetchResolve({ ok: false, status: 422, json: jsonOf({ detail: "not an array" }) });
 
-    const err: ApiError = await validateScenario({}).catch((e) => e);
+    const err: ApiError = await simulate("export-1", {}).catch((e) => e);
 
     expect(err.code).toBe("requestFailed");
     expect(err.fieldErrors).toBeUndefined();

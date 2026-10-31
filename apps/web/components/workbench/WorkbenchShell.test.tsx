@@ -219,7 +219,9 @@ describe("WorkbenchShell — running in place (S7)", () => {
     expect(getSeriesMock).toHaveBeenCalledWith("run-7f3a");
     expect(screen.getByText("Stability margin at rail exit is low.")).toBeInTheDocument();
     expect(screen.queryByText(placeholder)).toBeNull();
-    expect(push).not.toHaveBeenCalled();
+    // It stays on the Workbench: the only navigation is the URL naming the new run (S8).
+    expect(push).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/?run=run-7f3a", { scroll: false });
   });
 
   it("shows 'Up to date' after a run and 'Changed since run' with a File chip once another export is active", async () => {

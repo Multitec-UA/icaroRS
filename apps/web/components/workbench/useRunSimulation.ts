@@ -19,18 +19,26 @@
  *     nothing differs, "changed" with the groups that do. Edits made while a
  *     run is in flight are kept, so its result can arrive already "changed".
  *
+ * Leaving mid-run (S8): the request keeps going (the API writes the run on
+ * completion and the draft lives in the root layout, so the result still
+ * becomes the displayed run). When it resolves after the Workbench
+ * unmounted, a toast says so on whatever route the user is on: "Run {id}
+ * finished" with a link to `/?run={id}`, or "Run failed: {detail}".
+ *
  * Error contract (unchanged from the wizard):
  *   401 → handled globally by lib/query-client.ts, nothing to do here
  *   422 → `errors` (FieldError[]) for the input sections / results column
  *   503 → the server's `hint` verbatim; other codes map to t("errors.<code>")
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError, type FieldError } from "@/lib/api";
 import { useSimulateMutation } from "@/lib/queries";
 import { canRun, scenarioDiff } from "@/lib/domain/scenario";
 import type { ChangeGroup } from "@/lib/domain/runs";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
+import { showToast } from "@/components/ui";
+import { workbenchRunHref } from "@/components/runs/OpenInWorkbenchButton";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { focusFirstError } from "./fieldErrors";
 
@@ -60,6 +68,14 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
   const { mutateAsync, isPending } = useSimulateMutation();
+  // False once the Workbench unmounted: an outcome then becomes a toast.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const hold = options?.hold ?? false;
   const ready = canRun(state) && !isPending && !hold;
@@ -83,8 +99,20 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
       const scenario = scenarioBody();
       const result = await mutateAsync({ exportId, scenario });
       showRun({ runId: result.run_id, exportId, scenario, result, exportFilename, manifest });
+      if (!mounted.current) {
+        showToast({
+          tone: "ok",
+          message: t("workbench.toastRunFinished", { runId: result.run_id }),
+          action: { href: workbenchRunHref(result.run_id), label: t("workbench.toastOpen") },
+        });
+      }
     } catch (err) {
       if (err instanceof ApiError && err.isUnauthorized) return;
+      if (!mounted.current) {
+        const detail = err instanceof ApiError ? (err.hint ?? err.message) : t("workbench.runFailed");
+        showToast({ tone: "bad", message: t("workbench.toastRunFailed", { detail }) });
+        return;
+      }
       if (err instanceof ApiError && err.isValidation) {
         const fieldErrors = err.fieldErrors ?? [];
         setErrors(fieldErrors);
@@ -92,7 +120,7 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
       } else if (err instanceof ApiError) {
         setFatal(err.hint ?? t(`errors.${err.code}`, { status: err.status }));
       } else {
-        setFatal(t("review.errorGeneric"));
+        setFatal(t("workbench.runFailed"));
       }
     }
   }, [exportId, exportFilename, manifest, ready, mutateAsync, scenarioBody, showRun, t]);

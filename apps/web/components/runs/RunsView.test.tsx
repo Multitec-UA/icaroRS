@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { AppProviders } from "@/test/test-providers";
 import { ApiError, type SimulationSummary } from "@/lib/api";
 import { RunsView } from "./RunsView";
@@ -222,29 +222,28 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     expect(within(rowC).queryByRole("link", { name: "View report" })).not.toBeInTheDocument();
   });
 
-  it("re-runs a run with its stored export and scenario, then opens the new result", async () => {
-    simulateMock.mockResolvedValueOnce({ run_id: "run-new", scalars: {}, plot_urls: [], warnings: [] });
-    const push = vi.fn();
-    vi.mocked(useRouter).mockReturnValue({ push, replace: vi.fn(), back: vi.fn(), forward: vi.fn(), refresh: vi.fn(), prefetch: vi.fn() });
+  it("opens a run in the Workbench through a link to its URL, never starting a run (S8)", async () => {
     const table = await renderRuns();
 
     const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
-    fireEvent.click(within(rowB).getByRole("button", { name: /Re-run/ }));
-
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/results/run-new"));
-    expect(simulateMock).toHaveBeenCalledWith("exp-1", RUNS_R2[1].scenario);
+    const open = within(rowB).getByRole("link", { name: "Open in Workbench" });
+    expect(open).toHaveAttribute("href", "/?run=run-b");
+    fireEvent.click(open);
+    expect(simulateMock).not.toHaveBeenCalled();
+    expect(within(rowB).queryByRole("button", { name: /Re-run/ })).not.toBeInTheDocument();
   });
 
-  it("disables re-run for a legacy run without an export and for a failed run, saying why", async () => {
+  it("cannot open a legacy run without an export nor a failed run, saying why", async () => {
     const table = await renderRuns();
 
     const rowE = table.getByRole("radio", { name: "Baseline: run run-e" }).closest("tr") as HTMLElement;
-    const legacy = within(rowE).getByRole("button", { name: /Re-run/ });
+    const legacy = within(rowE).getByRole("button", { name: /Open in Workbench/ });
     expect(legacy).toBeDisabled();
     expect(legacy).toHaveAccessibleName(/saved before/);
     const rowC = table.getByRole("radio", { name: "Baseline: run run-c" }).closest("tr") as HTMLElement;
-    expect(within(rowC).getByRole("button", { name: /Re-run/ })).toHaveAccessibleName(/failed runs/);
-    expect(simulateMock).not.toHaveBeenCalled();
+    const failed = within(rowC).getByRole("button", { name: /Open in Workbench/ });
+    expect(failed).toBeDisabled();
+    expect(failed).toHaveAccessibleName(/failed runs/i);
   });
 });
 

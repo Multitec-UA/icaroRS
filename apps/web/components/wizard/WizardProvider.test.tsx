@@ -9,7 +9,7 @@ import {
   useWizardNav,
 } from "./WizardProvider";
 
-// Pure domain-rule tests (toLaunchDate, buildScenarioBody, canAdvance,
+// Pure domain-rule tests (toLaunchDate, buildScenarioBody, canRun,
 // needsDate) live in lib/domain/scenario.test.ts (issue #50) — no rendering
 // needed there. This file covers the React wiring: the reducer, the two
 // contexts, and the render-isolation the split is for.
@@ -30,22 +30,12 @@ function setup() {
   return renderHook(() => useWizard(), { wrapper });
 }
 
-describe("WizardProvider — canAdvance per step", () => {
-  it("rocket: false until an export id is set", () => {
-    const { result } = setup();
-    expect(result.current.step).toBe("rocket");
-    expect(result.current.canAdvance).toBe(false);
-
-    act(() => result.current.setExport("export-1", { name: "My rocket" }));
-
-    expect(result.current.canAdvance).toBe(true);
-    expect(result.current.state.exportId).toBe("export-1");
-  });
-
+describe("WizardProvider — export and run readiness", () => {
   it("setExport stores the export's rocket when given, and clears it when not", () => {
     const { result } = setup();
     act(() => result.current.setExport("export-1", { name: "R" }, "rocket-1"));
     expect(result.current.state.rocketId).toBe("rocket-1");
+    expect(result.current.exportId).toBe("export-1");
 
     act(() => result.current.setExport("export-2", {}));
     expect(result.current.state.exportId).toBe("export-2");
@@ -55,69 +45,41 @@ describe("WizardProvider — canAdvance per step", () => {
     expect(result.current.state.rocketId).toBeNull();
   });
 
-  it("basics: requires a finite site, and a launch date only when the atmosphere model needs one", () => {
+  it("needsDate follows the atmosphere model", () => {
     const { result } = setup();
-    act(() => result.current.setExport("export-1", {}));
-    act(() => result.current.next());
-    expect(result.current.step).toBe("basics");
-    expect(result.current.canAdvance).toBe(false);
-
-    act(() =>
-      result.current.setSite({ latitude: 10, longitude: 20, elevation: null }),
-    );
-    // Default atmosphere model ("standard_atmosphere") does not need a date.
     expect(result.current.needsDate).toBe(false);
-    expect(result.current.canAdvance).toBe(true);
-
     act(() =>
-      result.current.setAtmosphere({
-        model: "forecast",
-        file: null,
-        station: null,
-        fallback: "standard_atmosphere",
-      }),
+      result.current.setAtmosphere({ model: "forecast", file: null, station: null, fallback: "standard_atmosphere" }),
     );
     expect(result.current.needsDate).toBe(true);
-    expect(result.current.canAdvance).toBe(false);
+  });
+});
 
-    act(() => result.current.setLaunchDatetime("not-a-date"));
-    expect(result.current.canAdvance).toBe(false);
+describe("WizardProvider — loading a stored run (S8)", () => {
+  const DRAFT = {
+    name: "workbench",
+    site: { latitude: 38.2655, longitude: -0.6981, elevation: 42 },
+    launchDatetime: "2026-11-07T11:00",
+    atmosphere: { model: "forecast" as const, file: "GFS", station: null, fallback: "standard_atmosphere" as const },
+    railOverrides: { length: 5.2 },
+  };
 
-    act(() => result.current.setLaunchDatetime("2026-06-01T09:54"));
-    expect(result.current.canAdvance).toBe(true);
+  it("loadScenario replaces every scenario field of the draft at once", () => {
+    const { result } = setup();
+    act(() => result.current.setRailOverride("heading", 10));
+    act(() => result.current.loadScenario(DRAFT));
+    expect(result.current.state).toMatchObject(DRAFT);
+    expect(result.current.state.railOverrides).toEqual({ length: 5.2 });
   });
 
-  it("basics: false when the site has a non-finite coordinate", () => {
+  it("clearRun takes the displayed run off screen and keeps the draft", () => {
     const { result } = setup();
     act(() => result.current.setExport("export-1", {}));
-    act(() => result.current.next());
-
-    act(() =>
-      result.current.setSite({ latitude: Number.NaN, longitude: 20, elevation: null }),
-    );
-    expect(result.current.canAdvance).toBe(false);
-  });
-
-  it("advanced: always true (overrides are optional)", () => {
-    const { result } = setup();
-    act(() => result.current.goto("advanced"));
-    expect(result.current.canAdvance).toBe(true);
-  });
-
-  it("review: false until a result is set", () => {
-    const { result } = setup();
-    act(() => result.current.goto("review"));
-    expect(result.current.canAdvance).toBe(false);
-
+    act(() => result.current.setName("kept"));
     act(() => result.current.showRun(RUN_1));
-    expect(result.current.canAdvance).toBe(true);
-    expect(result.current.state.displayedRun?.runId).toBe("run-1");
-  });
-
-  it("results: always false (terminal step)", () => {
-    const { result } = setup();
-    act(() => result.current.goto("results"));
-    expect(result.current.canAdvance).toBe(false);
+    act(() => result.current.clearRun());
+    expect(result.current.state.displayedRun).toBeNull();
+    expect(result.current.state).toMatchObject({ exportId: "export-1", name: "kept" });
   });
 });
 
@@ -174,48 +136,17 @@ describe("WizardProvider — export metadata and result provenance (Workbench)",
   });
 });
 
-describe("WizardProvider — reducer / navigation", () => {
-  it("next() walks the step order forward and stops at the last step", () => {
-    const { result } = setup();
-    const order = ["rocket", "basics", "advanced", "review", "results"];
-    for (let i = 0; i < order.length - 1; i++) {
-      expect(result.current.step).toBe(order[i]);
-      act(() => result.current.next());
-    }
-    expect(result.current.step).toBe("results");
-    act(() => result.current.next());
-    expect(result.current.step).toBe("results");
-  });
-
-  it("back() walks the step order backward and stops at the first step", () => {
-    const { result } = setup();
-    act(() => result.current.goto("advanced"));
-    act(() => result.current.back());
-    expect(result.current.step).toBe("basics");
-    act(() => result.current.back());
-    expect(result.current.step).toBe("rocket");
-    act(() => result.current.back());
-    expect(result.current.step).toBe("rocket");
-  });
-
-  it("goto() jumps directly to any step", () => {
-    const { result } = setup();
-    act(() => result.current.goto("review"));
-    expect(result.current.step).toBe("review");
-  });
-
+describe("WizardProvider — reducer", () => {
   it("reset() restores the initial state", () => {
     const { result } = setup();
     act(() => result.current.setExport("export-1", { name: "R" }));
     act(() => result.current.setName("custom"));
-    act(() => result.current.goto("review"));
 
     act(() => result.current.reset());
 
-    expect(result.current.step).toBe("rocket");
     expect(result.current.state.exportId).toBeNull();
+    expect(result.current.exportId).toBeNull();
     expect(result.current.state.name).toBe("my_scenario");
-    expect(result.current.canAdvance).toBe(false);
   });
 
   it("scenarioBody() builds the validate/simulate payload from the current draft", () => {
@@ -341,23 +272,30 @@ describe("WizardProvider — render isolation (issue #50)", () => {
     expect(navRenders).toHaveBeenCalledTimes(1);
   });
 
-  it("re-renders a useWizardNav consumer when the step changes", () => {
+  it("re-renders a useWizardNav consumer when the active export changes", () => {
     const navRenders = vi.fn();
 
     function NavProbe() {
-      const { step, goto } = useWizardNav();
+      const { exportId } = useWizardNav();
       navRenders();
-      return <button onClick={() => goto("basics")}>{step}</button>;
+      return <span>{exportId ?? "none"}</span>;
+    }
+
+    function DraftProbe() {
+      const { setExport } = useWizardDraft();
+      return <button onClick={() => setExport("export-1", {})}>load</button>;
     }
 
     render(
       <WizardProvider>
         <NavProbe />
+        <DraftProbe />
       </WizardProvider>,
     );
 
     expect(navRenders).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByText("rocket"));
+    fireEvent.click(screen.getByText("load"));
+    expect(screen.getByText("export-1")).toBeInTheDocument();
     expect(navRenders).toHaveBeenCalledTimes(2);
   });
 });
