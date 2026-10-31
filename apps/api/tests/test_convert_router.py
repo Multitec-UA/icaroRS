@@ -264,6 +264,28 @@ class TestConvertRocketDestination:
         assert export.ork_filename == "icarus.ork"
         assert export.export_prefix == f"orgs/test-org/exports/{data['export_id']}/"
 
+    def test_new_rocket_is_named_from_the_serializer_manifest(self, tmp_path):
+        """rocketserializer writes the name at manifest["id"]["rocket_name"]."""
+        import json
+
+        client, db = _client_with_db()
+        export_dir = tmp_path / "rocket_export"
+        export_dir.mkdir(exist_ok=True)
+        (export_dir / "parameters.json").write_text(json.dumps({"id": {"rocket_name": "Icarus Mk II"}}))
+        with patch(
+            "icaro_api.routers.convert.run_convert",
+            return_value={"status": "ok", "export_dir": str(export_dir)},
+        ):
+            resp = client.post(
+                "/api/convert",
+                files={"file": ("icarus-mk2-v3.ork", io.BytesIO(_ork_file_content()), "application/octet-stream")},
+                headers=_auth(),
+            )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert db.get_rocket(data["rocket_id"], org_id="test-org").name == "Icarus Mk II"
+        assert db.get_export(data["export_id"], org_id="test-org").name == "Icarus Mk II"
+
     def test_with_rocket_id_attaches_export_to_that_rocket(self, tmp_path):
         client, db = _client_with_db()
         with patch("icaro_api.routers.convert.run_convert", return_value=_ok_export(tmp_path)):

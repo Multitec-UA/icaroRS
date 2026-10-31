@@ -34,6 +34,21 @@ from icaro_api.services.storage import Storage
 
 logger = logging.getLogger("icaro_api.convert")
 
+def _rocket_name(manifest: dict) -> str | None:
+    """The design name rocketserializer stores at ``id.rocket_name``.
+
+    Older fixtures put it at the top level as ``name``; both are honoured so a
+    rocket is never silently named after its file when the design has a name.
+    """
+    for candidate in (
+        manifest.get("name"),
+        (manifest.get("id") or {}).get("rocket_name"),
+    ):
+        if isinstance(candidate, str) and candidate.strip():
+            return candidate.strip()
+    return None
+
+
 router = APIRouter(
     tags=["convert"],
     dependencies=[Depends(require_auth)],
@@ -162,7 +177,7 @@ async def post_convert(
         # Persist metadata to Db (REQ-03.1): the export, and the rocket that
         # groups it when the user did not pick an existing one.
         now = datetime.now(timezone.utc)
-        export_name = manifest.get("name", filename.removesuffix(".ork"))
+        export_name = _rocket_name(manifest) or filename.removesuffix(".ork")
         if rocket is None:
             rocket = RocketRecord(
                 rocket_id=make_run_id(),
