@@ -115,12 +115,25 @@ to `/?file={newest export}`. A run or file the API no longer has (404) shows
 available" with "Start fresh". A run still in flight when the user leaves the
 Workbench keeps going and announces itself with a toast.
 
+Below 1024 px (`lg`) the layout is for phones and tablets: the sidebar
+becomes a bottom bar (Workbench · Rockets · Runs · account, 44 px targets,
+safe-area padded) and the Workbench's two columns become two tabs, "Inputs"
+and "Result". It opens on Result while a run is displayed, on Inputs
+otherwise, and moves to Result whenever a run arrives; switching tabs only
+hides the other column, so nothing typed is lost. Below 768 px (`md`) the
+status pill shrinks to its dot (full text in its tooltip and accessible
+name). The run report is one column at any width, KPI cards 2×2 until their
+container is 42rem wide.
+
 ## Visual regression
 
 `e2e/` holds a Playwright suite that screenshots every screen (Workbench
 empty / destination / converting / ready / with result, Rocket panel,
 `/rockets`, `/runs` with the compare overlay, the run report, login) in both
-themes at 1440×900, plus the Workbench with a result at 390×844.
+themes at 1440×900, plus three phone shots at 390×844 in light
+(`e2e/mobile.spec.ts`: the Workbench on its Result tab, on its Inputs tab,
+and the run report) and a desktop check that the phone bottom bar never
+shows at 1440.
 `e2e/flows.spec.ts` adds behaviour flows without screenshots: run and file
 URLs, "Open in Workbench" from `/runs` and back, the 404 message, a `.ork`
 dropped anywhere on the Workbench, and leaving and coming back.

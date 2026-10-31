@@ -104,3 +104,22 @@ for (const theme of THEMES) {
     });
   });
 }
+
+/** S10: at 1440 the navigation is the left sidebar, never the phone bottom bar. */
+test("no bottom bar at desktop width", async ({ page }) => {
+  await prepare(page, "light");
+  await page.goto("/runs");
+  const nav = page.getByRole("navigation", { name: "Primary navigation" });
+  await expect(nav).toBeVisible();
+  const aside = page.locator("aside", { has: nav });
+  expect(await aside.evaluate((el) => getComputedStyle(el).position)).toBe("sticky");
+  const box = await aside.boundingBox();
+  expect(box?.x).toBe(0);
+  expect(box?.width).toBe(232);
+  expect(box?.height).toBe(900);
+  // And the Workbench shows both columns, without tabs.
+  await page.goto("/");
+  await expect(page.getByRole("tablist", { name: "Workbench view" })).toBeHidden();
+  await expect(page.getByRole("complementary", { name: "Inputs" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Results" })).toBeVisible();
+});

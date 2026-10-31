@@ -51,4 +51,18 @@ describe("Sidebar (S7)", () => {
     expect(sidebar.getByRole("button", { name: /Switch to (dark|light) mode/ })).toBeInTheDocument();
     expect(sidebar.getByRole("button", { name: "Account" })).toBeInTheDocument();
   });
+
+  it("below lg becomes a bottom bar: fixed, safe-area padded, 44 px targets, current route marked", async () => {
+    vi.mocked(usePathname).mockReturnValue("/runs");
+    const sidebar = await renderSidebar();
+
+    const nav = await sidebar.findByRole("navigation", { name: "Primary navigation" });
+    const bar = nav.closest("aside") as HTMLElement;
+    expect(bar).toHaveClass("max-lg:fixed", "max-lg:bottom-0", "max-lg:pb-[env(safe-area-inset-bottom)]", "lg:sticky");
+    const runs = sidebar.getByRole("link", { name: "Runs" });
+    expect(runs).toHaveAttribute("aria-current", "page");
+    for (const link of nav.querySelectorAll("a")) expect(link).toHaveClass("max-lg:min-h-11");
+    // The account menu (which holds the theme switch) stays in the bar.
+    expect(bar).toContainElement(sidebar.getByRole("button", { name: "Account" }));
+  });
 });

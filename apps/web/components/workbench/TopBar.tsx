@@ -19,6 +19,10 @@
  * file is loaded, or a file is converting, it only shows the context. While
  * the Workbench URL resolves (S8) it reads "Opening…". While the panel is
  * open the header sits above a scrim.
+ *
+ * Below `md` (S10) the row never wraps: the context label truncates, the
+ * pill collapses to its dot (full text, with the changed groups, in its
+ * `title` / accessible name), the change chips and the ⌘↵ hint are hidden.
  */
 
 import { useCallback, useId, useRef, useState } from "react";
@@ -89,7 +93,7 @@ export function TopBar({
   return (
     <header
       className={cn(
-        "relative flex flex-wrap items-center gap-3 border-b border-divider px-4 py-3 sm:px-5",
+        "relative flex items-center gap-3 border-b border-divider px-4 py-3 sm:px-5 md:flex-wrap",
         panelOpen && "z-40",
       )}
     >
@@ -137,16 +141,31 @@ export function TopBar({
       )}
 
       {/* StatusPill is a polite live region: every state change is announced. */}
-      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-        {status.kind === "none" && <StatusPill>{t("workbench.statusNone")}</StatusPill>}
-        {status.kind === "running" && <StatusPill spinner>{t("workbench.statusRunning")}</StatusPill>}
+      <div className="flex shrink-0 items-center gap-1.5 md:min-w-0 md:shrink md:flex-wrap">
+        {status.kind === "none" && <StatusPill collapse>{t("workbench.statusNone")}</StatusPill>}
+        {status.kind === "running" && (
+          <StatusPill collapse spinner>
+            {t("workbench.statusRunning")}
+          </StatusPill>
+        )}
         {status.kind === "upToDate" && (
-          <StatusPill tone="ok">{t("workbench.statusUpToDate", { runId: status.runId })}</StatusPill>
+          <StatusPill collapse tone="ok">
+            {t("workbench.statusUpToDate", { runId: status.runId })}
+          </StatusPill>
         )}
         {status.kind === "changed" && (
           <>
-            <StatusPill tone="warn">{t("workbench.statusChanged", { runId: status.runId })}</StatusPill>
-            <ul aria-label={t("workbench.changesLabel")} className="flex flex-wrap gap-1.5">
+            <StatusPill
+              collapse
+              tone="warn"
+              title={[
+                t("workbench.statusChanged", { runId: status.runId }),
+                status.changes.map((group) => t(GROUP_LABEL[group])).join(", "),
+              ].join(" · ")}
+            >
+              {t("workbench.statusChanged", { runId: status.runId })}
+            </StatusPill>
+            <ul aria-label={t("workbench.changesLabel")} className="flex flex-wrap gap-1.5 max-md:hidden">
               {status.changes.map((group) => (
                 <ChangeChip key={group} tone="warn">
                   {t(GROUP_LABEL[group])}
@@ -157,15 +176,15 @@ export function TopBar({
         )}
       </div>
 
-      <div className="flex-1" />
+      <div className="min-w-0 flex-1" />
 
       <button type="button" onClick={() => void run()} disabled={!ready}
         // A disabled Run stays readable (opacity 60 %, not the kit's 50 %; `!` wins over it).
-        className={cn(primaryButton, "disabled:text-on-primary disabled:opacity-60!")}
+        className={cn(primaryButton, "shrink-0 disabled:text-on-primary disabled:opacity-60!")}
       >
         {busy ? <Spinner decorative className="h-3.5 w-3.5" /> : <PlayIcon />}
         {busy ? t("workbench.running") : hasRun ? t("workbench.runAgain") : t("workbench.run")}
-        <kbd aria-hidden className="font-mono text-[11px] opacity-75">
+        <kbd aria-hidden className="font-mono text-[11px] opacity-75 max-md:hidden">
           ⌘↵
         </kbd>
         <span className="sr-only">{t("workbench.runShortcut")}</span>

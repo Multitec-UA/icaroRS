@@ -146,6 +146,20 @@ describe("RunsView — rocket selection (S9)", () => {
   });
 });
 
+describe("RunsView — table layout (T7)", () => {
+  it("keeps numeric cells on one line and the action column fixed, scrolling inside its card", async () => {
+    const table = await renderRuns();
+
+    const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
+    const numeric = Array.from(rowA.querySelectorAll("td.text-right")).slice(0, 4);
+    expect(numeric).toHaveLength(4);
+    for (const cell of numeric) expect(cell).toHaveClass("whitespace-nowrap", "tabular-nums");
+    const action = rowA.querySelector("td:last-child") as HTMLElement;
+    expect(action).toHaveClass("w-px", "whitespace-nowrap");
+    expect(screen.getByRole("table").parentElement).toHaveClass("overflow-x-auto");
+  });
+});
+
 describe("RunsView — baseline and deltas", () => {
   it("defaults the baseline to the newest finished run and shows signed deltas on the others", async () => {
     const table = await renderRuns();

@@ -121,7 +121,8 @@ function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSer
           options={speedOptions}
           value={String(speed) as "1" | "4"}
           onChange={(value) => engine.setSpeed(Number(value) as ReplaySpeed)}
-          className="text-xs"
+          // Never squeezed to "1…" when the row wraps on a phone (S10).
+          className="shrink-0 text-xs [&>button]:flex-none [&>button]:px-2.5"
         />
       </div>
     </>

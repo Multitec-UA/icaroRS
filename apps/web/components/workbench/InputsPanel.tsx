@@ -11,18 +11,27 @@
  */
 
 import type { FieldError } from "@/lib/api";
+import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { LaunchSiteSection } from "./LaunchSiteSection";
 import { TimeWeatherSection } from "./TimeWeatherSection";
 import { LaunchRailSection } from "./LaunchRailSection";
 
-export function InputsPanel({ errors }: { errors: FieldError[] }) {
+/**
+ * `hidden` is the phone tab state (S10): it hides the column below lg only
+ * (CSS, never unmounting it), so both columns always show on desktop.
+ */
+export function InputsPanel({ id, hidden = false, errors }: { id?: string; hidden?: boolean; errors: FieldError[] }) {
   const t = useT();
 
   return (
     <aside
+      id={id}
       aria-label={t("workbench.inputs")}
-      className="flex w-full flex-col gap-6 border-b border-divider p-4 sm:p-5 lg:w-[360px] lg:shrink-0 lg:border-b-0 lg:border-r"
+      className={cn(
+        "flex w-full flex-col gap-6 p-4 sm:p-5 lg:w-[360px] lg:shrink-0 lg:border-r lg:border-divider",
+        hidden && "max-lg:hidden",
+      )}
     >
       <LaunchSiteSection errors={errors} />
       <TimeWeatherSection errors={errors} />

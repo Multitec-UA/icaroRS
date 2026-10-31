@@ -171,34 +171,38 @@ export function KpiCards({
   ];
 
   return (
-    <section aria-label={t("flight.kpiRegion")} className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-      {cards.map((card, i) => (
-        <Reveal key={card.key} delay={0.14 + i * 0.05} className="min-w-0">
-          <div
-            role="group"
-            aria-label={card.title}
-            className="flex h-full flex-col rounded-2xl border border-border bg-surface p-4 shadow-soft"
-          >
-            <div className="text-[13px] text-muted">{card.title}</div>
-            <div className="mt-1.5 text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">
-              {card.value ? (
-                <>
-                  <CountUp
-                    value={card.value.amount}
-                    format={(n) => formatNumber(n, locale)}
-                    className="tabular-readout"
-                  />
-                  <span className="text-sm font-medium text-muted">{` ${card.value.unit}`}</span>
-                </>
-              ) : (
-                <span className="tabular-readout">—</span>
-              )}
+    // 2×2 on phones and in narrow columns, 4 across once the container (the
+    // Workbench results column or the report, S10) is at least 42rem wide.
+    <div className="@container">
+      <section aria-label={t("flight.kpiRegion")} className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
+        {cards.map((card, i) => (
+          <Reveal key={card.key} delay={0.14 + i * 0.05} className="min-w-0">
+            <div
+              role="group"
+              aria-label={card.title}
+              className="flex h-full flex-col rounded-2xl border border-border bg-surface p-4 shadow-soft"
+            >
+              <div className="text-[13px] text-muted">{card.title}</div>
+              <div className="mt-1.5 text-[28px] font-semibold leading-none tracking-[-0.02em] text-ink">
+                {card.value ? (
+                  <>
+                    <CountUp
+                      value={card.value.amount}
+                      format={(n) => formatNumber(n, locale)}
+                      className="tabular-readout"
+                    />
+                    <span className="text-sm font-medium text-muted">{` ${card.value.unit}`}</span>
+                  </>
+                ) : (
+                  <span className="tabular-readout">—</span>
+                )}
+              </div>
+              <div className="mt-2 min-h-4 text-xs text-muted">{card.caption}</div>
+              {card.spark && <Sparkline values={card.spark} strokeClass={card.strokeClass} />}
             </div>
-            <div className="mt-2 min-h-4 text-xs text-muted">{card.caption}</div>
-            {card.spark && <Sparkline values={card.spark} strokeClass={card.strokeClass} />}
-          </div>
-        </Reveal>
-      ))}
-    </section>
+          </Reveal>
+        ))}
+      </section>
+    </div>
   );
 }

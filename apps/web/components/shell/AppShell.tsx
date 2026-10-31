@@ -9,6 +9,10 @@
  * /runs and /results/* share the same sidebar and the same active-item and
  * skip-link behaviour. Pages own only their own content.
  *
+ * Below `lg` the sidebar is a fixed bottom bar (S10); `<main>` is padded by
+ * its height (44 px targets + margins, plus the safe-area inset) so nothing
+ * hides under it.
+ *
  * It also mounts the one Toaster (S8): a run that finishes after the user
  * left the Workbench announces itself on whatever route they are on.
  */
@@ -23,10 +27,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex w-full flex-1 flex-col lg:flex-row">
       <Sidebar />
-      <main id="main" className="flex min-w-0 flex-1 flex-col">
+      <main
+        id="main"
+        className="flex min-w-0 flex-1 flex-col max-lg:pb-[calc(3.75rem+env(safe-area-inset-bottom))]"
+      >
         {children}
       </main>
-      <Toaster dismissLabel={t("workbench.toastDismiss")} />
+      {/* Below lg the toast queue lifts above the bottom bar (S10). */}
+      <div className="contents max-lg:[&>div]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))]">
+        <Toaster dismissLabel={t("workbench.toastDismiss")} />
+      </div>
     </div>
   );
 }

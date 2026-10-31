@@ -23,6 +23,7 @@
 
 import { useMemo } from "react";
 import type { FieldError } from "@/lib/api";
+import { cn } from "@/lib/styles";
 import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
 import { useWizardDraft, type DisplayedRun } from "@/components/wizard/WizardProvider";
 import { useRocketsQuery, useSeriesQuery } from "@/lib/queries";
@@ -43,11 +44,16 @@ import type { OrkImport } from "./useOrkImport";
 import type { WorkbenchUrl } from "./useWorkbenchUrl";
 
 export function ResultsColumn({
+  id,
+  hidden = false,
   errors,
   fatal,
   importer,
   url,
 }: {
+  /** Phone tab state (S10): hides the column below lg only, never unmounting it. */
+  id?: string;
+  hidden?: boolean;
   errors: FieldError[];
   fatal: string | null;
   importer: OrkImport;
@@ -65,7 +71,11 @@ export function ResultsColumn({
   const urlProblem = urlStatus.kind === "missing" || urlStatus.kind === "failed";
 
   return (
-    <section aria-label={t("workbench.results")} className="flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5">
+    <section
+      id={id}
+      aria-label={t("workbench.results")}
+      className={cn("flex min-w-0 flex-1 flex-col gap-4 p-4 sm:p-5", hidden && "max-lg:hidden")}
+    >
       {fatal && <Callout tone="error">{fatal}</Callout>}
       {general.length > 0 && (
         <Callout tone="error" title={t("workbench.errorsTitle")}>

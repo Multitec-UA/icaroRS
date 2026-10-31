@@ -5,8 +5,8 @@
  * active file's own values (`manifest.flight`, already converted by the
  * serializer to RocketPy's inclination from horizontal).
  *
- * Each field shows the file's value with a "From .ork" badge until the user
- * types over it; then it shows "Overridden" and a "Reset to …" link that
+ * Each field shows the file's value with a "From .ork" badge (the kit
+ * Field's `labelAside`, on the label's line) until the user types over it; then it shows "Overridden" and a "Reset to …" link that
  * deletes the override. Only overrides are stored in the draft and sent to
  * /api/simulate (see `buildScenarioBody`), so a Reset truly resets and a
  * file switch never carries the previous file's values silently. With no
@@ -52,7 +52,7 @@ const RAIL_FIELDS: ReadonlyArray<{
   },
 ];
 
-const badge = "rounded-full px-2 py-0.5 text-[11px] font-semibold";
+const badge = "whitespace-nowrap rounded-full px-2 py-px text-[11px] font-semibold leading-4";
 
 export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
   const t = useT();
@@ -68,49 +68,37 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
         const overridden = override !== undefined;
         const label = t(labelKey);
         return (
-          <div key={field} className="relative min-w-0">
-            <Field
-              label={label}
-              htmlFor={id}
-              hint={hintKey ? t(hintKey) : undefined}
-              error={errorFor(errors, `rail.${field}`)}
-            >
-              <RailInput
-                id={id}
-                name={name}
-                disabled={!hasFile}
-                placeholder={hasFile ? undefined : t("workbench.railPlaceholder")}
-                value={hasFile ? (override ?? fileValue) : null}
-                overridden={overridden}
-                onValue={(value) => setRailOverride(field, value)}
-                onClear={() => resetRailOverride(field)}
-              />
-            </Field>
-            {/* The badge sits inline after the label (artboard 01). The kit's
-                Field takes a plain-text label, so this row overlays the label
-                line: an invisible copy of the label reserves its width. */}
-            {hasFile && (
-              <div className="pointer-events-none absolute inset-x-0 top-0 flex items-center gap-2 text-[13px] font-medium">
-                <span aria-hidden className="invisible whitespace-nowrap">
-                  {label}
-                </span>
-                {overridden ? (
-                  <>
-                    <span className={cn(badge, "bg-accent-soft text-accent-ink")}>{t("workbench.railOverridden")}</span>
-                    <button
-                      type="button"
-                      className={cn(textLink, "pointer-events-auto ml-auto font-normal")}
-                      onClick={() => resetRailOverride(field)}
-                    >
-                      {t("workbench.railReset", { value: fileValue === null ? "—" : `${fileValue}${unit}` })}
-                    </button>
-                  </>
-                ) : (
-                  <span className={cn(badge, "bg-chip text-ink-2")}>{t("workbench.railFromOrk")}</span>
-                )}
-              </div>
-            )}
-          </div>
+          <Field
+            key={field}
+            label={label}
+            htmlFor={id}
+            hint={hintKey ? t(hintKey) : undefined}
+            error={errorFor(errors, `rail.${field}`)}
+            labelAside={
+              hasFile &&
+              (overridden ? (
+                <>
+                  <span className={cn(badge, "bg-accent-soft text-accent-ink")}>{t("workbench.railOverridden")}</span>
+                  <button type="button" className={textLink} onClick={() => resetRailOverride(field)}>
+                    {t("workbench.railReset", { value: fileValue === null ? "—" : `${fileValue}${unit}` })}
+                  </button>
+                </>
+              ) : (
+                <span className={cn(badge, "bg-chip text-ink-2")}>{t("workbench.railFromOrk")}</span>
+              ))
+            }
+          >
+            <RailInput
+              id={id}
+              name={name}
+              disabled={!hasFile}
+              placeholder={hasFile ? undefined : t("workbench.railPlaceholder")}
+              value={hasFile ? (override ?? fileValue) : null}
+              overridden={overridden}
+              onValue={(value) => setRailOverride(field, value)}
+              onClear={() => resetRailOverride(field)}
+            />
+          </Field>
         );
       })}
     </Section>

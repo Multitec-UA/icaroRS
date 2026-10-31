@@ -477,3 +477,83 @@ describe("WorkbenchShell — results column (S9)", () => {
     expect(screen.queryByRole("button", { name: /Show all/ })).toBeNull();
   });
 });
+
+describe("WorkbenchShell — phone tabs (S10)", () => {
+  function tabs() {
+    const list = screen.getByRole("tablist", { name: "Workbench view" });
+    return {
+      list,
+      inputs: within(list).getByRole("tab", { name: "Inputs" }),
+      result: within(list).getByRole("tab", { name: "Result" }),
+    };
+  }
+  const inputsColumn = () => screen.getByRole("complementary", { name: "Inputs" });
+  const resultsColumn = () => screen.getByRole("region", { name: "Results" });
+
+  it("opens on Result while no file is loaded, so importing is the first thing a phone shows", async () => {
+    await renderShell();
+    const { list, inputs, result } = tabs();
+
+    expect(result).toHaveAttribute("aria-selected", "true");
+    expect(inputs).toHaveAttribute("aria-selected", "false");
+    expect(inputs).toHaveAttribute("aria-controls", inputsColumn().id);
+    expect(result).toHaveAttribute("aria-controls", resultsColumn().id);
+    // Desktop renders both columns and no tabs: hiding is scoped to < lg.
+    expect(list).toHaveClass("lg:hidden");
+    expect(inputsColumn()).toHaveClass("max-lg:hidden");
+    expect(resultsColumn()).not.toHaveClass("max-lg:hidden");
+    expect(inputsColumn()).not.toHaveAttribute("hidden");
+  });
+
+  it("opens on Inputs once a file is loaded and nothing has run", async () => {
+    arm();
+    await seedReady();
+    const { inputs, result } = tabs();
+
+    expect(inputs).toHaveAttribute("aria-selected", "true");
+    expect(result).toHaveAttribute("aria-selected", "false");
+    expect(resultsColumn()).toHaveClass("max-lg:hidden");
+    expect(inputsColumn()).not.toHaveClass("max-lg:hidden");
+  });
+
+  it("switches to Result once a run is displayed", async () => {
+    arm();
+    simulateMock.mockResolvedValueOnce(RESULT);
+    const run = await seedReady();
+    expect(tabs().inputs).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.click(run);
+
+    await screen.findByText("Up to date · run run-7f3a");
+    expect(tabs().result).toHaveAttribute("aria-selected", "true");
+    expect(inputsColumn()).toHaveClass("max-lg:hidden");
+    expect(resultsColumn()).not.toHaveClass("max-lg:hidden");
+  });
+
+  it("keeps the inputs column mounted, with its values, across a tab switch; arrows move between tabs", async () => {
+    await renderShell();
+    fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "38.5" } });
+    await waitFor(() => expect(screen.getByLabelText("Latitude")).toHaveValue(38.5));
+    // The column element itself must survive (vitest.setup's motion stub
+    // remounts Reveal children on every render, so inner nodes cannot be
+    // compared by identity in jsdom).
+    const column = inputsColumn();
+
+    fireEvent.click(tabs().result);
+    expect(tabs().result).toHaveAttribute("aria-selected", "true");
+    expect(inputsColumn()).toBe(column);
+    expect(column).toHaveClass("max-lg:hidden");
+    expect(screen.getByLabelText("Latitude")).toHaveValue(38.5);
+
+    fireEvent.keyDown(tabs().result, { key: "ArrowLeft" });
+    expect(tabs().inputs).toHaveAttribute("aria-selected", "true");
+    expect(tabs().inputs).toHaveFocus();
+    expect(inputsColumn()).toBe(column);
+    expect(screen.getByLabelText("Latitude")).toHaveValue(38.5);
+
+    fireEvent.keyDown(tabs().inputs, { key: "ArrowRight" });
+    expect(tabs().result).toHaveAttribute("aria-selected", "true");
+    expect(tabs().inputs).toHaveAttribute("tabindex", "-1");
+    expect(tabs().result).toHaveAttribute("tabindex", "0");
+  });
+});

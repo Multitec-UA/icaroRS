@@ -6,6 +6,11 @@
  * weather model, site), the four compared numbers with their delta against
  * the baseline, the status and the actions (View report, Open in Workbench). Deltas
  * and metrics come from lib/domain/runs so the chips agree with them.
+ *
+ * Layout (T7): numbers never wrap (`whitespace-nowrap` + tabular figures),
+ * the actions column is as narrow as its content (`w-px`, "View report"
+ * stacked over "Open in Workbench"), the run's file name truncates, and below the table's min width it
+ * scrolls sideways inside its card instead of widening the page.
  */
 
 import Link from "next/link";
@@ -88,14 +93,14 @@ export function RunsTable({
               {t("runs.colLaunch")}
             </th>
             {RUN_METRIC_KEYS.map((key) => (
-              <th key={key} scope="col" className={cn(HEAD_CELL, "text-right")}>
+              <th key={key} scope="col" className={cn(HEAD_CELL, "whitespace-nowrap text-right")}>
                 {t(METRIC_LABEL_KEYS[key])}
               </th>
             ))}
             <th scope="col" className={HEAD_CELL}>
               {t("runs.colStatus")}
             </th>
-            <th scope="col" className={HEAD_CELL}>
+            <th scope="col" className={cn(HEAD_CELL, "w-px")}>
               <span className="sr-only">{t("runs.colActions")}</span>
             </th>
           </tr>
@@ -147,8 +152,8 @@ export function RunsTable({
                 </td>
                 <th scope="row" className={cn(CELL, "font-normal")}>
                   <span className="flex flex-col gap-0.5">
-                    <span className="tabular-nums text-ink">{dateTime.format(new Date(run.created_at))}</span>
-                    <span translate="no" className="truncate font-mono text-[13px] text-ink-2">
+                    <span className="whitespace-nowrap tabular-nums text-ink">{dateTime.format(new Date(run.created_at))}</span>
+                    <span translate="no" className="block max-w-[200px] truncate font-mono text-[13px] text-ink-2">
                       {run.ork_filename ?? (run.export_id || "—")}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted">
@@ -194,8 +199,8 @@ export function RunsTable({
                     {done ? t("runs.statusDone") : t("runs.statusError")}
                   </span>
                 </td>
-                <td className={cn(CELL, "text-right")}>
-                  <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                <td className={cn(CELL, "w-px whitespace-nowrap text-right")}>
+                  <span className="flex flex-col items-end gap-1.5">
                     {done && (
                       <Link href={`/results/${encodeURIComponent(run.simulation_id)}`} className={textLink}>
                         {t("runs.viewReport")}
@@ -225,7 +230,7 @@ function MetricCell({
   locale: "en" | "es";
 }) {
   return (
-    <td className={cn(CELL, "text-right tabular-nums")}>
+    <td className={cn(CELL, "whitespace-nowrap text-right tabular-nums")}>
       <span className="flex flex-col items-end gap-0.5">
         <span className="text-ink">{formatScalar(value, unit, locale)}</span>
         {delta !== null && (

@@ -25,11 +25,21 @@
  * crosses child elements. A drop a nested drop zone already handled
  * (`defaultPrevented`) is not picked twice.
  *
+ * Phones and tablets (< lg, S10): the two columns become two tabs, "Inputs"
+ * and "Result". It opens on Result when a run is displayed and on Inputs
+ * otherwise, and moves to Result whenever a new run is displayed (a fresh
+ * run, or `/?run=` resolving). The inactive column is only hidden by CSS
+ * (`max-lg:hidden`), never unmounted, so typed values, the map and the
+ * replay keep their state; each tab remembers its own page scroll. At lg
+ * and up the tab row is hidden and both columns show side by side.
+ *
  * The inputs/results row is `isolate`d so Leaflet's controls and attribution
  * (z-index 400–1000 inside the map) stay below the top bar's rocket panel.
  */
 
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useWizardDraft } from "@/components/wizard/WizardProvider";
+import { cn, focusRing } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { TopBar } from "./TopBar";
 import { InputsPanel } from "./InputsPanel";
@@ -38,6 +48,50 @@ import { UploadIcon } from "./icons";
 import { useOrkImport } from "./useOrkImport";
 import { useRunSimulation } from "./useRunSimulation";
 import { useWorkbenchUrl } from "./useWorkbenchUrl";
+
+type Tab = "inputs" | "result";
+const TABS: readonly Tab[] = ["inputs", "result"];
+
+/**
+ * The phone tab state: Result while a run is displayed and while no file is
+ * loaded (importing is the first thing a phone shows), Inputs once a file is
+ * loaded and nothing has run; a newly displayed run switches to Result. Page
+ * scroll is kept per tab.
+ */
+function useWorkbenchTab(runId: string | null, hasFile: boolean) {
+  const [tab, setTab] = useState<Tab>(runId || !hasFile ? "result" : "inputs");
+  const [shownRun, setShownRun] = useState(runId);
+  const [shownFile, setShownFile] = useState(hasFile);
+  const scroll = useRef<Record<Tab, number>>({ inputs: 0, result: 0 });
+  const restore = useRef<number | null>(null);
+
+  // Adjusting state during render (not in an effect) when the run or the
+  // file changes: a new run shows Result; a freshly loaded file with nothing
+  // run yet shows Inputs; clearing the file goes back to the import side.
+  if (runId !== shownRun) {
+    setShownRun(runId);
+    if (runId) setTab("result");
+  }
+  if (hasFile !== shownFile) {
+    setShownFile(hasFile);
+    if (!runId) setTab(hasFile ? "inputs" : "result");
+  }
+
+  function select(next: Tab) {
+    if (next === tab) return;
+    scroll.current[tab] = window.scrollY;
+    restore.current = scroll.current[next];
+    setTab(next);
+  }
+
+  useLayoutEffect(() => {
+    if (restore.current === null) return;
+    window.scrollTo({ top: restore.current });
+    restore.current = null;
+  }, [tab]);
+
+  return { tab, select };
+}
 
 function carriesFiles(event: DragEvent<HTMLElement>): boolean {
   return Array.from(event.dataTransfer?.types ?? []).includes("Files");
@@ -49,6 +103,11 @@ export function WorkbenchShell() {
   const importer = useOrkImport();
   const simulation = useRunSimulation({ hold: importer.converting });
   const { run, ready } = simulation;
+  const { state } = useWizardDraft();
+  const { tab, select } = useWorkbenchTab(state.displayedRun?.runId ?? null, state.exportId !== null);
+  const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ inputs: null, result: null });
+  const ids = useId();
+  const panelId = (name: Tab) => `${ids}-${name}`;
   const dragDepth = useRef(0);
   const [dragging, setDragging] = useState(false);
 
@@ -62,6 +121,24 @@ export function WorkbenchShell() {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [ready, run]);
+
+  function onTabKeyDown(event: ReactKeyboardEvent<HTMLButtonElement>) {
+    const index = TABS.indexOf(tab);
+    const next =
+      event.key === "ArrowRight"
+        ? TABS[(index + 1) % TABS.length]
+        : event.key === "ArrowLeft"
+          ? TABS[(index - 1 + TABS.length) % TABS.length]
+          : event.key === "Home"
+            ? TABS[0]
+            : event.key === "End"
+              ? TABS[TABS.length - 1]
+              : null;
+    if (!next) return;
+    event.preventDefault();
+    select(next);
+    tabRefs.current[next]?.focus();
+  }
 
   function onDragEnter(event: DragEvent<HTMLDivElement>) {
     if (!carriesFiles(event)) return;
@@ -99,9 +176,50 @@ export function WorkbenchShell() {
         className="relative flex flex-1 flex-col rounded-2xl border border-border bg-surface shadow-soft"
       >
         <TopBar simulation={simulation} importer={importer} url={url} />
+        <div
+          role="tablist"
+          aria-label={t("workbench.viewTabs")}
+          className="sticky top-0 z-10 grid grid-cols-2 gap-1 border-b border-divider bg-surface px-3 py-2 lg:hidden"
+        >
+          {TABS.map((name) => {
+            const selected = tab === name;
+            return (
+              <button
+                key={name}
+                ref={(node) => {
+                  tabRefs.current[name] = node;
+                }}
+                type="button"
+                role="tab"
+                id={`${panelId(name)}-tab`}
+                aria-selected={selected}
+                aria-controls={panelId(name)}
+                tabIndex={selected ? 0 : -1}
+                onClick={() => select(name)}
+                onKeyDown={onTabKeyDown}
+                className={cn(
+                  "min-h-11 rounded-[9px] text-sm font-semibold transition-[background-color,color,box-shadow] duration-300 ease-[var(--ease-spring)]",
+                  focusRing,
+                  selected
+                    ? "bg-surface text-ink shadow-soft ring-1 ring-border"
+                    : "bg-surface-2 text-muted hover:text-ink",
+                )}
+              >
+                {name === "inputs" ? t("workbench.tabInputs") : t("workbench.tabResult")}
+              </button>
+            );
+          })}
+        </div>
         <div className="isolate flex flex-1 flex-col lg:flex-row">
-          <InputsPanel errors={simulation.errors} />
-          <ResultsColumn errors={simulation.errors} fatal={simulation.fatal} importer={importer} url={url} />
+          <InputsPanel id={panelId("inputs")} hidden={tab !== "inputs"} errors={simulation.errors} />
+          <ResultsColumn
+            id={panelId("result")}
+            hidden={tab !== "result"}
+            errors={simulation.errors}
+            fatal={simulation.fatal}
+            importer={importer}
+            url={url}
+          />
         </div>
         {dragging && (
           <div

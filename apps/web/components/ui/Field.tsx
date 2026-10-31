@@ -18,6 +18,10 @@ import { inputClass, selectControlClass } from "./classes";
  * get stable ids and are wired to the control (`aria-describedby` /
  * `aria-invalid`) so assistive tech reads them with the field; the error is
  * an alert so it is announced when validation inserts it.
+ *
+ * `labelAside` sits on the label's line, right-aligned (badges, a "Reset"
+ * link). It is a sibling of the `<label>`, never inside it, so an
+ * interactive aside does not become part of the label's click target.
  */
 export function Field({
   label,
@@ -26,8 +30,10 @@ export function Field({
   hint,
   children,
   term,
+  labelAside,
 }: {
   label: string;
+  labelAside?: ReactNode;
   htmlFor?: string;
   error?: string;
   hint?: string;
@@ -55,10 +61,15 @@ export function Field({
 
   return (
     <div className="flex min-w-0 flex-col gap-1.5">
-      <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2">
-        {label}
-        {term && <InfoTip term={term} />}
-      </label>
+      <div className="flex min-w-0 items-center gap-2">
+        <label htmlFor={htmlFor} className="flex items-center gap-1.5 text-[13px] font-medium text-ink-2">
+          {label}
+          {term && <InfoTip term={term} />}
+        </label>
+        {labelAside && (
+          <div className="ml-auto flex min-w-0 items-center gap-2 text-[13px]">{labelAside}</div>
+        )}
+      </div>
       {control}
       {hint && !error && (
         <p id={hintId} className="text-xs text-muted">

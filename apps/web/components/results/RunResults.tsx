@@ -19,7 +19,7 @@
  * share its clock.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { ApiError, type FlightSeries, type SimulateResult } from "@/lib/api";
 import type { RocketSummary } from "@/lib/domain/rocket";
@@ -114,7 +114,7 @@ export function RunResults({ runId, result, exportSummary, series }: RunResultsP
         <Disclosure
           title={t("flight.plotsTitle")}
           count={result.plot_urls.length}
-          meta={t("flight.plotsMeta")}
+          meta={<PhoneHidden>{t("flight.plotsMeta")}</PhoneHidden>}
           onToggle={(open) => open && setPlotsOpen(true)}
         >
           {/* Mounted on first open and kept, so closing never refetches. */}
@@ -177,7 +177,7 @@ function ScalarDisclosure({ scalars }: { scalars: Record<string, number | null> 
           <span className="font-normal text-muted">{` (${plural(locale, specs.length, "flight.allResultsCount")})`}</span>
         </>
       }
-      meta={t("flight.allResultsMeta")}
+      meta={<PhoneHidden>{t("flight.allResultsMeta")}</PhoneHidden>}
     >
       <section aria-label={title}>
         <dl className="flex flex-col text-sm">
@@ -194,4 +194,9 @@ function ScalarDisclosure({ scalars }: { scalars: Record<string, number | null> 
       </section>
     </Disclosure>
   );
+}
+
+/** A disclosure's meta line yields to its title on phones (S10): hidden below `sm`. */
+function PhoneHidden({ children }: { children: ReactNode }) {
+  return <span className="max-sm:hidden">{children}</span>;
 }

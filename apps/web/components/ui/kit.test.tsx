@@ -104,6 +104,18 @@ describe("ui kit — StatusPill", () => {
     expect(container.querySelector("[data-pill-dot]")).toBeNull();
   });
 
+  it("collapses to its dot below md, keeping the full text in title and for assistive tech", () => {
+    render(
+      <StatusPill tone="warn" collapse title="Changed since run 7 · Site">
+        Changed since run 7
+      </StatusPill>,
+    );
+    const pill = screen.getByRole("status");
+    expect(pill).toHaveAttribute("title", "Changed since run 7 · Site");
+    expect(pill).toHaveAttribute("aria-label", "Changed since run 7 · Site");
+    expect(screen.getByText("Changed since run 7")).toHaveClass("max-md:sr-only");
+  });
+
   it("shows a decorative spinner (the pill text is the announcement)", () => {
     inLocale(
       <StatusPill tone="neutral" spinner>
@@ -184,6 +196,23 @@ describe("ui kit — Field, TextInput, Select, Card, Kbd", () => {
     const select = screen.getByLabelText("Model");
     expect(select.tagName).toBe("SELECT");
     expect(select.className).toContain("h-9");
+  });
+
+  it("renders labelAside on the label's line, after the label and outside it", () => {
+    inLocale(
+      <Field label="Length" htmlFor="len" labelAside={<button type="button">Reset</button>}>
+        <TextInput id="len" />
+      </Field>,
+    );
+    const label = screen.getByText("Length");
+    const aside = screen.getByRole("button", { name: "Reset" });
+    // Same row as the label, right-aligned, but not inside the <label> (a
+    // button inside a label would steal the label's click target).
+    expect(label.tagName).toBe("LABEL");
+    expect(label).not.toContainElement(aside);
+    expect(aside.parentElement?.parentElement).toBe(label.parentElement);
+    expect(aside.parentElement?.className).toContain("ml-auto");
+    expect(screen.getByLabelText("Length")).toHaveAttribute("id", "len");
   });
 
   it("shows the error on the bad tokens as an alert", () => {
