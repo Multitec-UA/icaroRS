@@ -119,6 +119,56 @@ The options are the following:
 
 Only the `--filepath` option is mandatory.
 
+#### The reference simulation
+
+An .ork file can hold several simulations, some of them stale. The serializer
+picks one **reference simulation**, and both `stored_results` and the time
+series behind the masses, positions, drag curve and thrust curve come from it.
+Only simulations with flight data (a `<flightdata>` holding at least one
+`<datapoint>`) are eligible. The first rule that matches wins:
+
+| `stored_results.selection` | Rule |
+| --- | --- |
+| `uptodate_default` | first `uptodate` simulation of the default motor configuration |
+| `uptodate_other` | first `uptodate` simulation |
+| `loaded_default` | first `loaded` simulation of the default motor configuration |
+| `loaded_other` | first `loaded` simulation (OpenRocket marks saved results as loaded) |
+| `fallback` | first simulation with flight data, any status (e.g. `outdated`) |
+
+#### Manifest keys for provenance and motor identity
+
+- `id.ork_format_version`: the `<openrocket version>` attribute, i.e. the
+  file-format version, not the application version.
+- `id.creator`: the application that saved the file, e.g. `OpenRocket 24.12`.
+- `id.serializer_version`: the installed `rocketserializer` version.
+- `stored_results.simulation_name`, `stored_results.status` (`uptodate`,
+  `outdated`, `loaded`, or another value verbatim), `stored_results.config_id`
+  (the simulation's motor configuration) and `stored_results.selection` (the
+  rule above).
+- `motors.identity`, describing the motor of the reference simulation's
+  configuration (fallback: the default configuration, then the first motor);
+  `null` when the file has no motor:
+  - `designation`, `manufacturer`, `ork_motor_type` (the .ork `<type>`, e.g.
+    `reload`, `single`), `config_id` (equal to `stored_results.config_id`);
+  - `motor_count`: motors in that configuration, clusters included; the
+    identity describes the first one;
+  - `impulse_class`: the letter A-O followed by digits in the designation
+    (`232H123-14A` -> `H`);
+  - `total_impulse_newton_seconds`: trapezoidal integral of the curve written
+    to `thrust_source.csv`, checked against the class range;
+    `impulse_check` is `ok`, `class_mismatch` (the impulse is then `null`) or
+    `unchecked` (no class or no curve);
+  - `burn_time_seconds`: burnout minus ignition event times of the reference
+    simulation, else the time the thrust stays above 1 % of its peak.
+
+The physics keys of `motors` (grain, nozzle and mass properties), `position`
+and `thrust_source` are unchanged.
+
+**Missing values.** The keys above are `null` when unknown, never 0. The
+legacy numeric keys of `stored_results` (`max_altitude`, `max_velocity`,
+`flight_time`, …) keep writing `0` when OpenRocket did not store the value, for
+backward compatibility: read a `0` there as "not available".
+
 ### Creating a simulation notebook
 
 ```bash

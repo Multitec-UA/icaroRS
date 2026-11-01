@@ -114,6 +114,41 @@ def generate_thrust_curve(folder_path, datapoints, data_labels, time_vector):
     source_name : str
         The path to the thrust curve.
     """
+    thrust = build_thrust_curve(datapoints, data_labels, time_vector)
+
+    # save to a csv file
+    source_name = os.path.join(folder_path, "thrust_source.csv")
+    np.savetxt(source_name, thrust, delimiter=",", fmt="%1.5f")
+
+    logger.info(
+        "Successfully saved the thrust curve to: '%s'", Path(source_name).as_posix()
+    )
+    return source_name
+
+
+def build_thrust_curve(datapoints, data_labels, time_vector):
+    """Build the thrust curve written to ``thrust_source.csv``.
+
+    Parameters
+    ----------
+    datapoints : list
+        List of datapoints from the .ork file.
+    data_labels : list
+        List of labels for the datapoints.
+    time_vector : list
+        The time vector of the simulation.
+
+    Returns
+    -------
+    numpy.ndarray
+        An (n, 2) array of (time in s, thrust in N), sorted by time, with
+        negative values clipped to 0 and points at or below 0.0001 N removed.
+
+    Raises
+    ------
+    ValueError
+        If the data has no thrust column.
+    """
     from .._helpers import get_column_index
 
     thrust_index = get_column_index(data_labels, ["Thrust", "Empuje"])
@@ -136,15 +171,7 @@ def generate_thrust_curve(folder_path, datapoints, data_labels, time_vector):
     # remove any items with thrust lower than 0.0001 N
     thrust = thrust[thrust[:, 1] > 0.0001, :]
     logger.info("Successfully created the thrust curve")
-
-    # save to a csv file
-    source_name = os.path.join(folder_path, "thrust_source.csv")
-    np.savetxt(source_name, thrust, delimiter=",", fmt="%1.5f")
-
-    logger.info(
-        "Successfully saved the thrust curve to: '%s'", Path(source_name).as_posix()
-    )
-    return source_name
+    return thrust
 
 
 def __get_motor_mass(datapoints, data_labels):

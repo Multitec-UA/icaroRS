@@ -10,7 +10,13 @@ from .components.fins import (
 )
 from .components.flight import search_launch_conditions
 from .components.id import search_id_info
-from .components.motor import __get_motor_mass, generate_thrust_curve, search_motor
+from .components.motor import (
+    __get_motor_mass,
+    build_thrust_curve,
+    generate_thrust_curve,
+    search_motor,
+)
+from .components.motor_identity import search_motor_identity
 from .components.nose_cone import search_nosecone
 from .components.open_rocket_wrangler import process_elements_position
 from .components.parachute import search_parachutes
@@ -49,8 +55,12 @@ def ork_extractor(bs, filepath, output_folder, ork):
     """
     settings = {}
 
+    # Pick the one simulation that feeds the stored results and the series
+    simulation, selection = select_reference_simulation(bs)
+    logger.info("Reference simulation selected by rule: %s", selection)
+
     # Initialize some important vectors
-    datapoints, data_labels, time_vector = __init_vectors(bs)
+    datapoints, data_labels, time_vector = __init_vectors(bs, simulation)
     logger.info("Initialized data vectors from the ORK file.")
 
     # Retrieve the motor properties
@@ -92,7 +102,13 @@ def ork_extractor(bs, filepath, output_folder, ork):
     rail_buttons = search_rail_buttons(bs, elements)
     parachutes = search_parachutes(bs)
     stored_results = search_stored_results(
-        bs, datapoints, data_labels, time_vector, burnout_position
+        bs,
+        datapoints,
+        data_labels,
+        time_vector,
+        burnout_position,
+        simulation=simulation,
+        selection=selection,
     )
 
     # save everything to a dictionary
@@ -123,6 +139,16 @@ def ork_extractor(bs, filepath, output_folder, ork):
     settings["motors"]["thrust_source"] = thrust_path
     logger.info("Thrust curve generated.")
 
+    # motor identity, from the same thrust curve written to thrust_source.csv
+    try:
+        thrust_curve = build_thrust_curve(datapoints, data_labels, time_vector)
+    except ValueError:
+        thrust_curve = None
+    settings["motors"]["identity"] = search_motor_identity(
+        bs, simulation, thrust_curve
+    )
+    logger.info("Motor identity retrieved.")
+
     logger.info(
         "Extraction completed. A dictionary with all the parameters was generated."
     )
@@ -133,13 +159,76 @@ def ork_extractor(bs, filepath, output_folder, ork):
     return settings
 
 
-def __init_vectors(bs):
+_STATUS_RULES = (
+    ("uptodate", True, "uptodate_default"),
+    ("uptodate", False, "uptodate_other"),
+    ("loaded", True, "loaded_default"),
+    ("loaded", False, "loaded_other"),
+)
+
+
+def _simulation_config_id(simulation):
+    conditions = simulation.find("conditions")
+    configid = conditions.find("configid") if conditions is not None else None
+    return configid.text.strip() if configid is not None else None
+
+
+def select_reference_simulation(bs):
+    """Select the simulation whose results and series feed the manifest.
+
+    Only simulations with flight data (a ``<flightdata>`` holding at least one
+    ``<datapoint>``) are eligible. In order: the first ``uptodate`` simulation
+    of the default motor configuration (``uptodate_default``), the first
+    ``uptodate`` one (``uptodate_other``), the first ``loaded`` one of the
+    default configuration (``loaded_default``), the first ``loaded`` one
+    (``loaded_other``), and finally the first eligible simulation of any
+    status (``fallback``).
+
+    Parameters
+    ----------
+    bs : BeautifulSoup
+        BeautifulSoup object of the .ork file.
+
+    Returns
+    -------
+    tuple
+        ``(simulation, selection)``: the ``<simulation>`` tag and the rule that
+        selected it, or ``(None, None)`` when no simulation has flight data.
+    """
+    eligible = []
+    for simulation in bs.find_all("simulation"):
+        flightdata = simulation.find("flightdata")
+        if flightdata is not None and flightdata.find("datapoint") is not None:
+            eligible.append(simulation)
+    if not eligible:
+        logger.warning("No simulation with flight data was found.")
+        return None, None
+
+    default = bs.find("motorconfiguration", attrs={"default": "true"})
+    default_id = default.get("configid") if default is not None else None
+
+    for status, needs_default, selection in _STATUS_RULES:
+        for simulation in eligible:
+            if simulation.get("status") != status:
+                continue
+            if needs_default and (
+                default_id is None or _simulation_config_id(simulation) != default_id
+            ):
+                continue
+            return simulation, selection
+    return eligible[0], "fallback"
+
+
+def __init_vectors(bs, simulation=None):
     """Initializes the vectors with the data from the .ork file.
 
     Parameters
     ----------
     bs : BeautifulSoup
         BeautifulSoup object of the .ork file.
+    simulation : bs4.element.Tag, optional
+        The reference simulation. When given, the series come from its flight
+        data only; otherwise from every datapoint of the document (legacy).
 
     Returns
     -------
@@ -150,8 +239,9 @@ def __init_vectors(bs):
     time_vector : list
         The time vector.
     """
-    datapoints = bs.findAll("datapoint")
-    data_labels = bs.find("databranch").attrs["types"].split(",")
+    source = simulation if simulation is not None else bs
+    datapoints = source.findAll("datapoint")
+    data_labels = source.find("databranch").attrs["types"].split(",")
 
     time_vector = [float(datapoint.text.split(",")[0]) for datapoint in datapoints]
     start_pos = 0
