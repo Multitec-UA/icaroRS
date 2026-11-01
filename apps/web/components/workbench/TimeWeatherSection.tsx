@@ -10,12 +10,16 @@
  * stays disabled until one is typed — the hint under the field says so.
  *
  * The model choice is forecast / standard / sounding only: `reanalysis`
- * reads a server-side file path, never user input (S4). "If the forecast is
- * unavailable" exposes `atmosphere.fallback`; the core sets the fallback
- * model and always records a warning on the result when it is used
- * (packages/icaro/icaro/simulation.py). The API passes the value straight to
- * the atmosphere model, so the standard atmosphere is the only fallback it
- * accepts — there is no "fail the run" value to offer.
+ * reads a server-side file path, never user input (S4). The fallback is a
+ * sentence, not a control (S12c): the API passes `atmosphere.fallback`
+ * straight to the atmosphere model, so the standard atmosphere is the only
+ * value it accepts, and the core always records a warning on the result when
+ * it is used (packages/icaro/icaro/simulation.py). The body still sends
+ * `fallback: "standard_atmosphere"`.
+ *
+ * With the Forecast model, a launch hour more than 16 days ahead or already
+ * over shows a notice under the date before running (S12e,
+ * `outsideForecastWindow`): the run would fall back.
  */
 
 import { useState } from "react";
@@ -26,11 +30,16 @@ import {
   type AtmosphereSuggestion,
   type FieldError,
 } from "@/lib/api";
-import { launchDateToIso, needsDate, resolveTimeZone, toLaunchDate } from "@/lib/domain/scenario";
+import {
+  launchDateToIso,
+  needsDate,
+  outsideForecastWindow,
+  resolveTimeZone,
+  toLaunchDate,
+} from "@/lib/domain/scenario";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Callout, Field, InfoTip, SegmentedControl, TextInput } from "@/components/ui";
-import { cn, selectClass } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { errorFor } from "./fieldErrors";
 import { Section } from "./Section";
@@ -41,11 +50,6 @@ const MODEL_OPTIONS: ReadonlyArray<{ value: AtmosphereModel; labelKey: `workbenc
   { value: "wyoming_sounding", labelKey: "workbench.modelSounding" },
 ];
 
-/** Fallback models the API accepts for `atmosphere.fallback`. */
-const FALLBACK_OPTIONS: ReadonlyArray<{ value: string; labelKey: "workbench.fallbackStandard" }> = [
-  { value: "standard_atmosphere", labelKey: "workbench.fallbackStandard" },
-];
-
 export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
   const t = useT();
   const { state, setLaunchDatetime, setAtmosphere } = useWizardDraft();
@@ -54,6 +58,7 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
 
   const model = state.atmosphere.model;
   const missingDate = needsDate(model) && toLaunchDate(state.launchDatetime) === null;
+  const outsideWindow = model === "forecast" && outsideForecastWindow(state.launchDatetime);
 
   async function onDateChange(value: string) {
     setLaunchDatetime(value || null);
@@ -102,6 +107,7 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
           onChange={(e) => onDateChange(e.target.value)}
         />
       </Field>
+      {outsideWindow && <p className="-mt-1 text-xs font-medium text-warn-ink">{t("workbench.forecastWindowNotice")}</p>}
 
       <SegmentedControl
         label={t("workbench.atmosphereModel")}
@@ -134,26 +140,12 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
           />
         </Field>
       )}
-      <Field
-        label={t("workbench.fallbackLabel")}
-        htmlFor="fallback"
-        hint={t("workbench.fallbackHint")}
-        error={errorFor(errors, "atmosphere.fallback")}
-      >
-        <select
-          id="fallback"
-          name="atmosphere-fallback"
-          className={cn(selectClass, "h-9")}
-          value={state.atmosphere.fallback}
-          onChange={(e) => setAtmosphere({ ...state.atmosphere, fallback: e.target.value })}
-        >
-          {FALLBACK_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {t(o.labelKey)}
-            </option>
-          ))}
-        </select>
-      </Field>
+      <p className="text-xs text-muted">{t("workbench.fallbackSentence")}</p>
+      {errorFor(errors, "atmosphere.fallback") && (
+        <p role="alert" className="text-xs font-medium text-bad-ink">
+          {errorFor(errors, "atmosphere.fallback")}
+        </p>
+      )}
 
       {suggestion && (
         <Callout tone={suggestion.needs_internet ? "success" : "info"}>

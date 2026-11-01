@@ -9,6 +9,7 @@
 
 import type { SimulationSummary } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
+import { canonicalScenario, scenarioDiff, type ChangeGroup } from "./scenario";
 
 // ---------------------------------------------------------------------------
 // Metrics and deltas
@@ -167,25 +168,30 @@ export function siteLabel(site: ScenarioSite): string {
 // ---------------------------------------------------------------------------
 
 export type RunChangeKey =
+  | "file"
   | "site"
+  | "elevation"
   | "launchDate"
   | "atmosphere"
+  | "fallback"
+  | "station"
   | "railLength"
   | "railInclination"
   | "railHeading"
-  | "file";
+  /** The group changed in a field that has no chip of its own. */
+  | "other";
 
 /**
- * The five groups the inputs of a run fall into (S6): the Workbench status
- * names the changed groups (`scenarioDiff` in ./scenario), `/runs` details
- * each change within them (`RunChangeKey`). Both render the same chip
- * (components/runs/WhatChanged `ChangeChip`).
+ * The five groups the inputs of a run fall into (S6). One diff decides both
+ * surfaces: `scenarioDiff` (./scenario) names the changed groups for the
+ * Workbench status, and `whatChanged` details each change within them for
+ * `/runs`. Both render the same chip (components/runs/WhatChanged
+ * `ChangeChip`).
  */
-export type ChangeGroup = "file" | "site" | "date" | "weather" | "rail";
-
-export const CHANGE_GROUPS: ChangeGroup[] = ["file", "site", "date", "weather", "rail"];
+export { CHANGE_GROUPS, type ChangeGroup } from "./scenario";
 
 export interface RunChange {
+  group: ChangeGroup;
   key: RunChangeKey;
   /** Raw "before" value (unformatted); null when unset or when the key has no single value. */
   from: string | null;
@@ -196,32 +202,71 @@ export interface RunChange {
 /** The inputs that decide a run: its scenario and the file it simulated. */
 export type RunInputs = Pick<SimulationSummary, "scenario" | "ork_filename" | "export_id">;
 
-function str(value: number | null | undefined): string | null {
+function text(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
 }
 
+/** `scenario[field]`, or `scenario[field][key]` when a key is given; null when absent. */
+function at(scenario: Record<string, unknown>, field: string, key?: string): unknown {
+  const group = scenario[field];
+  if (key === undefined) return group ?? null;
+  return record(group)?.[key] ?? null;
+}
+
+/** The site's coordinates as one label (`38.3452, -0.481`); null without both. */
+function coordinates(scenario: Record<string, unknown>): string | null {
+  const latitude = finite(at(scenario, "site", "latitude"));
+  const longitude = finite(at(scenario, "site", "longitude"));
+  return latitude === null || longitude === null ? null : siteLabel({ latitude, longitude, elevation: null });
+}
+
 /**
- * Every input of `run` that differs from `baseline`, in a fixed order: site,
- * launch date, atmosphere model, the three rail values and the file. A
- * run of a different export is a different file even when the names match.
+ * Every input of `run` that differs from `baseline` (S12a), detailed within
+ * the groups `scenarioDiff` reports — so `/runs` and the Workbench status
+ * agree on what changed. Fixed order: file, site (coordinates, elevation),
+ * date, weather (model, fallback, station), rail (length, inclination,
+ * heading). Values come from the canonical forms, so key order, sub-metre
+ * noise and uncertainty never count. A group that changed in a field with no
+ * chip of its own still gets one `other` chip. A run of a different export
+ * is a different file even when the names match.
  */
 export function whatChanged(baseline: RunInputs, run: RunInputs): RunChange[] {
-  const a = scenarioFacts(baseline.scenario);
-  const b = scenarioFacts(run.scenario);
+  const a = canonicalScenario(baseline.scenario);
+  const b = canonicalScenario(run.scenario);
+  const groups = scenarioDiff(
+    { exportId: baseline.export_id, scenario: baseline.scenario },
+    { exportId: run.export_id, scenario: run.scenario },
+  );
   const changes: RunChange[] = [];
-  const push = (key: RunChangeKey, from: string | null, to: string | null) => {
-    if (from !== to) changes.push({ key, from, to });
-  };
 
-  push("site", a.site ? siteLabel(a.site) : null, b.site ? siteLabel(b.site) : null);
-  push("launchDate", a.launchDateIso, b.launchDateIso);
-  push("atmosphere", a.model, b.model);
-  push("railLength", str(a.rail?.length), str(b.rail?.length));
-  push("railInclination", str(a.rail?.inclination), str(b.rail?.inclination));
-  push("railHeading", str(a.rail?.heading), str(b.rail?.heading));
-
-  if (baseline.export_id !== run.export_id || baseline.ork_filename !== run.ork_filename) {
-    changes.push({ key: "file", from: baseline.ork_filename, to: run.ork_filename });
+  for (const group of groups) {
+    const before = changes.length;
+    const push = (key: RunChangeKey, from: string | null, to: string | null) => {
+      if (from !== to) changes.push({ group, key, from, to });
+    };
+    switch (group) {
+      case "file":
+        changes.push({ group, key: "file", from: baseline.ork_filename, to: run.ork_filename });
+        break;
+      case "site":
+        push("site", coordinates(a), coordinates(b));
+        push("elevation", text(at(a, "site", "elevation")), text(at(b, "site", "elevation")));
+        break;
+      case "date":
+        push("launchDate", launchDateIso(record(at(a, "date"))), launchDateIso(record(at(b, "date"))));
+        break;
+      case "weather":
+        push("atmosphere", text(at(a, "atmosphere", "model")), text(at(b, "atmosphere", "model")));
+        push("fallback", text(at(a, "atmosphere", "fallback")), text(at(b, "atmosphere", "fallback")));
+        push("station", text(at(a, "atmosphere", "station")), text(at(b, "atmosphere", "station")));
+        break;
+      case "rail":
+        push("railLength", text(at(a, "rail", "length")), text(at(b, "rail", "length")));
+        push("railInclination", text(at(a, "rail", "inclination")), text(at(b, "rail", "inclination")));
+        push("railHeading", text(at(a, "rail", "heading")), text(at(b, "rail", "heading")));
+        break;
+    }
+    if (changes.length === before) changes.push({ group, key: "other", from: null, to: null });
   }
   return changes;
 }

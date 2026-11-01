@@ -135,6 +135,7 @@ function changedChips() {
 }
 
 afterEach(() => {
+  sessionStorage.clear();
   simulateMock.mockReset();
   suggestAtmosphereMock.mockReset();
   getElevationMock.mockReset();
@@ -179,6 +180,48 @@ describe("WorkbenchShell — Run guard (S7)", () => {
     await waitFor(() => expect(run).toBeEnabled());
     // The date triggers the atmosphere suggestion, rendered verbatim (API English).
     expect(await screen.findByText("GFS forecast available — launch is 14 days out.")).toBeInTheDocument();
+  });
+});
+
+describe("WorkbenchShell — the disabled Run button says why (S12f)", () => {
+  const reason = () => document.getElementById("run-reason");
+
+  it("names the missing site, then the missing date, in its title and a visible helper", async () => {
+    arm();
+    const run = await renderShell();
+    // No file: the import is the next step, so no field is named.
+    expect(run).not.toHaveAttribute("title");
+    expect(reason()).toBeNull();
+
+    fireEvent.click(screen.getByText("seed-export"));
+    fireEvent.click(screen.getByText("seed-forecast"));
+    await waitFor(() => expect(run).toHaveAttribute("title", "Pick a launch site first"));
+    expect(screen.getByText("Pick a launch site first")).toHaveClass("text-xs", "text-muted");
+    expect(run).toHaveAccessibleDescription("Pick a launch site first");
+
+    fireEvent.click(screen.getByText("seed-site"));
+    await waitFor(() => expect(run).toHaveAttribute("title", "Pick a launch date first"));
+    expect(screen.getByText("Pick a launch date first")).toBeInTheDocument();
+    expect(screen.queryByText("Pick a launch site first")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText(/^Launch · your time/, { selector: "input" }), {
+      target: { value: "2026-06-01T09:00" },
+    });
+    await waitFor(() => expect(run).toBeEnabled());
+    expect(run).not.toHaveAttribute("title");
+    expect(reason()).toBeNull();
+  });
+
+  it("says Running… while a run is in flight", async () => {
+    arm();
+    simulateMock.mockReturnValueOnce(new Promise(() => {}));
+    const run = await seedReady();
+    fireEvent.click(run);
+
+    const busy = await screen.findByRole("button", { name: /Simulating…/ });
+    expect(busy).toBeDisabled();
+    expect(busy).toHaveAttribute("title", "Running…");
+    expect(reason()).toHaveTextContent("Running…");
   });
 });
 
@@ -349,8 +392,9 @@ describe("WorkbenchShell — status from the displayed run (S6)", () => {
     const run = await seedReady();
     fireEvent.click(run);
 
-    expect(await screen.findByText("Running…")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Simulating…/ })).toBeDisabled();
+    expect(await screen.findByRole("button", { name: /Simulating…/ })).toBeDisabled();
+    // The status pill, and the disabled button's reason (S12f).
+    expect(screen.getAllByText("Running…")).toHaveLength(2);
 
     fireEvent.change(screen.getByLabelText("Elevation (m)"), { target: { value: "40" } });
     resolveRun(RESULT);
@@ -490,48 +534,75 @@ describe("WorkbenchShell — phone tabs (S10)", () => {
   const inputsColumn = () => screen.getByRole("complementary", { name: "Inputs" });
   const resultsColumn = () => screen.getByRole("region", { name: "Results" });
 
-  it("opens on Result while no file is loaded, so importing is the first thing a phone shows", async () => {
+  it("shows no tabs while no file is loaded: the results column (import) is the whole phone screen", async () => {
     await renderShell();
+    expect(screen.queryByRole("tablist", { name: "Workbench view" })).toBeNull();
+    expect(inputsColumn()).toHaveClass("max-lg:hidden");
+    expect(resultsColumn()).not.toHaveClass("max-lg:hidden");
+    // Hidden below lg only: desktop keeps both columns.
+    expect(inputsColumn()).not.toHaveAttribute("hidden");
+  });
+
+  it("shows the tabs once a file is loaded, opening on Inputs", async () => {
+    arm();
+    await renderShell();
+    fireEvent.click(screen.getByText("seed-export"));
     const { list, inputs, result } = tabs();
 
-    expect(result).toHaveAttribute("aria-selected", "true");
-    expect(inputs).toHaveAttribute("aria-selected", "false");
+    expect(inputs).toHaveAttribute("aria-selected", "true");
+    expect(result).toHaveAttribute("aria-selected", "false");
     expect(inputs).toHaveAttribute("aria-controls", inputsColumn().id);
     expect(result).toHaveAttribute("aria-controls", resultsColumn().id);
     // Desktop renders both columns and no tabs: hiding is scoped to < lg.
     expect(list).toHaveClass("lg:hidden");
-    expect(inputsColumn()).toHaveClass("max-lg:hidden");
-    expect(resultsColumn()).not.toHaveClass("max-lg:hidden");
-    expect(inputsColumn()).not.toHaveAttribute("hidden");
-  });
-
-  it("opens on Inputs once a file is loaded and nothing has run", async () => {
-    arm();
-    await seedReady();
-    const { inputs, result } = tabs();
-
-    expect(inputs).toHaveAttribute("aria-selected", "true");
-    expect(result).toHaveAttribute("aria-selected", "false");
     expect(resultsColumn()).toHaveClass("max-lg:hidden");
     expect(inputsColumn()).not.toHaveClass("max-lg:hidden");
   });
 
-  it("switches to Result once a run is displayed", async () => {
+  it("switches to Result when Run is pressed, before the result arrives", async () => {
     arm();
-    simulateMock.mockResolvedValueOnce(RESULT);
+    let resolveRun: (value: typeof RESULT) => void = () => {};
+    simulateMock.mockReturnValueOnce(new Promise<typeof RESULT>((resolve) => (resolveRun = resolve)));
     const run = await seedReady();
     expect(tabs().inputs).toHaveAttribute("aria-selected", "true");
 
     fireEvent.click(run);
-
-    await screen.findByText("Up to date · run run-7f3a");
     expect(tabs().result).toHaveAttribute("aria-selected", "true");
     expect(inputsColumn()).toHaveClass("max-lg:hidden");
     expect(resultsColumn()).not.toHaveClass("max-lg:hidden");
+
+    resolveRun(RESULT);
+    await screen.findByText("Up to date · run run-7f3a");
+    expect(tabs().result).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("Cmd/Ctrl+Enter switches to Result like the button", async () => {
+    arm();
+    simulateMock.mockResolvedValueOnce(RESULT);
+    await seedReady();
+    fireEvent.keyDown(window, { key: "Enter", metaKey: true });
+    expect(tabs().result).toHaveAttribute("aria-selected", "true");
+    await screen.findByText("Up to date · run run-7f3a");
+  });
+
+  it("never switches tabs when a result arrives later", async () => {
+    arm();
+    let resolveRun: (value: typeof RESULT) => void = () => {};
+    simulateMock.mockReturnValueOnce(new Promise<typeof RESULT>((resolve) => (resolveRun = resolve)));
+    const run = await seedReady();
+    fireEvent.click(run);
+    // Back to Inputs while the run is in flight: the arriving result leaves it there.
+    fireEvent.click(tabs().inputs);
+    resolveRun(RESULT);
+
+    await screen.findByText("Up to date · run run-7f3a");
+    expect(tabs().inputs).toHaveAttribute("aria-selected", "true");
+    expect(resultsColumn()).toHaveClass("max-lg:hidden");
   });
 
   it("keeps the inputs column mounted, with its values, across a tab switch; arrows move between tabs", async () => {
     await renderShell();
+    fireEvent.click(screen.getByText("seed-export"));
     fireEvent.change(screen.getByLabelText("Latitude"), { target: { value: "38.5" } });
     await waitFor(() => expect(screen.getByLabelText("Latitude")).toHaveValue(38.5));
     // The column element itself must survive (vitest.setup's motion stub

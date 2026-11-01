@@ -26,7 +26,15 @@
  *
  * A 404 on the run, its file or the file leaves a `missing` status that the
  * results column explains (never a blank Workbench, never a thrown error);
- * `startFresh` resets the draft and clears the URL.
+ * `startFresh` resets the draft, clears the URL and forgets stored drafts.
+ *
+ * Refresh (S12l): the URL names the run, not the edits made after it, so
+ * the draft's scenario fields are also saved to `sessionStorage` under
+ * `icaro:draft:{exportId}` (lib/draft-storage), synchronously on every
+ * change once the URL is settled, with the displayed run they started from.
+ * When `?run=` resolves, a stored draft of the same export and run replaces
+ * the run's own scenario, so the pill reads "Changed since run {id}" again
+ * with the same chips. A stored draft of another run is left alone.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -35,6 +43,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, plotUrl } from "@/lib/api";
 import { exportDetailQuery, runSummaryQuery } from "@/lib/queries";
 import { draftFromScenario } from "@/lib/domain/scenario";
+import { clearDrafts, loadDraft, saveDraft } from "@/lib/draft-storage";
 import { useWizardDraft, useWizardNav } from "@/components/wizard/WizardProvider";
 
 export type WorkbenchUrlStatus =
@@ -143,7 +152,19 @@ export function useWorkbenchUrl(): WorkbenchUrl {
             filename: exp.ork_filename ?? run.ork_filename,
             rocketName: exp.name ?? run.name,
           });
-          loadScenario(draftFromScenario(run.scenario));
+          const fromRun = draftFromScenario(run.scenario);
+          const stored = loadDraft(exp.export_id);
+          loadScenario(
+            stored?.runId === run.simulation_id
+              ? {
+                  ...fromRun,
+                  site: stored.site,
+                  launchDatetime: stored.launchDatetime,
+                  atmosphere: stored.atmosphere,
+                  railOverrides: stored.railOverrides,
+                }
+              : fromRun,
+          );
           showRun({
             runId: run.simulation_id,
             exportId: exp.export_id,
@@ -207,8 +228,20 @@ export function useWorkbenchUrl(): WorkbenchUrl {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desired, settled]);
 
+  // ---- draft → sessionStorage (S12l) --------------------------------------
+  // Only once the URL is settled: while `?run=` resolves the draft is still
+  // the empty one the page started with, and saving it would overwrite the
+  // edits about to be re-applied.
+  const { exportId, site, launchDatetime, atmosphere, railOverrides } = state;
+  const baseRunId = state.displayedRun?.runId ?? null;
+  useEffect(() => {
+    if (!settled || exportId === null) return;
+    saveDraft(exportId, { runId: baseRunId, site, launchDatetime, atmosphere, railOverrides });
+  }, [settled, exportId, baseRunId, site, launchDatetime, atmosphere, railOverrides]);
+
   const startFresh = useCallback(() => {
     ticket.current++;
+    clearDrafts();
     reset();
     setStatus({ kind: "idle" });
     router.replace(pathname, { scroll: false });

@@ -2,19 +2,29 @@
 
 /**
  * WhatChanged — per compared run, the inputs that differ from the baseline
- * (S9): site, launch time, weather model, rail and the
- * file. The diff is lib/domain/runs's `whatChanged`; this only labels and
- * formats it. A compared run with no differences says so, and the baseline
+ * (S9, S12a): file, site (coordinates, elevation), launch time, weather
+ * (model, fallback, station) and rail. The diff is lib/domain/runs's
+ * `whatChanged`, built on the same canonical `scenarioDiff` as the
+ * Workbench status; this only labels and formats it. A compared run with no differences says so, and the baseline
  * is never compared with itself.
  */
 
 import { useId, type ReactNode } from "react";
 import type { SimulationSummary } from "@/lib/api";
-import { shortRunId, whatChanged, type RunChange } from "@/lib/domain/runs";
+import { shortRunId, whatChanged, type ChangeGroup, type RunChange } from "@/lib/domain/runs";
 import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { RUN_COLORS } from "./colors";
 import { useRunFormatters } from "./useRunFormatters";
+
+/** The chip label of each input group, shared with the Workbench status (TopBar). */
+export const CHANGE_GROUP_LABEL = {
+  file: "runs.groupFile",
+  site: "runs.groupSite",
+  date: "runs.groupDate",
+  weather: "runs.groupWeather",
+  rail: "runs.groupRail",
+} as const satisfies Record<ChangeGroup, string>;
 
 export function WhatChanged({
   baseline,
@@ -37,6 +47,11 @@ export function WhatChanged({
     switch (change.key) {
       case "site":
         return t("runs.changeSite", { from, to });
+      case "elevation":
+        return t("runs.changeElevation", {
+          from: change.from ? `${change.from} m` : unset,
+          to: change.to ? `${change.to} m` : unset,
+        });
       case "launchDate":
         return t("runs.changeLaunchDate", {
           from: change.from ? dateTime.format(new Date(change.from)) : unset,
@@ -47,6 +62,13 @@ export function WhatChanged({
           from: change.from ? modelLabel(change.from) : unset,
           to: change.to ? modelLabel(change.to) : unset,
         });
+      case "fallback":
+        return t("runs.changeFallback", {
+          from: change.from ? modelLabel(change.from) : unset,
+          to: change.to ? modelLabel(change.to) : unset,
+        });
+      case "station":
+        return t("runs.changeStation", { from, to });
       case "railLength":
         return t("runs.changeRailLength", {
           from: change.from ? `${change.from} m` : unset,
@@ -64,6 +86,8 @@ export function WhatChanged({
         });
       case "file":
         return t("runs.changeFile", { to });
+      case "other":
+        return t("runs.changeOther", { group: t(CHANGE_GROUP_LABEL[change.group]) });
     }
   };
 
@@ -102,7 +126,7 @@ export function WhatChanged({
                 ) : (
                   <ul className="flex flex-wrap gap-1.5 pl-4">
                     {changes.map((change) => (
-                      <ChangeChip key={change.key}>{describe(change)}</ChangeChip>
+                      <ChangeChip key={`${change.group}-${change.key}`}>{describe(change)}</ChangeChip>
                     ))}
                   </ul>
                 )}

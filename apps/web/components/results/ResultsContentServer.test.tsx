@@ -72,10 +72,11 @@ const SUMMARY = {
 // Vitest cannot render an async Server Component directly (see
 // vitest.config.ts); awaiting it yields the plain element tree, whose client
 // islands then render under the usual provider stack.
-async function renderReport() {
+async function renderReport({ exportGone = false }: { exportGone?: boolean } = {}) {
   getRunSummaryMock.mockResolvedValue(SUMMARY);
   getSeriesMock.mockRejectedValue(new ApiError(404, "Run 'run-1' has no series.", { code: "requestFailed" }));
-  getExportMock.mockResolvedValue({
+  if (exportGone) getExportMock.mockRejectedValue(new ApiError(404, "Export 'exp-1' not found.", { code: "requestFailed" }));
+  else getExportMock.mockResolvedValue({
     export_id: "exp-1",
     rocket_id: "r2",
     ork_filename: "icarus2.ork",
@@ -157,5 +158,37 @@ describe("Run report — body", () => {
 
     expect(await screen.findByRole("link", { name: "Open in Workbench" })).toHaveAttribute("href", "/?run=run-1");
     expect(screen.getByRole("button", { name: "New rocket" })).toBeInTheDocument();
+  });
+});
+
+describe("Run report — sharing (S12h)", () => {
+  it("says who can open the link it copies: members of the signed-in organization", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    await renderReport();
+
+    const copy = await screen.findByRole("button", { name: "Copy link · visible to members of o1" });
+    fireEvent.click(copy);
+    expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/results/run-1`);
+    expect(await screen.findByText("Link copied")).toBeInTheDocument();
+  });
+});
+
+describe("Run report — the run's file is gone (S12i)", () => {
+  it("still renders the results and the configuration; only Open in Workbench is disabled", async () => {
+    await renderReport({ exportGone: true });
+
+    const config = await screen.findByRole("region", { name: "Configuration" });
+    expect(await within(config).findByText("File no longer available")).toBeInTheDocument();
+    expect(within(config).getByText("Rocket file").nextElementSibling).toHaveTextContent("icarus2.ork");
+    const kpis = screen.getByRole("region", { name: "Key results" });
+    expect(within(kpis).getByRole("group", { name: "Apogee" })).toHaveTextContent("3,142");
+
+    const open = await screen.findByRole("button", { name: "Open in Workbench" });
+    expect(open).toBeDisabled();
+    expect(open).toHaveAttribute("title", "File no longer available");
+    expect(screen.queryByRole("link", { name: "Open in Workbench" })).toBeNull();
+    expect(screen.getByRole("button", { name: "New rocket" })).toBeEnabled();
+    expect(screen.queryByTestId("openrocket-row")).toBeNull();
   });
 });

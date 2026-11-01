@@ -11,13 +11,17 @@
  * /api/simulate (see `buildScenarioBody`), so a Reset truly resets and a
  * file switch never carries the previous file's values silently. With no
  * file loaded the fields are disabled with a "From your .ork" placeholder.
+ *
+ * Typing the file's own value back is not an override (WizardProvider drops
+ * it, S12b). The inclination hint has a second line with the same angle in
+ * OpenRocket's convention: "= {90 − value}° from vertical in OpenRocket".
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { FieldError } from "@/lib/api";
 import { useWizardDraft, type RailField } from "@/components/wizard/WizardProvider";
 import { Field, TextInput } from "@/components/ui";
-import { useT } from "@/components/i18n/LocaleProvider";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/styles";
 import { errorFor } from "./fieldErrors";
 import { textLink } from "./styles";
@@ -56,6 +60,7 @@ const badge = "whitespace-nowrap rounded-full px-2 py-px text-[11px] font-semibo
 
 export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
   const t = useT();
+  const { locale } = useLocale();
   const { state, setRailOverride, resetRailOverride } = useWizardDraft();
   const defaults = state.railDefaults;
   const hasFile = state.exportId !== null;
@@ -67,12 +72,27 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
         const fileValue = defaults?.[field] ?? null;
         const overridden = override !== undefined;
         const label = t(labelKey);
+        const value = hasFile ? (override ?? fileValue) : null;
+        let hint: ReactNode = hintKey ? t(hintKey) : undefined;
+        // OpenRocket measures the rail angle from vertical (S12d): a second
+        // line with the same angle in its convention, from the field's value.
+        if (field === "inclination" && value !== null) {
+          const fromVertical = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(
+            Math.round((90 - value) * 10) / 10 + 0,
+          );
+          hint = (
+            <>
+              <span className="block">{hint}</span>
+              <span className="block">{t("workbench.railInclinationOpenRocket", { value: fromVertical })}</span>
+            </>
+          );
+        }
         return (
           <Field
             key={field}
             label={label}
             htmlFor={id}
-            hint={hintKey ? t(hintKey) : undefined}
+            hint={hint}
             error={errorFor(errors, `rail.${field}`)}
             labelAside={
               hasFile &&
@@ -93,7 +113,7 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
               name={name}
               disabled={!hasFile}
               placeholder={hasFile ? undefined : t("workbench.railPlaceholder")}
-              value={hasFile ? (override ?? fileValue) : null}
+              value={value}
               overridden={overridden}
               onValue={(value) => setRailOverride(field, value)}
               onClear={() => resetRailOverride(field)}

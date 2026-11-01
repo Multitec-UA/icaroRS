@@ -113,14 +113,25 @@ on `/runs` and on the report links to `/?run={id}`; "Use this rocket" links
 to `/?file={newest export}`. A run or file the API no longer has (404) shows
 "This run's file is no longer available" / "This file is no longer
 available" with "Start fresh". A run still in flight when the user leaves the
-Workbench keeps going and announces itself with a toast.
+Workbench keeps going and announces itself with a toast ("{rocket} · apogee
+{value}" with an "Open" link).
+
+Edits made after a run survive a refresh: the draft's scenario (site, launch
+time, atmosphere, rail overrides) is saved synchronously on every change to
+`sessionStorage` under `icaro:draft:{export_id}` (`lib/draft-storage.ts`),
+with the run it started from. When `/?run={id}` resolves, a stored draft of
+the same file and run replaces the run's own scenario, so the pill reads
+"Changed since run {id}" again with the same chips. "Start fresh" clears
+every stored draft.
 
 Below 1024 px (`lg`) the layout is for phones and tablets: the sidebar
 becomes a bottom bar (Workbench · Rockets · Runs · account, 44 px targets,
-safe-area padded) and the Workbench's two columns become two tabs, "Inputs"
-and "Result". It opens on Result while a run is displayed, on Inputs
-otherwise, and moves to Result whenever a run arrives; switching tabs only
-hides the other column, so nothing typed is lost. Below 768 px (`md`) the
+safe-area padded). With no file loaded the Workbench has no tabs: the
+results column (drop zone and rocket picker) is the whole screen. Once a
+file is loaded its two columns become two tabs, "Inputs" and "Result",
+opening on Inputs; pressing Run (button or ⌘↵) switches to Result, and a
+result arriving later never switches tabs. Switching tabs only hides the
+other column, so nothing typed is lost. Below 768 px (`md`) the
 status pill shrinks to its dot (full text in its tooltip and accessible
 name). The run report is one column at any width, KPI cards 2×2 until their
 container is 42rem wide.
@@ -131,12 +142,13 @@ container is 42rem wide.
 empty / destination / converting / ready / with result, Rocket panel,
 `/rockets`, `/runs` with the compare overlay, the run report, login) in both
 themes at 1440×900, plus three phone shots at 390×844 in light
-(`e2e/mobile.spec.ts`: the Workbench on its Result tab, on its Inputs tab,
-and the run report) and a desktop check that the phone bottom bar never
+(`e2e/mobile.spec.ts`: the Workbench with no file (full-screen import), on
+its Inputs tab, on its Result tab after Run, and the run report) and a desktop check that the phone bottom bar never
 shows at 1440.
 `e2e/flows.spec.ts` adds behaviour flows without screenshots: run and file
 URLs, "Open in Workbench" from `/runs` and back, the 404 message, a `.ork`
-dropped anywhere on the Workbench, and leaving and coming back.
+dropped anywhere on the Workbench, leaving and coming back, and an edit
+after a run surviving a reload.
 
 ```bash
 npm run e2e:visual          # compare against the committed snapshots (Docker)

@@ -124,11 +124,7 @@ export function ResultsColumn({
         <>
           <ImportDropZone
             title={t("workbench.dropTitle")}
-            hint={
-              <>
-                {t("workbench.dropHint")} <span className="text-accent-ink underline">{t("workbench.dropBrowse")}</span>
-              </>
-            }
+            hint={t("workbench.dropHint")}
             note={t("workbench.dropNote")}
             inputLabel={t("rocket.fileInputLabel")}
             inputName="rocket-file"

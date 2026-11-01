@@ -49,6 +49,26 @@ describe("LaunchRailSection (S4)", () => {
     expect(screen.getByText("Compass bearing the rail leans toward: 90° = east")).toBeInTheDocument();
   });
 
+  it("adds the OpenRocket reading of the inclination, from the current field value (S12d)", () => {
+    renderRail();
+    expect(screen.getByText("= 5° from vertical in OpenRocket")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Inclination (°)"), { target: { value: "84.25" } });
+    expect(screen.getByText("From horizontal: 90° = vertical")).toBeInTheDocument();
+    expect(screen.getByText("= 5.8° from vertical in OpenRocket")).toBeInTheDocument();
+  });
+
+  it("typing the file's own value back is no override: the badge returns to 'From .ork' (S12b)", () => {
+    renderRail();
+    fireEvent.change(screen.getByLabelText("Inclination (°)"), { target: { value: "84" } });
+    expect(screen.getByText("Overridden")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("Inclination (°)"), { target: { value: "85.0" } });
+    expect(screen.queryByText("Overridden")).toBeNull();
+    expect(screen.getAllByText("From .ork")).toHaveLength(3);
+    expect(draft?.state.railOverrides).toEqual({});
+  });
+
   it("an edit shows 'Overridden' and a Reset that restores the file value", () => {
     renderRail();
     fireEvent.change(screen.getByLabelText("Inclination (°)"), { target: { value: "84" } });

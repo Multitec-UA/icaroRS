@@ -2,13 +2,18 @@
 
 /**
  * ImportDropZone — a dashed target for one `.ork` file (S8). The zone IS the
- * file input's label: clicking or activating it opens the native picker, and
- * the sr-only input stays in the tab order, so keyboard users get the same
- * path as mouse users. Validation of the file happens in the caller
- * (useOrkImport), which also decides where the file goes.
+ * file input's label: clicking it or dropping a file on it picks the file.
+ * A visible "Choose .ork file" button (S12k), always rendered, opens the
+ * same input: on a phone there is nothing to drop, and a dashed area does
+ * not read as tappable. The button is also the keyboard path, so the
+ * sr-only input leaves the tab order instead of being a second stop.
+ * Validation of the file happens in the caller (useOrkImport), which also
+ * decides where the file goes.
  */
 
-import { useId, useState, type DragEvent, type ReactNode } from "react";
+import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
+import { Button } from "@/components/ui";
+import { useT } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/styles";
 import { UploadIcon } from "./icons";
 
@@ -31,7 +36,9 @@ export function ImportDropZone({
   /** Row layout for inside the rocket panel; the default is the tall A1 target. */
   compact?: boolean;
 }) {
+  const t = useT();
   const inputId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
 
   function onDrop(event: DragEvent<HTMLLabelElement>) {
@@ -60,7 +67,9 @@ export function ImportDropZone({
       )}
     >
       <input
+        ref={inputRef}
         id={inputId}
+        tabIndex={-1}
         name={inputName}
         type="file"
         accept=".ork"
@@ -86,6 +95,19 @@ export function ImportDropZone({
         <span className="text-sm font-medium text-ink">{title}</span>
         {hint && <span className="text-xs text-muted">{hint}</span>}
       </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className={cn(compact && "ml-auto")}
+        onClick={(event) => {
+          // The label would open the picker too; open it exactly once.
+          event.preventDefault();
+          inputRef.current?.click();
+        }}
+      >
+        {t("workbench.dropChoose")}
+      </Button>
       {note && <span className="mt-2 max-w-md text-balance text-xs text-ink-2">{note}</span>}
     </label>
   );

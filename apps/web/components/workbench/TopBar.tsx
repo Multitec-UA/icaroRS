@@ -11,7 +11,10 @@
  * {id}" followed by one chip per changed group (File, Site, Date, Weather,
  * Rail) — the /runs "what changed" chip. The Run button reads "Run
  * simulation" before the first run and "Run again" afterwards; it is
- * disabled only while a run is in flight or the draft cannot run.
+ * disabled only while a run is in flight or the draft cannot run. Disabled,
+ * it says why (S12f) in its `title` and a helper line under it, one reason
+ * at a time: "Pick a launch site first", "Pick a launch date first" or
+ * "Running…" (`runBlocker`; no reason while no file is loaded).
  *
  * The rocket button opens the RocketPanel dialog (S8/A3, S9) whenever a file
  * is active — including a file that predates rockets (`rocketId` null), for
@@ -28,8 +31,8 @@
 import { useCallback, useId, useRef, useState } from "react";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { Spinner, StatusPill } from "@/components/ui";
-import { ChangeChip } from "@/components/runs/WhatChanged";
-import type { ChangeGroup } from "@/lib/domain/runs";
+import { CHANGE_GROUP_LABEL, ChangeChip } from "@/components/runs/WhatChanged";
+import { runBlocker } from "@/lib/domain/scenario";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { cn, focusRing } from "@/lib/styles";
 import { ChevronDownIcon, PlayIcon } from "./icons";
@@ -39,13 +42,6 @@ import type { RunSimulation } from "./useRunSimulation";
 import type { OrkImport } from "./useOrkImport";
 import type { WorkbenchUrl } from "./useWorkbenchUrl";
 
-const GROUP_LABEL = {
-  file: "runs.groupFile",
-  site: "runs.groupSite",
-  date: "runs.groupDate",
-  weather: "runs.groupWeather",
-  rail: "runs.groupRail",
-} as const satisfies Record<ChangeGroup, string>;
 
 export function TopBar({
   simulation,
@@ -62,6 +58,16 @@ export function TopBar({
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
+  const blocker = runBlocker(state);
+  const runReason = busy
+    ? t("workbench.statusRunning")
+    : ready
+      ? null
+      : blocker === "site"
+        ? t("workbench.runNeedsSite")
+        : blocker === "date"
+          ? t("workbench.runNeedsDate")
+          : null;
 
   const { phase } = importer;
   const converting = phase.kind === "converting";
@@ -160,7 +166,7 @@ export function TopBar({
               tone="warn"
               title={[
                 t("workbench.statusChanged", { runId: status.runId }),
-                status.changes.map((group) => t(GROUP_LABEL[group])).join(", "),
+                status.changes.map((group) => t(CHANGE_GROUP_LABEL[group])).join(", "),
               ].join(" · ")}
             >
               {t("workbench.statusChanged", { runId: status.runId })}
@@ -168,7 +174,7 @@ export function TopBar({
             <ul aria-label={t("workbench.changesLabel")} className="flex flex-wrap gap-1.5 max-md:hidden">
               {status.changes.map((group) => (
                 <ChangeChip key={group} tone="warn">
-                  {t(GROUP_LABEL[group])}
+                  {t(CHANGE_GROUP_LABEL[group])}
                 </ChangeChip>
               ))}
             </ul>
@@ -178,17 +184,29 @@ export function TopBar({
 
       <div className="min-w-0 flex-1" />
 
-      <button type="button" onClick={() => void run()} disabled={!ready}
-        // A disabled Run stays readable (opacity 60 %, not the kit's 50 %; `!` wins over it).
-        className={cn(primaryButton, "shrink-0 disabled:text-on-primary disabled:opacity-60!")}
-      >
-        {busy ? <Spinner decorative className="h-3.5 w-3.5" /> : <PlayIcon />}
-        {busy ? t("workbench.running") : hasRun ? t("workbench.runAgain") : t("workbench.run")}
-        <kbd aria-hidden className="font-mono text-[11px] opacity-75 max-md:hidden">
-          ⌘↵
-        </kbd>
-        <span className="sr-only">{t("workbench.runShortcut")}</span>
-      </button>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <button
+          type="button"
+          onClick={() => void run()}
+          disabled={!ready}
+          title={runReason ?? undefined}
+          aria-describedby={runReason ? "run-reason" : undefined}
+          // A disabled Run stays readable (opacity 60 %, not the kit's 50 %; `!` wins over it).
+          className={cn(primaryButton, "shrink-0 disabled:text-on-primary disabled:opacity-60!")}
+        >
+          {busy ? <Spinner decorative className="h-3.5 w-3.5" /> : <PlayIcon />}
+          {busy ? t("workbench.running") : hasRun ? t("workbench.runAgain") : t("workbench.run")}
+          <kbd aria-hidden className="font-mono text-[11px] opacity-75 max-md:hidden">
+            ⌘↵
+          </kbd>
+          <span className="sr-only">{t("workbench.runShortcut")}</span>
+        </button>
+        {runReason && (
+          <span id="run-reason" className="text-xs text-muted">
+            {runReason}
+          </span>
+        )}
+      </div>
     </header>
   );
 }

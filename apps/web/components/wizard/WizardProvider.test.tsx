@@ -195,6 +195,26 @@ describe("WizardProvider — launch rail defaults and overrides (S4)", () => {
     expect("rail" in result.current.scenarioBody()).toBe(false);
   });
 
+  it("a value equal to the file default is no override: it deletes the key (badge back to From .ork)", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", MANIFEST));
+    act(() => result.current.setRailOverride("inclination", 84));
+    act(() => result.current.setRailOverride("length", 3));
+    expect(result.current.state.railOverrides).toEqual({ inclination: 84, length: 3 });
+
+    // Numeric equality: 85 and 85.0 are the file's 85.
+    act(() => result.current.setRailOverride("inclination", Number("85.0")));
+    expect(result.current.state.railOverrides).toEqual({ length: 3 });
+    act(() => result.current.setRailOverride("length", 5.2));
+    expect(result.current.state.railOverrides).toEqual({});
+    expect("rail" in result.current.scenarioBody()).toBe(false);
+
+    // Without a file default the value is always an override.
+    act(() => result.current.setExport("export-2", { flight: {} }));
+    act(() => result.current.setRailOverride("heading", 90));
+    expect(result.current.state.railOverrides).toEqual({ heading: 90 });
+  });
+
   it("overrides survive a file switch while the defaults follow the new file", () => {
     const { result } = setup();
     act(() => result.current.setExport("export-1", MANIFEST));

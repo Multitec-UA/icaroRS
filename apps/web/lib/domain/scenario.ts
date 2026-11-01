@@ -14,7 +14,6 @@
  */
 
 import type { Atmosphere, AtmosphereModel, LaunchDate, Site } from "@/lib/api";
-import { CHANGE_GROUPS, type ChangeGroup } from "./runs";
 
 // ---------------------------------------------------------------------------
 // Atmosphere
@@ -31,6 +30,28 @@ export const DEFAULT_ATMOSPHERE: Atmosphere = {
   station: null,
   fallback: "standard_atmosphere",
 };
+
+/** How far ahead the GFS forecast reaches, in days (mirrors the API's suggestion). */
+export const FORECAST_WINDOW_DAYS = 16;
+
+const HOUR_MS = 3_600_000;
+
+/**
+ * True when the forecast cannot cover the launch hour typed in `local` (the
+ * user's wall clock in `timeZone`): it lies more than FORECAST_WINDOW_DAYS
+ * after `now`, or its hour ended before `now`. A run then falls back to the
+ * standard atmosphere (S12e). False when no date is typed.
+ */
+export function outsideForecastWindow(
+  local: string | null,
+  now: number = Date.now(),
+  timeZone: string = resolveTimeZone(),
+): boolean {
+  const date = toLaunchDate(local, timeZone);
+  if (!date) return false;
+  const start = Date.UTC(date.year, date.month - 1, date.day, date.hour);
+  return start + HOUR_MS <= now || start - now > FORECAST_WINDOW_DAYS * 24 * HOUR_MS;
+}
 
 // ---------------------------------------------------------------------------
 // Launch date: user's wall clock <-> UTC domain date
@@ -317,6 +338,14 @@ export function canonicalScenario(body: unknown): Record<string, Json> {
   return sortKeys(source) as Record<string, Json>;
 }
 
+/**
+ * The five groups the inputs of a run fall into (S6), in display order.
+ * `scenarioDiff` names them; lib/domain/runs `whatChanged` details them.
+ */
+export type ChangeGroup = "file" | "site" | "date" | "weather" | "rail";
+
+export const CHANGE_GROUPS: ChangeGroup[] = ["file", "site", "date", "weather", "rail"];
+
 /** What decides a run: the export it simulates and the scenario it was sent. */
 export interface RunReference {
   exportId: string | null;
@@ -376,4 +405,20 @@ function missesRequiredDate(progress: Pick<RunReadiness, "atmosphere" | "launchD
  */
 export function canRun(progress: RunReadiness): boolean {
   return progress.exportId !== null && hasFiniteSite(progress.site) && !missesRequiredDate(progress);
+}
+
+/** A draft condition that keeps Run disabled and that the user fixes in a field. */
+export type RunBlocker = "site" | "date";
+
+/**
+ * The first unmet `canRun` condition after the file, for the disabled Run
+ * button's reason (S12f): the site, then the date. Null when the draft can
+ * run, and while no file is loaded (importing one is the next step, and the
+ * results column already says so).
+ */
+export function runBlocker(progress: RunReadiness): RunBlocker | null {
+  if (progress.exportId === null) return null;
+  if (!hasFiniteSite(progress.site)) return "site";
+  if (missesRequiredDate(progress)) return "date";
+  return null;
 }

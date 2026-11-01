@@ -25,10 +25,12 @@
  * crosses child elements. A drop a nested drop zone already handled
  * (`defaultPrevented`) is not picked twice.
  *
- * Phones and tablets (< lg, S10): the two columns become two tabs, "Inputs"
- * and "Result". It opens on Result when a run is displayed and on Inputs
- * otherwise, and moves to Result whenever a new run is displayed (a fresh
- * run, or `/?run=` resolving). The inactive column is only hidden by CSS
+ * Phones and tablets (< lg, S10/S12j): with no file loaded there are no
+ * tabs: the results column (drop zone and rocket picker) is the whole
+ * screen and the inputs column is hidden. Once a file is loaded two tabs
+ * appear, "Inputs" and "Result", opening on Inputs. Pressing Run (the
+ * button or ⌘↵) switches to Result in the Run handler; a result arriving
+ * later never switches tabs. The inactive column is only hidden by CSS
  * (`max-lg:hidden`), never unmounted, so typed values, the map and the
  * replay keep their state; each tab remembers its own page scroll. At lg
  * and up the tab row is hidden and both columns show side by side.
@@ -37,7 +39,7 @@
  * (z-index 400–1000 inside the map) stay below the top bar's rocket panel.
  */
 
-import { useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type DragEvent, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { cn, focusRing } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
@@ -53,36 +55,32 @@ type Tab = "inputs" | "result";
 const TABS: readonly Tab[] = ["inputs", "result"];
 
 /**
- * The phone tab state: Result while a run is displayed and while no file is
- * loaded (importing is the first thing a phone shows), Inputs once a file is
- * loaded and nothing has run; a newly displayed run switches to Result. Page
- * scroll is kept per tab.
+ * The phone tab state (S12j): Inputs whenever a file gets loaded; Result
+ * only when the user picks it or presses Run (`select`). Page scroll is
+ * kept per tab. Without a file the tabs are not rendered at all.
  */
-function useWorkbenchTab(runId: string | null, hasFile: boolean) {
-  const [tab, setTab] = useState<Tab>(runId || !hasFile ? "result" : "inputs");
-  const [shownRun, setShownRun] = useState(runId);
+function useWorkbenchTab(hasFile: boolean) {
+  const [tab, setTab] = useState<Tab>("inputs");
   const [shownFile, setShownFile] = useState(hasFile);
   const scroll = useRef<Record<Tab, number>>({ inputs: 0, result: 0 });
   const restore = useRef<number | null>(null);
 
-  // Adjusting state during render (not in an effect) when the run or the
-  // file changes: a new run shows Result; a freshly loaded file with nothing
-  // run yet shows Inputs; clearing the file goes back to the import side.
-  if (runId !== shownRun) {
-    setShownRun(runId);
-    if (runId) setTab("result");
-  }
+  // Adjusting state during render (not in an effect): a freshly loaded file
+  // opens on Inputs.
   if (hasFile !== shownFile) {
     setShownFile(hasFile);
-    if (!runId) setTab(hasFile ? "inputs" : "result");
+    if (hasFile) setTab("inputs");
   }
 
-  function select(next: Tab) {
-    if (next === tab) return;
-    scroll.current[tab] = window.scrollY;
-    restore.current = scroll.current[next];
-    setTab(next);
-  }
+  const select = useCallback(
+    (next: Tab) => {
+      if (next === tab) return;
+      scroll.current[tab] = window.scrollY;
+      restore.current = scroll.current[next];
+      setTab(next);
+    },
+    [tab],
+  );
 
   useLayoutEffect(() => {
     if (restore.current === null) return;
@@ -102,9 +100,17 @@ export function WorkbenchShell() {
   const url = useWorkbenchUrl();
   const importer = useOrkImport();
   const simulation = useRunSimulation({ hold: importer.converting });
-  const { run, ready } = simulation;
   const { state } = useWizardDraft();
-  const { tab, select } = useWorkbenchTab(state.displayedRun?.runId ?? null, state.exportId !== null);
+  const hasFile = state.exportId !== null;
+  const { tab, select } = useWorkbenchTab(hasFile);
+  const { run: send, ready } = simulation;
+  // Pressing Run shows the Result tab at once (S12j); the result itself
+  // never moves the tabs.
+  const run = useCallback(async () => {
+    if (!ready) return;
+    select("result");
+    await send();
+  }, [ready, select, send]);
   const tabRefs = useRef<Record<Tab, HTMLButtonElement | null>>({ inputs: null, result: null });
   const ids = useId();
   const panelId = (name: Tab) => `${ids}-${name}`;
@@ -175,46 +181,48 @@ export function WorkbenchShell() {
         onDrop={onDrop}
         className="relative flex flex-1 flex-col rounded-2xl border border-border bg-surface shadow-soft"
       >
-        <TopBar simulation={simulation} importer={importer} url={url} />
-        <div
-          role="tablist"
-          aria-label={t("workbench.viewTabs")}
-          className="sticky top-0 z-10 grid grid-cols-2 gap-1 border-b border-divider bg-surface px-3 py-2 lg:hidden"
-        >
-          {TABS.map((name) => {
-            const selected = tab === name;
-            return (
-              <button
-                key={name}
-                ref={(node) => {
-                  tabRefs.current[name] = node;
-                }}
-                type="button"
-                role="tab"
-                id={`${panelId(name)}-tab`}
-                aria-selected={selected}
-                aria-controls={panelId(name)}
-                tabIndex={selected ? 0 : -1}
-                onClick={() => select(name)}
-                onKeyDown={onTabKeyDown}
-                className={cn(
-                  "min-h-11 rounded-[9px] text-sm font-semibold transition-[background-color,color,box-shadow] duration-300 ease-[var(--ease-spring)]",
-                  focusRing,
-                  selected
-                    ? "bg-surface text-ink shadow-soft ring-1 ring-border"
-                    : "bg-surface-2 text-muted hover:text-ink",
-                )}
-              >
-                {name === "inputs" ? t("workbench.tabInputs") : t("workbench.tabResult")}
-              </button>
-            );
-          })}
-        </div>
+        <TopBar simulation={{ ...simulation, run }} importer={importer} url={url} />
+        {hasFile && (
+          <div
+            role="tablist"
+            aria-label={t("workbench.viewTabs")}
+            className="sticky top-0 z-10 grid grid-cols-2 gap-1 border-b border-divider bg-surface px-3 py-2 lg:hidden"
+          >
+            {TABS.map((name) => {
+              const selected = tab === name;
+              return (
+                <button
+                  key={name}
+                  ref={(node) => {
+                    tabRefs.current[name] = node;
+                  }}
+                  type="button"
+                  role="tab"
+                  id={`${panelId(name)}-tab`}
+                  aria-selected={selected}
+                  aria-controls={panelId(name)}
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => select(name)}
+                  onKeyDown={onTabKeyDown}
+                  className={cn(
+                    "min-h-11 rounded-[9px] text-sm font-semibold transition-[background-color,color,box-shadow] duration-300 ease-[var(--ease-spring)]",
+                    focusRing,
+                    selected
+                      ? "bg-surface text-ink shadow-soft ring-1 ring-border"
+                      : "bg-surface-2 text-muted hover:text-ink",
+                  )}
+                >
+                  {name === "inputs" ? t("workbench.tabInputs") : t("workbench.tabResult")}
+                </button>
+              );
+            })}
+          </div>
+        )}
         <div className="isolate flex flex-1 flex-col lg:flex-row">
-          <InputsPanel id={panelId("inputs")} hidden={tab !== "inputs"} errors={simulation.errors} />
+          <InputsPanel id={panelId("inputs")} hidden={!hasFile || tab !== "inputs"} errors={simulation.errors} />
           <ResultsColumn
             id={panelId("result")}
-            hidden={tab !== "result"}
+            hidden={hasFile && tab !== "result"}
             errors={simulation.errors}
             fatal={simulation.fatal}
             importer={importer}

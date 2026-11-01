@@ -110,6 +110,7 @@ function arm() {
 }
 
 afterEach(() => {
+  sessionStorage.clear();
   for (const m of [
     simulateMock,
       suggestAtmosphereMock,
@@ -230,7 +231,7 @@ describe("Workbench import — A1 no export (S8)", () => {
     expect(screen.getByLabelText("Rail length (m)")).toHaveAttribute("placeholder", "From your .ork");
     // Launch site and Time & weather stay editable.
     expect(screen.getByLabelText("Latitude")).toBeEnabled();
-    expect(screen.getByLabelText("If the forecast is unavailable")).toBeEnabled();
+    expect(screen.getByLabelText(/^Launch · your time/, { selector: "input" })).toBeEnabled();
 
     await useRocket("Icarus-2");
 

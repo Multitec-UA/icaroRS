@@ -36,7 +36,8 @@ export function Field({
   labelAside?: ReactNode;
   htmlFor?: string;
   error?: string;
-  hint?: string;
+  /** Plain text, or nodes for a hint of more than one line. */
+  hint?: ReactNode;
   children: ReactNode;
   term?: string;
 }) {

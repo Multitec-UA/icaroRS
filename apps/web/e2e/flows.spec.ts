@@ -100,3 +100,16 @@ test("leaving the Workbench and coming back keeps the draft and the run", async 
   await expect(page.getByRole("status").filter({ hasText: /^Changed since run / })).toBeVisible();
   await expect(page.locator("#elev")).toHaveValue("120");
 });
+
+test("an edit after a run survives a reload: Changed since run, with the Site chip", async ({ page }) => {
+  await runIcarus(page);
+  await expect(page).toHaveURL(/\/\?run=/);
+  await page.locator("#elev").fill("120");
+  await expect(page.getByRole("status").filter({ hasText: /^Changed since run / })).toBeVisible();
+
+  await page.reload();
+
+  await expect(page.getByRole("status").filter({ hasText: /^Changed since run / })).toBeVisible();
+  await expect(page.getByRole("list", { name: "What changed" }).getByText("Site", { exact: true })).toBeVisible();
+  await expect(page.locator("#elev")).toHaveValue("120");
+});

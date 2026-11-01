@@ -66,6 +66,7 @@ const RUNS_R2: SimulationSummary[] = [
     scalars: { apogee_m: 3088, max_velocity_ms: 290, flight_time_s: 150, impact_x_m: 1500, impact_y_m: 900 },
     scenario: {
       ...SCENARIO,
+      site: { ...SCENARIO.site, elevation: 40 },
       date: { year: 2026, month: 11, day: 7, hour: 15 },
       atmosphere: { ...SCENARIO.atmosphere, model: "standard_atmosphere" },
     },
@@ -221,6 +222,8 @@ describe("RunsView — overlay and what changed", () => {
     expect(within(changed).getByText(/Weather Real forecast \(GFS\) → Standard atmosphere/)).toBeInTheDocument();
     expect(within(changed).getByText(/Launch .*11:00.* → .*3:00/)).toBeInTheDocument();
     expect(within(changed).getByText("Different file: icarus2_v3.ork")).toBeInTheDocument();
+    // The canonical diff (S12a): the site's elevation counts too.
+    expect(within(changed).getByText("Elevation 12 m → 40 m")).toBeInTheDocument();
     // The baseline itself is never compared with itself.
     expect(within(changed).queryByText("Same inputs as the baseline")).not.toBeInTheDocument();
   });

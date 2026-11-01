@@ -22,8 +22,9 @@
  * Leaving mid-run (S8): the request keeps going (the API writes the run on
  * completion and the draft lives in the root layout, so the result still
  * becomes the displayed run). When it resolves after the Workbench
- * unmounted, a toast says so on whatever route the user is on: "Run {id}
- * finished" with a link to `/?run={id}`, or "Run failed: {detail}".
+ * unmounted, a toast says so on whatever route the user is on: "{rocket} ·
+ * apogee {value}" (S12g; formatted like the Apogee KPI card) with an "Open"
+ * link to `/?run={id}`, or "Run failed: {detail}".
  *
  * Error contract (unchanged from the wizard):
  *   401 → handled globally by lib/query-client.ts, nothing to do here
@@ -39,7 +40,9 @@ import type { ChangeGroup } from "@/lib/domain/runs";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { showToast } from "@/components/ui";
 import { workbenchRunHref } from "@/components/runs/OpenInWorkbenchButton";
-import { useT } from "@/components/i18n/LocaleProvider";
+import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { formatQuantity } from "@/components/flight/flightMath";
+import { runMetrics } from "@/lib/domain/runs";
 import { focusFirstError } from "./fieldErrors";
 
 export type RunStatus =
@@ -65,6 +68,7 @@ export interface RunSimulation {
 export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
   const { state, showRun, scenarioBody } = useWizardDraft();
   const t = useT();
+  const { locale } = useLocale();
   const [errors, setErrors] = useState<FieldError[]>([]);
   const [fatal, setFatal] = useState<string | null>(null);
   const { mutateAsync, isPending } = useSimulateMutation();
@@ -80,7 +84,7 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
   const hold = options?.hold ?? false;
   const ready = canRun(state) && !isPending && !hold;
   const exportId = state.exportId;
-  const { displayedRun, exportFilename, manifest } = state;
+  const { displayedRun, exportFilename, manifest, rocketName } = state;
 
   const status = useMemo<RunStatus>(() => {
     if (isPending) return { kind: "running" };
@@ -100,9 +104,13 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
       const result = await mutateAsync({ exportId, scenario });
       showRun({ runId: result.run_id, exportId, scenario, result, exportFilename, manifest });
       if (!mounted.current) {
+        const apogee = runMetrics(result.scalars).apogee;
         showToast({
           tone: "ok",
-          message: t("workbench.toastRunFinished", { runId: result.run_id }),
+          message: t("workbench.toastRunFinished", {
+            rocket: rocketName ?? exportFilename ?? exportId,
+            value: apogee === null ? "—" : formatQuantity(apogee, "m", locale),
+          }),
           action: { href: workbenchRunHref(result.run_id), label: t("workbench.toastOpen") },
         });
       }
@@ -123,7 +131,7 @@ export function useRunSimulation(options?: { hold?: boolean }): RunSimulation {
         setFatal(t("workbench.runFailed"));
       }
     }
-  }, [exportId, exportFilename, manifest, ready, mutateAsync, scenarioBody, showRun, t]);
+  }, [exportId, exportFilename, locale, manifest, ready, mutateAsync, rocketName, scenarioBody, showRun, t]);
 
   return { run, ready, busy: isPending, status, hasRun: displayedRun !== null, errors, fatal };
 }

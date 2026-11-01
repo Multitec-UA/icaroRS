@@ -11,7 +11,9 @@ import {
   formatLaunchDate,
   launchDateToIso,
   needsDate,
+  outsideForecastWindow,
   resolveTimeZone,
+  runBlocker,
   toLaunchDate,
 } from "./scenario";
 
@@ -243,6 +245,44 @@ describe("canRun", () => {
     expect(
       canRun({ ...ready, atmosphere: FORECAST_ATMOSPHERE, launchDatetime: "2026-06-01T09:54" }),
     ).toBe(true);
+  });
+});
+
+describe("runBlocker — the first unmet Run condition the button names (S12f)", () => {
+  const ready = {
+    exportId: "export-1",
+    site: { latitude: 10, longitude: 20, elevation: null },
+    atmosphere: FORECAST_ATMOSPHERE,
+    launchDatetime: "2026-06-01T09:00",
+  };
+
+  it("names the site first, then the date, and nothing once Run can go", () => {
+    expect(runBlocker({ ...ready, site: null, launchDatetime: null })).toBe("site");
+    expect(runBlocker({ ...ready, site: { latitude: Number.NaN, longitude: 20, elevation: null } })).toBe("site");
+    expect(runBlocker({ ...ready, launchDatetime: null })).toBe("date");
+    expect(runBlocker({ ...ready, atmosphere: STANDARD_ATMOSPHERE, launchDatetime: null })).toBeNull();
+    expect(runBlocker(ready)).toBeNull();
+  });
+
+  it("names nothing without a file: the import is the next step, not a field", () => {
+    expect(runBlocker({ ...ready, exportId: null, site: null })).toBeNull();
+  });
+});
+
+describe("outsideForecastWindow — when a forecast cannot cover the launch hour (S12e)", () => {
+  const NOW = Date.UTC(2026, 9, 31, 10);
+
+  it("is true more than 16 days ahead or once the launch hour is over, false in between", () => {
+    expect(outsideForecastWindow("2026-11-07T11:00", NOW, "UTC")).toBe(false);
+    expect(outsideForecastWindow("2026-11-16T10:00", NOW, "UTC")).toBe(false);
+    expect(outsideForecastWindow("2026-11-16T11:00", NOW, "UTC")).toBe(true);
+    expect(outsideForecastWindow("2026-10-31T10:00", NOW, "UTC")).toBe(false);
+    expect(outsideForecastWindow("2026-10-31T09:00", NOW, "UTC")).toBe(true);
+  });
+
+  it("is false without a parseable date", () => {
+    expect(outsideForecastWindow(null, NOW, "UTC")).toBe(false);
+    expect(outsideForecastWindow("not-a-date", NOW, "UTC")).toBe(false);
   });
 });
 

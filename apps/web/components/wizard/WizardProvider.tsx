@@ -179,8 +179,15 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       return { ...state, launchDatetime: action.value };
     case "SET_ATMOSPHERE":
       return { ...state, atmosphere: action.atmosphere };
-    case "SET_RAIL_OVERRIDE":
+    case "SET_RAIL_OVERRIDE": {
+      // A value equal to the file's own is no override (S12b): the key goes,
+      // so the badge reads "From .ork" again and the body carries no rail.
+      const fileValue = state.railDefaults?.[action.field];
+      if (typeof fileValue === "number" && Number(action.value) === Number(fileValue)) {
+        return reducer(state, { type: "RESET_RAIL_OVERRIDE", field: action.field });
+      }
       return { ...state, railOverrides: { ...state.railOverrides, [action.field]: action.value } };
+    }
     case "RESET_RAIL_OVERRIDE": {
       if (!(action.field in state.railOverrides)) return state;
       const rest = { ...state.railOverrides };

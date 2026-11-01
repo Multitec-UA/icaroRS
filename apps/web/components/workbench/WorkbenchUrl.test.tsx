@@ -119,6 +119,7 @@ afterEach(() => {
     mock.mockReset();
   }
   clearToasts();
+  sessionStorage.clear();
 });
 
 function SiteDriver() {
@@ -176,6 +177,43 @@ describe("Workbench URL — resolving it on mount (S8)", () => {
     expect(nav.push).not.toHaveBeenCalled();
   });
 
+  it("edits survive a refresh: the stored draft is re-applied once ?run= resolves (S12l)", async () => {
+    const first = renderAt("?run=run-4");
+    await screen.findByText("Up to date · run run-4");
+    fireEvent.change(screen.getByLabelText("Elevation (m)"), { target: { value: "120" } });
+    await screen.findByText("Changed since run run-4");
+    expect(JSON.parse(sessionStorage.getItem("icaro:draft:exp-1") ?? "null")).toMatchObject({
+      runId: "run-4",
+      site: { elevation: 120 },
+    });
+
+    // A refresh: a new page (fresh providers, empty draft) at the same URL.
+    first.unmount();
+    renderAt("?run=run-4");
+
+    expect(await screen.findByText("Changed since run run-4")).toBeInTheDocument();
+    expect(within(screen.getByRole("list", { name: "What changed" })).getByText("Site")).toBeInTheDocument();
+    expect(screen.getByLabelText("Elevation (m)")).toHaveValue(120);
+    expect(nav.replace).not.toHaveBeenCalled();
+  });
+
+  it("a stored draft of another run of the same file is not applied to this one", async () => {
+    sessionStorage.setItem(
+      "icaro:draft:exp-1",
+      JSON.stringify({
+        runId: "run-other",
+        site: { latitude: 1, longitude: 2, elevation: 3 },
+        launchDatetime: null,
+        atmosphere: SCENARIO.atmosphere,
+        railOverrides: {},
+      }),
+    );
+    renderAt("?run=run-4");
+
+    expect(await screen.findByText("Up to date · run run-4")).toBeInTheDocument();
+    expect(screen.getByLabelText("Latitude")).toHaveValue(38.2655);
+  });
+
   it("?file= loads the file only: the rocket card is ready to run and no run is fetched", async () => {
     renderAt("?file=exp-1");
 
@@ -193,6 +231,15 @@ describe("Workbench URL — resolving it on mount (S8)", () => {
 
     expect(nav.replace).toHaveBeenCalledWith("/", { scroll: false });
     expect(await screen.findByText("Drop your OpenRocket file here")).toBeInTheDocument();
+  });
+
+  it("Start fresh forgets the stored drafts (S12l)", async () => {
+    sessionStorage.setItem("icaro:draft:exp-1", "{}");
+    renderAt("?run=does-not-exist");
+
+    fireEvent.click(await screen.findByRole("button", { name: "Start fresh" }));
+
+    expect(sessionStorage.getItem("icaro:draft:exp-1")).toBeNull();
   });
 
   it("a run whose file is gone shows the same run message", async () => {
@@ -287,15 +334,26 @@ describe("Workbench — a run that finishes after leaving (S8)", () => {
     expect(screen.queryByRole("button", { name: /Run/ })).toBeNull();
   }
 
-  it("keeps running and toasts 'Run {id} finished' with a link to its Workbench URL", async () => {
+  it("keeps running and toasts '{rocket} · apogee {value}' with an Open link to its Workbench URL (S12g)", async () => {
+    let resolve: (value: unknown) => void = () => {};
+    api.simulate.mockReturnValueOnce(new Promise((r) => (resolve = r)));
+    await startRunThenLeave();
+
+    resolve({ run_id: "run-late", scalars: { apogee_m: 3142.4 }, plot_urls: [], warnings: [] });
+
+    // Formatted like the Apogee KPI card: locale-grouped, no decimals past 100.
+    expect(await screen.findByText(/^Icarus-2 · apogee 3,142\sm$/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/?run=run-late");
+  });
+
+  it("toasts a dash for a run without an apogee", async () => {
     let resolve: (value: unknown) => void = () => {};
     api.simulate.mockReturnValueOnce(new Promise((r) => (resolve = r)));
     await startRunThenLeave();
 
     resolve({ run_id: "run-late", scalars: {}, plot_urls: [], warnings: [] });
 
-    expect(await screen.findByText("Run run-late finished")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Open" })).toHaveAttribute("href", "/?run=run-late");
+    expect(await screen.findByText("Icarus-2 · apogee —")).toBeInTheDocument();
   });
 
   it("toasts the failure with the server detail", async () => {
@@ -318,6 +376,6 @@ describe("Workbench — a run that finishes after leaving (S8)", () => {
     fireEvent.click(run);
 
     expect(await screen.findByText("Up to date · run run-here")).toBeInTheDocument();
-    expect(screen.queryByText("Run run-here finished")).toBeNull();
+    expect(screen.queryByText(/Icarus-2 · apogee/)).toBeNull();
   });
 });

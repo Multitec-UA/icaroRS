@@ -55,52 +55,92 @@ describe("formatDelta — signed, locale-formatted", () => {
   });
 });
 
-describe("whatChanged — compared run against the baseline", () => {
-  it("returns no change for identical inputs", () => {
+describe("whatChanged — compared run against the baseline, on the canonical diff (S12a)", () => {
+  it("returns no change for identical inputs, nor for key order, sub-metre noise or uncertainty", () => {
     expect(whatChanged(baseline, { ...baseline })).toEqual([]);
+    const noisy: RunInputs = {
+      ...baseline,
+      scenario: {
+        uncertainty: null,
+        rail: { heading: 133, inclination: 84, length: 5.2 },
+        atmosphere: { ...baseScenario.atmosphere },
+        date: { ...baseScenario.date },
+        site: { latitude: 38.345200001, longitude: -0.481, elevation: 12.01 },
+        name: "",
+      },
+    };
+    expect(whatChanged(baseline, noisy)).toEqual([]);
   });
 
-  it("names each changed scenario field with its before and after values", () => {
+  it("shows a chip for two runs that differ only by the launch date", () => {
+    const run: RunInputs = { ...baseline, scenario: { ...baseScenario, date: { ...baseScenario.date, hour: 15 } } };
+    expect(whatChanged(baseline, run)).toEqual([
+      { group: "date", key: "launchDate", from: "2026-11-07T11:00:00Z", to: "2026-11-07T15:00:00Z" },
+    ]);
+  });
+
+  it("shows a chip for two runs that differ only by the file, even with the same file name", () => {
+    expect(whatChanged(baseline, { ...baseline, export_id: "exp-9" })).toEqual([
+      { group: "file", key: "file", from: "icarus2.ork", to: "icarus2.ork" },
+    ]);
+    expect(whatChanged(baseline, { ...baseline, export_id: "exp-2", ork_filename: "icarus2_v3.ork" })).toEqual([
+      { group: "file", key: "file", from: "icarus2.ork", to: "icarus2_v3.ork" },
+    ]);
+  });
+
+  it("names the site's elevation and the weather's fallback, which the old diff ignored", () => {
     const run: RunInputs = {
       ...baseline,
       scenario: {
         ...baseScenario,
-        site: { latitude: 39.5, longitude: -0.4, elevation: 12 },
-        date: { year: 2026, month: 11, day: 7, hour: 15 },
-        atmosphere: { ...baseScenario.atmosphere, model: "standard_atmosphere" },
-        rail: { length: 6, inclination: 88, heading: 90 },
-        uncertainty: { mass: { std: 0.05, kind: "relative" } },
+        site: { ...baseScenario.site, elevation: 40 },
+        atmosphere: { ...baseScenario.atmosphere, fallback: "other" },
       },
     };
     expect(whatChanged(baseline, run)).toEqual([
-      { key: "site", from: "38.3452, -0.481", to: "39.5, -0.4" },
-      { key: "launchDate", from: "2026-11-07T11:00:00Z", to: "2026-11-07T15:00:00Z" },
-      { key: "atmosphere", from: "forecast", to: "standard_atmosphere" },
-      { key: "railLength", from: "5.2", to: "6" },
-      { key: "railInclination", from: "84", to: "88" },
-      { key: "railHeading", from: "133", to: "90" },
+      { group: "site", key: "elevation", from: "12", to: "40" },
+      { group: "weather", key: "fallback", from: "standard_atmosphere", to: "other" },
     ]);
   });
 
-  it("reports a different file by its name, and unset values as null", () => {
+  it("details every changed field in the order file, site, date, weather, rail", () => {
     const run: RunInputs = {
-      scenario: { ...baseScenario, rail: null, date: null },
+      scenario: {
+        ...baseScenario,
+        site: { latitude: 39.5, longitude: -0.4, elevation: 12 },
+        date: { year: 2026, month: 11, day: 7, hour: 15 },
+        atmosphere: { ...baseScenario.atmosphere, model: "wyoming_sounding", station: "08221" },
+        rail: { length: 6, inclination: 88, heading: 90 },
+        uncertainty: { mass: { std: 0.05, kind: "relative" } },
+      },
       ork_filename: "icarus2_v3.ork",
       export_id: "exp-2",
     };
     expect(whatChanged(baseline, run)).toEqual([
-      { key: "launchDate", from: "2026-11-07T11:00:00Z", to: null },
-      { key: "railLength", from: "5.2", to: null },
-      { key: "railInclination", from: "84", to: null },
-      { key: "railHeading", from: "133", to: null },
-      { key: "file", from: "icarus2.ork", to: "icarus2_v3.ork" },
+      { group: "file", key: "file", from: "icarus2.ork", to: "icarus2_v3.ork" },
+      { group: "site", key: "site", from: "38.3452, -0.481", to: "39.5, -0.4" },
+      { group: "date", key: "launchDate", from: "2026-11-07T11:00:00Z", to: "2026-11-07T15:00:00Z" },
+      { group: "weather", key: "atmosphere", from: "forecast", to: "wyoming_sounding" },
+      { group: "weather", key: "station", from: null, to: "08221" },
+      { group: "rail", key: "railLength", from: "5.2", to: "6" },
+      { group: "rail", key: "railInclination", from: "84", to: "88" },
+      { group: "rail", key: "railHeading", from: "133", to: "90" },
     ]);
   });
 
-  it("treats a different export with the same file name as a different file", () => {
-    expect(whatChanged(baseline, { ...baseline, export_id: "exp-9" })).toEqual([
-      { key: "file", from: "icarus2.ork", to: "icarus2.ork" },
+  it("reports unset values as null, and a stored rail: null as no rail", () => {
+    const run: RunInputs = { ...baseline, scenario: { ...baseScenario, rail: null, date: null } };
+    expect(whatChanged(baseline, run)).toEqual([
+      { group: "date", key: "launchDate", from: "2026-11-07T11:00:00Z", to: null },
+      { group: "rail", key: "railLength", from: "5.2", to: null },
+      { group: "rail", key: "railInclination", from: "84", to: null },
+      { group: "rail", key: "railHeading", from: "133", to: null },
     ]);
+  });
+
+  it("falls back to one chip for the group when it changed in a field without its own chip", () => {
+    const run: RunInputs = { ...baseline, scenario: { ...baseScenario, site: { ...baseScenario.site, name: "Pad B" } } };
+    expect(whatChanged(baseline, run)).toEqual([{ group: "site", key: "other", from: null, to: null }]);
   });
 });
 

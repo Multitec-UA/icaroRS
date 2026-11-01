@@ -2,9 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 import { FIXTURE_RUN_ID, prepare, settle, snap } from "./fixtures";
 
 /**
- * Phone width (390x844), light theme (S10): the Workbench is two tabs,
- * "Inputs" and "Result", under one command row, and the navigation is a
- * bottom bar. The run report is a single column.
+ * Phone width (390x844), light theme (S10, S12j): with no file the
+ * Workbench is the import (drop zone and picker) on the whole screen, with
+ * no tabs; once a file is loaded it is two tabs, "Inputs" and "Result",
+ * under one command row. The navigation is a bottom bar. The run report is a
+ * single column.
  */
 
 const tab = (page: Page, name: "Inputs" | "Result") =>
@@ -20,13 +22,13 @@ async function expectBottomBar(page: Page): Promise<void> {
 }
 
 /**
- * The phone flow: with no file the Workbench opens on Result, where the
- * rocket is picked; loading it switches to Inputs, where the site is typed;
- * Run shows the result on the Result tab.
+ * The phone flow: with no file the picker fills the screen and there are no
+ * tabs; picking the rocket shows the tabs on Inputs, where the site is
+ * typed; pressing Run selects the Result tab.
  */
 async function runIcarusOnPhone(page: Page): Promise<void> {
   await page.goto("/");
-  await expect(tab(page, "Result")).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("tablist", { name: "Workbench view" })).toHaveCount(0);
   await page.getByRole("button", { name: "Use Icarus Mk II" }).click();
   await expect(page.getByRole("button", { name: "Use Icarus Mk II" })).toHaveCount(0);
   await expect(tab(page, "Inputs")).toHaveAttribute("aria-selected", "true");
@@ -53,6 +55,15 @@ async function snapPhone(page: Page, name: string): Promise<void> {
 
 test.beforeEach(async ({ page }) => {
   await prepare(page, "light");
+});
+
+test("workbench import (mobile)", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("button", { name: "Use Icarus Mk II" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Choose .ork file" })).toBeVisible();
+  await expect(page.getByRole("tablist", { name: "Workbench view" })).toHaveCount(0);
+  await expect(page.getByRole("complementary", { name: "Inputs" })).toBeHidden();
+  await snapPhone(page, "workbench-import-mobile-light");
 });
 
 test("workbench result (mobile)", async ({ page }) => {
