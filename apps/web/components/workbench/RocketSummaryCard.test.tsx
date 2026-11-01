@@ -73,4 +73,80 @@ describe("RocketSummaryCard (S3)", () => {
     expect(valueOf("Dry mass")).toHaveTextContent("7.84 kg");
     expect(screen.queryByText("Ready to run")).toBeNull();
   });
+
+  it("keeps a legacy manifest's motor as the propellant alone, with no pill and today's note", () => {
+    renderCard(MANIFEST);
+    expect(valueOf("Motor").textContent).toBe("0.85 kg propellant");
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+});
+
+const IDENTITY = {
+  designation: "232H123-14A",
+  manufacturer: "Cesaroni Technology",
+  ork_motor_type: "reload",
+  config_id: "cfg-1",
+  motor_count: 1,
+  impulse_class: "H",
+  total_impulse_newton_seconds: 232,
+  impulse_check: "ok",
+  burn_time_seconds: 1.94,
+};
+
+function enriched(identity: Partial<typeof IDENTITY> | null, status: string | null = "uptodate") {
+  return {
+    ...MANIFEST,
+    motors: { ...MANIFEST.motors, ...(identity && { identity: { ...IDENTITY, ...identity } }) },
+    stored_results: { ...MANIFEST.stored_results, simulation_name: "Simulation 1", status, selection: "uptodate_default" },
+  };
+}
+
+const STALE_NOTE = "May not reflect the current design or settings; re-run the simulation in OpenRocket to refresh.";
+
+describe("RocketSummaryCard (S4) — motor identity", () => {
+  it("names the motor and lists impulse, burn time and propellant", () => {
+    renderCard(enriched({}));
+    const motor = valueOf("Motor");
+    expect(motor).toHaveTextContent("Cesaroni Technology 232H123-14A");
+    expect(motor).toHaveTextContent("232 N·s · 1.94 s burn · 0.85 kg propellant");
+  });
+
+  it("shows each part only when present", () => {
+    renderCard(enriched({ manufacturer: null as never, total_impulse_newton_seconds: null as never }));
+    const motor = valueOf("Motor");
+    expect(motor).toHaveTextContent(/^232H123-14A1\.94 s burn · 0\.85 kg propellant$/);
+  });
+
+  it("shows the same motor line in the compact card", () => {
+    renderCard(enriched({}), true);
+    expect(valueOf("Motor")).toHaveTextContent("Cesaroni Technology 232H123-14A");
+    expect(valueOf("Motor")).toHaveTextContent("232 N·s · 1.94 s burn · 0.85 kg propellant");
+  });
+});
+
+describe("RocketSummaryCard (S4) — stored-results provenance", () => {
+  it("titles the block with the simulation name and marks an up-to-date simulation", () => {
+    renderCard(enriched({}, "uptodate"));
+    expect(screen.getByText("OpenRocket stored results · Simulation 1")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("up to date");
+    expect(screen.getByText("its own conditions, saved in the file")).toBeInTheDocument();
+    expect(screen.queryByText(STALE_NOTE)).toBeNull();
+  });
+
+  it.each([
+    ["outdated", "outdated", "bg-warn-soft"],
+    ["loaded", "loaded", "bg-chip"],
+  ])("marks a %s simulation and warns it may be stale", (status, label, toneClass) => {
+    renderCard(enriched({}, status));
+    const pill = screen.getByRole("status");
+    expect(pill).toHaveTextContent(label);
+    expect(pill.className).toContain(toneClass);
+    expect(screen.getByText(STALE_NOTE)).toBeInTheDocument();
+  });
+
+  it("shows no pill when the status is unknown", () => {
+    renderCard(enriched({}, null));
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByText("its own conditions, saved in the file")).toBeInTheDocument();
+  });
 });

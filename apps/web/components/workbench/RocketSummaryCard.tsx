@@ -10,16 +10,32 @@
  * `compact` is the per-file variant of the rocket panel: the metric grid
  * only, no header, stored results or ready line.
  *
+ * The Motor row names the motor ("{manufacturer} {designation}") over
+ * "{impulse} N·s · {burn} s burn · {propellant} kg propellant", each part
+ * only when the manifest has it; an old manifest keeps the propellant alone.
+ * The stored-results block carries the simulation's name and a status pill
+ * (none when the status is unknown), and warns when it is not up to date.
+ *
  * Every missing value renders as "—" (see `lib/domain/rocket.ts`).
  */
 
-import { useId, useMemo } from "react";
-import type { RocketSummary } from "@/lib/domain/rocket";
+import { useId, useMemo, type ComponentProps } from "react";
+import type { RocketSummary, StoredResultsStatus } from "@/lib/domain/rocket";
+import { StatusPill } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/styles";
 import { RocketIcon } from "./icons";
 
 const DASH = "—";
+
+type MessageKey = Parameters<ReturnType<typeof useT>>[0];
+type Tone = NonNullable<ComponentProps<typeof StatusPill>["tone"]>;
+
+const STATUS_PILL: Partial<Record<StoredResultsStatus, { tone: Tone; label: MessageKey }>> = {
+  uptodate: { tone: "ok", label: "workbench.cardStatusUptodate" },
+  outdated: { tone: "warn", label: "workbench.cardStatusOutdated" },
+  loaded: { tone: "neutral", label: "workbench.cardStatusLoaded" },
+};
 
 export function RocketSummaryCard({
   summary,
@@ -52,6 +68,17 @@ export function RocketSummaryCard({
   const hasRail = rail.length !== null || rail.inclination !== null || rail.heading !== null;
   const title = name ?? summary.name ?? DASH;
 
+  const motor = summary.motor;
+  const motorName = motor ? [motor.manufacturer, motor.designation].filter(Boolean).join(" ") : "";
+  const motorParts = motor
+    ? [
+        motor.totalImpulseNs !== null && t("workbench.cardImpulse", { value: fmt.d0.format(motor.totalImpulseNs) }),
+        motor.burnTimeS !== null && t("workbench.cardBurnTime", { value: fmt.d2.format(motor.burnTimeS) }),
+        motor.propellantMassKg !== null && t("workbench.cardPropellant", { mass: kg(motor.propellantMassKg) }),
+      ].filter((part): part is string => typeof part === "string")
+    : [];
+  const motorLine = motorParts.join(" · ");
+
   const metrics: Array<{ key: string; term: string; value: string; note?: string; mono?: boolean }> = [
     { key: "dry", term: t("workbench.cardDryMass"), value: kg(summary.dryMassKg), mono: true },
     {
@@ -70,7 +97,9 @@ export function RocketSummaryCard({
     {
       key: "motor",
       term: t("workbench.cardMotor"),
-      value: summary.motor ? t("workbench.cardPropellant", { mass: kg(summary.motor.propellantMassKg) }) : DASH,
+      // Named: the name over the details line; unnamed (old manifests): the details alone.
+      value: motorName || motorLine || DASH,
+      note: motorName && motorLine ? motorLine : undefined,
     },
     {
       key: "parachutes",
@@ -113,6 +142,8 @@ export function RocketSummaryCard({
   }
 
   const stored = summary.storedResults;
+  const pill = stored ? STATUS_PILL[stored.status] : undefined;
+  const stale = stored?.status === "outdated" || stored?.status === "loaded";
   const storedItems = stored
     ? [
         { key: "apogee", label: t("workbench.cardApogee"), value: stored.apogeeM, unit: "m" },
@@ -144,11 +175,20 @@ export function RocketSummaryCard({
 
       {stored && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl bg-surface-2 px-3.5 py-3 text-[13px] text-ink-2">
-          <span className="flex flex-col">
-            <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted">
-              {t("workbench.cardStoredTitle")}
+          <span className="flex min-w-0 flex-col gap-1">
+            <span className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted">
+                {stored.simulationName
+                  ? t("workbench.cardStoredTitleNamed", { name: stored.simulationName })
+                  : t("workbench.cardStoredTitle")}
+              </span>
+              {pill && (
+                <StatusPill tone={pill.tone} className="h-6 text-xs">
+                  {t(pill.label)}
+                </StatusPill>
+              )}
             </span>
-            <span className="text-xs">{t("workbench.cardStoredNote")}</span>
+            <span className="text-xs">{t(stale ? "workbench.cardStoredStale" : "workbench.cardStoredNote")}</span>
           </span>
           {storedItems.map((item) => (
             <span key={item.key}>

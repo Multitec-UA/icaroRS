@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AppProviders } from "@/test/test-providers";
 import { ApiError } from "@/lib/api";
 import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
@@ -58,6 +58,30 @@ describe("RunResults (S7) — the OpenRocket comparison row", () => {
     expect(row).toHaveTextContent(
       "OpenRocket, its own conditions saved in the file: apogee 1,790 m · max speed 279 m/s · flight time 142 s",
     );
+  });
+
+  it("labels the row with the simulation name, and marks it outdated only when it is", async () => {
+    const summaryWith = (status: string | null) =>
+      rocketSummaryFromManifest({
+        stored_results: { max_altitude: 1790, max_velocity: 279, flight_time: 142, simulation_name: "Simulation 1", status },
+      });
+    const values = "apogee 1,790 m · max speed 279 m/s · flight time 142 s";
+
+    const { unmount } = await renderResults({ exportSummary: summaryWith("outdated") });
+    const row = screen.getByTestId("openrocket-row");
+    expect(row).toHaveTextContent(`OpenRocket · Simulation 1 · outdated: ${values}`);
+    expect(within(row).getByText("outdated")).toHaveClass("text-warn-ink");
+    // Never a difference or a percentage against RocketPy.
+    expect(row.textContent).not.toMatch(/%|Δ|diff/i);
+    unmount();
+
+    for (const status of ["uptodate", "loaded", null]) {
+      const view = await renderResults({ exportSummary: summaryWith(status) });
+      const plain = screen.getByTestId("openrocket-row");
+      expect(plain).toHaveTextContent(`OpenRocket · Simulation 1: ${values}`);
+      expect(plain).not.toHaveTextContent("outdated");
+      view.unmount();
+    }
   });
 
   it("is absent without stored results (zeros mean missing) or without an export summary", async () => {

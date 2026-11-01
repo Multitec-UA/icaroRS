@@ -13,12 +13,21 @@
  *   - `parachutes` = { "0": { name, … }, … }   (components/parachute.py)
  *   - `flight.rail_length` m, `inclination` ° from horizontal,
  *     `heading` °                               (components/flight.py)
+ *   - `motors.identity` (optional, newer manifests): `designation`,
+ *     `manufacturer`, `ork_motor_type`, `impulse_class`,
+ *     `total_impulse_newton_seconds` N·s, `burn_time_seconds` s
  *   - `stored_results.max_altitude` m, `max_velocity` m/s,
- *     `flight_time` s                           (components/stored_results.py)
+ *     `flight_time` s, and (optional, newer manifests) `simulation_name`,
+ *     `status`, `selection`                     (components/stored_results.py)
  *
- * The serializer emits no motor designation and no total impulse, so the
- * motor is described by its propellant mass (recovered from the grain
- * geometry and density the serializer derived from it).
+ * The propellant mass is recovered from the grain geometry and density the
+ * serializer derived from the thrust curve.
+ *
+ * Legacy rules: old manifests carry no `motors.identity` and no stored-results
+ * provenance; they produce the same summary as before those keys existed
+ * (identity fields null, `status: "unknown"`). The serializer still writes 0
+ * for a stored result the .ork lacks, so a stored value ≤ 0 means "not
+ * available" (null), never a real 0.
  *
  * Every missing or malformed value is `null`; the UI renders it as "—".
  */
@@ -35,11 +44,39 @@ export interface RocketSummary {
   /** Dry mass plus propellant; null when the propellant mass is unknown. */
   liftoffMassKg: number | null;
   diameterMm: number | null;
-  motor: { propellantMassKg: number } | null;
+  /** Null when the manifest says nothing about the motor. */
+  motor: MotorSummary | null;
   parachutes: { count: number; names: string[] };
   railDefaults: RailDefaults;
   /** OpenRocket's own simulation saved in the file, under its own conditions. */
-  storedResults: { apogeeM: number | null; maxVelocityMs: number | null; flightTimeS: number | null } | null;
+  storedResults: StoredResults | null;
+}
+
+export interface MotorSummary {
+  /** e.g. "232H123-14A". */
+  designation: string | null;
+  manufacturer: string | null;
+  /** OpenRocket's motor type, verbatim ("reload", "single", "hybrid"…). */
+  orkMotorType: string | null;
+  /** The impulse class letter parsed from the designation, e.g. "H". */
+  impulseClass: string | null;
+  /** Total impulse in newton-seconds (N·s); null when unknown or failed its class check. */
+  totalImpulseNs: number | null;
+  burnTimeS: number | null;
+  propellantMassKg: number | null;
+}
+
+/** Status of the OpenRocket simulation the stored results come from; `unknown` for old manifests. */
+export type StoredResultsStatus = "uptodate" | "outdated" | "loaded" | "unknown";
+
+export interface StoredResults {
+  apogeeM: number | null;
+  maxVelocityMs: number | null;
+  flightTimeS: number | null;
+  simulationName: string | null;
+  status: StoredResultsStatus;
+  /** The serializer's reference-simulation rule, e.g. "uptodate_default". */
+  selection: string | null;
 }
 
 type Dict = Record<string, unknown>;
@@ -56,6 +93,30 @@ function num(value: unknown): number | null {
 function stored(value: unknown): number | null {
   const n = num(value);
   return n !== null && n > 0 ? n : null;
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+const STATUSES: readonly StoredResultsStatus[] = ["uptodate", "outdated", "loaded"];
+
+function status(value: unknown): StoredResultsStatus {
+  return STATUSES.find((s) => s === value) ?? "unknown";
+}
+
+function motorSummary(motors: Dict | null): MotorSummary | null {
+  const identity = dict(motors?.identity);
+  const motor: MotorSummary = {
+    designation: text(identity?.designation),
+    manufacturer: text(identity?.manufacturer),
+    orkMotorType: text(identity?.ork_motor_type),
+    impulseClass: text(identity?.impulse_class),
+    totalImpulseNs: stored(identity?.total_impulse_newton_seconds),
+    burnTimeS: stored(identity?.burn_time_seconds),
+    propellantMassKg: propellantMassKg(motors),
+  };
+  return Object.values(motor).some((v) => v !== null) ? motor : null;
 }
 
 function propellantMassKg(motor: Dict | null): number | null {
@@ -89,18 +150,22 @@ export function rocketSummaryFromManifest(manifest: unknown): RocketSummary {
 
   const dryMassKg = num(rocket?.mass);
   const radius = num(rocket?.radius);
-  const propellant = propellantMassKg(dict(m?.motors));
+  const motor = motorSummary(dict(m?.motors));
+  const propellant = motor?.propellantMassKg ?? null;
 
   const chutes = Object.values(dict(m?.parachutes) ?? {})
     .map((chute) => dict(chute)?.name)
     .filter((n): n is string => typeof n === "string");
 
   const results = dict(m?.stored_results);
-  const storedResults = results
+  const storedResults: StoredResults | null = results
     ? {
         apogeeM: stored(results.max_altitude),
         maxVelocityMs: stored(results.max_velocity),
         flightTimeS: stored(results.flight_time),
+        simulationName: text(results.simulation_name),
+        status: status(results.status),
+        selection: text(results.selection),
       }
     : null;
   const hasStored =
@@ -112,7 +177,7 @@ export function rocketSummaryFromManifest(manifest: unknown): RocketSummary {
     dryMassKg,
     liftoffMassKg: dryMassKg !== null && propellant !== null ? dryMassKg + propellant : null,
     diameterMm: radius !== null ? radius * 2 * 1000 : null,
-    motor: propellant !== null ? { propellantMassKg: propellant } : null,
+    motor,
     parachutes: { count: chutes.length, names: chutes },
     railDefaults: railDefaultsFromManifest(manifest),
     storedResults: hasStored ? storedResults : null,

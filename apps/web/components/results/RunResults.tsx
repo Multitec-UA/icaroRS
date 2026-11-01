@@ -132,7 +132,9 @@ export function RunResults({ runId, result, exportSummary, series }: RunResultsP
 /**
  * OpenRocket's own simulation, saved in the file under its own conditions.
  * One row, never per KPI card and never as a percentage off: the two
- * simulations do not share their inputs.
+ * simulations do not share their inputs. Newer manifests label it with the
+ * simulation's name ("OpenRocket · Simulation 1") and an "outdated" mark
+ * when OpenRocket says so; old ones keep the generic label.
  */
 function OpenRocketRow({ stored }: { stored: NonNullable<RocketSummary["storedResults"]> }) {
   const t = useT();
@@ -144,13 +146,31 @@ function OpenRocketRow({ stored }: { stored: NonNullable<RocketSummary["storedRe
     stored.flightTimeS !== null &&
       t("flight.openRocketFlightTime", { value: formatQuantity(stored.flightTimeS, "s", locale) }),
   ].filter((part): part is string => typeof part === "string");
+  const outdated = stored.status === "outdated";
 
   return (
     <p
       data-testid="openrocket-row"
       className="rounded-xl border border-dashed border-axis px-3.5 py-2.5 text-[13px] leading-relaxed text-ink-2"
     >
-      <span className="font-semibold text-ink">{t("flight.openRocketSource")}</span>{" "}
+      <span className="font-semibold text-ink">
+        {stored.simulationName === null && !outdated ? (
+          t("flight.openRocketSource")
+        ) : (
+          <>
+            {stored.simulationName === null
+              ? t("flight.openRocketLabel")
+              : t("flight.openRocketNamed", { name: stored.simulationName })}
+            {outdated && (
+              <>
+                {" · "}
+                <span className="text-warn-ink">{t("flight.openRocketOutdated")}</span>
+              </>
+            )}
+            :
+          </>
+        )}
+      </span>{" "}
       {parts.map((part, index) => (
         <span key={index} className="tabular-nums">
           {index > 0 && <span className="text-muted">{" · "}</span>}

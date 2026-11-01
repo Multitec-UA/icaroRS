@@ -49,6 +49,9 @@ for (const theme of THEMES) {
 
     test("workbench ready", async ({ page }) => {
       await loadIcarus(page);
+      // S4 (manifest-enrichment): the card names the motor and the stored simulation.
+      await expect(page.getByText("Cesaroni Technology 232H123-14A").first()).toBeVisible();
+      await expect(page.getByText("OpenRocket stored results · Simulation 1")).toBeVisible();
       await snap(page, `workbench-ready-${theme}`);
     });
 
@@ -57,7 +60,7 @@ for (const theme of THEMES) {
       // S6/S7: the status names the displayed run; the shared results
       // composition carries the OpenRocket row and both disclosures.
       await expect(page.getByRole("status").filter({ hasText: /^Up to date · run / })).toBeVisible();
-      await expect(page.getByTestId("openrocket-row")).toContainText("OpenRocket, its own conditions saved in the file:");
+      await expect(page.getByTestId("openrocket-row")).toContainText("OpenRocket · Simulation 1:");
       await expect(page.locator("summary", { hasText: "All results (16 values)" })).toBeVisible();
       await expect(page.locator("summary", { hasText: "Plots (12)" })).toBeVisible();
       await snap(page, `workbench-result-${theme}`);

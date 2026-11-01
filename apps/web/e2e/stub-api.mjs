@@ -127,13 +127,24 @@ const ROCKETS = [
  * OpenRocket's own results under `stored_results`. `name` mirrors what the
  * API reads to name a converted rocket.
  *
+ * `enriched` adds the optional keys newer serializers write: the file's
+ * provenance under `id`, the motor's identity under `motors.identity` and
+ * the reference simulation's provenance under `stored_results`. Without it
+ * the manifest is a legacy one (the Dédalo file keeps that shape).
+ *
  * @param {string} name @param {number} mass @param {number} radius
  * @param {{apogee: number, speed: number, time: number}} stored
+ * @param {{simulation: string, status: string, selection: string} | null} [enriched]
  */
-function manifest(name, mass, radius, stored) {
+function manifest(name, mass, radius, stored, enriched = null) {
   return {
     name,
-    id: { rocket_name: name, comment: null, designer: null },
+    id: {
+      rocket_name: name,
+      comment: null,
+      designer: null,
+      ...(enriched && { ork_format_version: "1.10", creator: "OpenRocket 24.12", serializer_version: "1.0.0" }),
+    },
     rocket: { mass, radius, inertia: [6.32, 6.32, 0.034], coordinate_system_orientation: "nose_to_tail" },
     motors: {
       grain_density: 1815.0,
@@ -143,6 +154,19 @@ function manifest(name, mass, radius, stored) {
       grain_number: 1,
       dry_mass: 0,
       coordinate_system_orientation: "nozzle_to_combustion_chamber",
+      ...(enriched && {
+        identity: {
+          designation: "232H123-14A",
+          manufacturer: "Cesaroni Technology",
+          ork_motor_type: "reload",
+          config_id: "cfg-icarus-h123",
+          motor_count: 1,
+          impulse_class: "H",
+          total_impulse_newton_seconds: 232,
+          impulse_check: "ok",
+          burn_time_seconds: 1.94,
+        },
+      }),
     },
     parachutes: {
       0: { name: "Drogue", cd: 1.5, cds: 0.42, deploy_event: "apogee", deploy_delay: 1.0, deploy_altitude: null },
@@ -162,6 +186,12 @@ function manifest(name, mass, radius, stored) {
       min_stability_margin: 1.62,
       burnout_stability_margin: 2.05,
       max_thrust: 1712.0,
+      ...(enriched && {
+        simulation_name: enriched.simulation,
+        status: enriched.status,
+        config_id: "cfg-icarus-h123",
+        selection: enriched.selection,
+      }),
     },
   };
 }
@@ -173,7 +203,11 @@ const EXPORTS = [
     name: "Icarus Mk II",
     ork_filename: "icarus-mk2-v3.ork",
     created_at: "2026-10-20T11:15:00Z",
-    manifest: manifest("Icarus Mk II", 7.84, 0.0635, { apogee: 1832.4, speed: 291.7, time: 128.3 }),
+    manifest: manifest("Icarus Mk II", 7.84, 0.0635, { apogee: 1832.4, speed: 291.7, time: 128.3 }, {
+      simulation: "Simulation 1",
+      status: "uptodate",
+      selection: "uptodate_default",
+    }),
   },
   {
     export_id: "exp-icarus-v2",
@@ -181,7 +215,11 @@ const EXPORTS = [
     name: "Icarus Mk II",
     ork_filename: "icarus-mk2-v2.ork",
     created_at: "2026-09-14T09:30:00Z",
-    manifest: manifest("Icarus Mk II", 8.12, 0.0635, { apogee: 1741.0, speed: 280.2, time: 124.9 }),
+    manifest: manifest("Icarus Mk II", 8.12, 0.0635, { apogee: 1741.0, speed: 280.2, time: 124.9 }, {
+      simulation: "Pre-flight check",
+      status: "outdated",
+      selection: "fallback",
+    }),
   },
   {
     export_id: "exp-dedalo-2026",
