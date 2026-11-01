@@ -240,6 +240,8 @@
     "runCrumb": "run {id}",
     "copyLink": "Copy link · visible to members of {org}",
     "linkCopied": "Link copied",
+    "downloadPdf": "Download PDF",
+    "downloadPdfHint": "Opens the print dialog; choose Save as PDF. Disclosures are expanded and the replay becomes the trajectory plot.",
     "fileGone": "File no longer available",
     "title": "{rocket} over {site}",
     "titleFallback": "Run report",

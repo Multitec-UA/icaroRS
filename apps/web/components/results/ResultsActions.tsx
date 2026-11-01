@@ -75,6 +75,9 @@ export function ResultsActions({ runId }: { runId: string }) {
       <span aria-live="polite" className="text-xs text-muted">
         {copied ? t("report.linkCopied") : null}
       </span>
+      <button type="button" onClick={() => window.print()} className={ghostButton} title={t("report.downloadPdfHint")}>
+        {t("report.downloadPdf")}
+      </button>
       {gone ? (
         <button type="button" disabled title={t("report.fileGone")} className={ghostButton}>
           {t("runs.openInWorkbench")}

@@ -33,6 +33,18 @@ describe("ResultsActions (issue #52 — client island)", () => {
     expect(screen.queryByRole("link", { name: "Simulate again" })).toBeNull();
   });
 
+  it("'Download PDF' prints the report, which the print rules turn into the PDF (S13)", async () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    render(
+      <AppProviders>
+        <ResultsActions runId="run-1" />
+      </AppProviders>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Download PDF" }));
+    expect(print).toHaveBeenCalledTimes(1);
+    print.mockRestore();
+  });
+
   it("'New rocket' resets the wizard and navigates to /", async () => {
     const push = vi.fn();
     vi.mocked(useRouter).mockReturnValue({

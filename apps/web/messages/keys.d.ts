@@ -185,6 +185,8 @@ export type MessageKey =
   | "report.runCrumb"
   | "report.copyLink"
   | "report.linkCopied"
+  | "report.downloadPdf"
+  | "report.downloadPdfHint"
   | "report.fileGone"
   | "report.title"
   | "report.titleFallback"

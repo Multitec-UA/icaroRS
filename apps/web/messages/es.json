@@ -240,6 +240,8 @@
     "runCrumb": "simulación {id}",
     "copyLink": "Copiar enlace · visible para los miembros de {org}",
     "linkCopied": "Enlace copiado",
+    "downloadPdf": "Descargar PDF",
+    "downloadPdfHint": "Abre el diálogo de impresión; elige Guardar como PDF. Los desplegables se expanden y la repetición pasa a ser el gráfico de trayectoria.",
     "fileGone": "El archivo ya no está disponible",
     "title": "{rocket} sobre {site}",
     "titleFallback": "Informe de la simulación",
