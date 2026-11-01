@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AppProviders } from "@/test/test-providers";
 import { ApiError } from "@/lib/api";
 import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
@@ -100,10 +100,15 @@ describe("RunResults (S7) — the two disclosures", () => {
     expect(document.querySelector('img[src$="/trajectory_3d.png"]')).toBeNull();
     fireEvent(window, new Event("beforeprint"));
 
-    document.querySelectorAll("details").forEach((details) => expect(details.open).toBe(true));
-    expect(screen.getByRole("img", { name: "Energy" })).toBeInTheDocument();
+    // The handler sets state; under load (CI) the re-render lands a tick later.
+    await waitFor(() => {
+      document.querySelectorAll("details").forEach((details) => expect(details.open).toBe(true));
+    });
+    expect(await screen.findByRole("img", { name: "Energy" })).toBeInTheDocument();
     // The replay's print stand-in: the trajectory PNG, mounted only for print.
-    expect(document.querySelector('img[src$="/trajectory_3d.png"].print\\:block')).not.toBeNull();
+    await waitFor(() => {
+      expect(document.querySelector('img[src$="/trajectory_3d.png"].print\\:block')).not.toBeNull();
+    });
   });
 });
 
