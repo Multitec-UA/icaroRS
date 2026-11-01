@@ -156,11 +156,12 @@ npm run e2e:visual:update   # regenerate every snapshot after an intended UI cha
 npm run e2e:visual:native   # host browser, for debugging only
 ```
 
-> **Current baseline (2026-10-31):** the committed snapshots were rendered
-> natively on macOS because Docker could not pull the Playwright image on the
-> authoring machine. Until they are regenerated with `npm run e2e:visual:update`
-> inside Docker, run `npm run e2e:visual:native` locally to compare, and CI runs
-> the suite with `--ignore-snapshots` (every screen must still render).
+> **Baseline:** the committed snapshots are Linux renders from the CI image.
+> To re-baseline without Docker, let the `web-visual` job run (it uploads the
+> fresh renders as the `web-visual-snapshots` artifact), download it with
+> `gh run download <run-id> -n web-visual-snapshots -D apps/web/e2e/__screenshots__`
+> and commit the PNGs you reviewed. `npm run e2e:visual:native` renders on the
+> host and will differ from the committed pixels; use it for debugging only.
 
 - **What runs:** `playwright.config.ts` boots `e2e/stub-api.mjs` (a
   deterministic stub of the icaro API on `:4010`: one org, two rockets, three

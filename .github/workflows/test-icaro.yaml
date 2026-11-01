@@ -198,14 +198,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # The committed snapshots were rendered natively on macOS because Docker
-      # could not pull the Playwright image on the authoring machine. Until they
-      # are regenerated inside this image (`npm run e2e:visual:update`), CI runs
-      # the suite without pixel comparison: it still proves the stub API, the
-      # production build and every screen render. Drop `--ignore-snapshots`
-      # once Linux snapshots are committed.
+      # The committed snapshots are Linux renders from this image (see the
+      # "Render snapshots on Linux" step below for how to re-baseline them).
       - name: Visual regression (Playwright)
-        run: npx playwright test --ignore-snapshots
+        run: npx playwright test
 
       - name: Upload Playwright report
         if: failure()
