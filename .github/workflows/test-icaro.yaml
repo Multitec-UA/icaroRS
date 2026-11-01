@@ -216,3 +216,18 @@ jobs:
             apps/web/playwright-report
             apps/web/test-results
           retention-days: 14
+
+      # Fresh renders from this image, always: download the artifact to
+      # re-baseline the committed snapshots from CI's own platform (the
+      # authoring Mac cannot run the Playwright Docker image).
+      - name: Render snapshots on Linux
+        if: always()
+        run: npx playwright test --update-snapshots=all --reporter=line
+
+      - name: Upload Linux snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-visual-snapshots
+          path: apps/web/e2e/__screenshots__
+          retention-days: 7
