@@ -522,7 +522,7 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
     expect(within(dialog).getByText("1 run")).toBeInTheDocument();
   });
 
-  it("selecting another file keeps the rocket and shows 'Changed since run' with a File chip", async () => {
+  it("selecting another file keeps the rocket and starts clean: the previous run leaves the screen", async () => {
     arm();
     armRocketApi();
     simulateMock.mockResolvedValueOnce(RESULT);
@@ -539,9 +539,10 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
 
     await waitFor(() => expect(getExportMock).toHaveBeenCalledWith("ex-old"));
     expect(await screen.findByText("Icarus-2 · icarus2.ork")).toBeInTheDocument();
-    expect(screen.getByText("Changed since run run-7f3a")).toBeInTheDocument();
-    expect(within(screen.getByRole("list", { name: "What changed" })).getByText("File")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Run again/ })).toBeEnabled();
+    // A new file starts clean: the previous run leaves the screen (it stays in /runs).
+    await waitFor(() => expect(screen.queryByText(/run-7f3a/)).toBeNull());
+    expect(screen.queryByRole("region", { name: "Key results" })).toBeNull();
+    expect(screen.getByRole("button", { name: /Run simulation/ })).toBeEnabled();
     // Still the same rocket: the panel keeps listing its files.
     expect(within(dialog).getByRole("radio", { name: /icarus2\.ork/ })).toBeChecked();
   });

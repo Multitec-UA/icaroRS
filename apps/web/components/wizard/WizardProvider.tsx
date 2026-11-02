@@ -162,6 +162,11 @@ function isDraftDirty(state: WizardState): boolean {
 function reducer(state: WizardState, action: WizardAction): WizardState {
   switch (action.type) {
     case "SET_EXPORT":
+      // A new file starts clean, as the first one does: the run on screen
+      // belongs to the previous file, so it goes (it stays in /runs). The
+      // launch context (site, date, weather) is kept; rail overrides are kept
+      // only for a new file of the same rocket, since another rocket's rail
+      // comes from its own file. Opening a stored run calls showRun after this.
       return {
         ...state,
         exportId: action.exportId,
@@ -170,6 +175,9 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         exportFilename: action.exportFilename,
         rocketName: action.rocketName,
         railDefaults: railDefaultsFromManifest(action.manifest),
+        railOverrides:
+          action.rocketId === state.rocketId ? state.railOverrides : INITIAL_STATE.railOverrides,
+        displayedRun: null,
       };
     case "SET_NAME":
       return { ...state, name: action.name };

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { FIXTURE_RUN_ID, prepare, runIcarus } from "./fixtures";
+import { FIXTURE_RUN_ID, ORK_FIXTURE, prepare, runIcarus } from "./fixtures";
 
 /**
  * Behaviour flows against the stub API (S1/S8/S9): the Workbench's state in
@@ -112,4 +112,27 @@ test("an edit after a run survives a reload: Changed since run, with the Site ch
   await expect(page.getByRole("status").filter({ hasText: /^Changed since run / })).toBeVisible();
   await expect(page.getByRole("list", { name: "What changed" }).getByText("Site", { exact: true })).toBeVisible();
   await expect(page.locator("#elev")).toHaveValue("120");
+});
+
+test("a second rocket after a run starts clean, like the first one", async ({ page }) => {
+  await runIcarus(page);
+  await expect(page.getByRole("status").filter({ hasText: /^Up to date · run / })).toBeVisible();
+
+  // The rocket panel's drop zone, sent to another of the org's rockets.
+  await page.getByRole("button", { name: /Icarus Mk II · / }).click();
+  await page.locator('input[type="file"][name="rocket-panel-new-file"]').setInputFiles(ORK_FIXTURE);
+  await expect(page.getByText("Where does this file go?")).toBeVisible();
+  await page.getByRole("radio", { name: /Add to one of my rockets/ }).check();
+  await page.getByRole("combobox", { name: "Rocket to add this file to" }).selectOption({ label: "Dédalo" });
+  await page.getByRole("button", { name: "Convert" }).click();
+
+  await expect(page.getByRole("button", { name: /^Dédalo · / })).toBeVisible();
+  // The previous rocket's run leaves the screen: the status reads as before a first run, no results.
+  await expect(page.getByRole("status").filter({ hasText: /^No run yet$/ })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: /run-/ })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Key results" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /^Run simulation/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/\?file=/);
+  // The launch context stays.
+  await expect(page.locator("#lat")).toHaveValue("38.2655");
 });

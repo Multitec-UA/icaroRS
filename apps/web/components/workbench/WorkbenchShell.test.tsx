@@ -267,7 +267,7 @@ describe("WorkbenchShell — running in place (S7)", () => {
     expect(push).toHaveBeenCalledWith("/?run=run-7f3a", { scroll: false });
   });
 
-  it("shows 'Up to date' after a run and 'Changed since run' with a File chip once another export is active", async () => {
+  it("shows 'Up to date' after a run; another export starts clean with no run on screen", async () => {
     arm();
     simulateMock.mockResolvedValueOnce(RESULT);
     const run = await seedReady();
@@ -278,9 +278,10 @@ describe("WorkbenchShell — running in place (S7)", () => {
 
     fireEvent.click(screen.getByText("seed-export-2"));
 
-    expect(await screen.findByText("Changed since run run-7f3a")).toBeInTheDocument();
-    expect(within(changedChips()).getByText("File")).toBeInTheDocument();
-    expect(screen.queryByText("Up to date · run run-7f3a")).toBeNull();
+    await waitFor(() => expect(screen.queryByText("Up to date · run run-7f3a")).toBeNull());
+    expect(screen.queryByText("Changed since run run-7f3a")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Key results" })).toBeNull();
+    expect(run).toHaveTextContent("Run simulation");
   });
 
   it("runs on Cmd/Ctrl+Enter, but not without the modifier and not while Run is disabled", async () => {

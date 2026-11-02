@@ -84,6 +84,14 @@ describe("WizardProvider — loading a stored run (S8)", () => {
 });
 
 describe("WizardProvider — export metadata and result provenance (Workbench)", () => {
+  const DRAFT = {
+    name: "workbench",
+    site: { latitude: 38.2655, longitude: -0.6981, elevation: 42 },
+    launchDatetime: "2026-11-07T11:00",
+    atmosphere: { model: "forecast" as const, file: "GFS", station: null, fallback: "standard_atmosphere" as const },
+    railOverrides: {},
+  };
+
   it("setExport stores the export filename and rocket name when given, and clears them when not", () => {
     const { result } = setup();
     act(() =>
@@ -119,7 +127,7 @@ describe("WizardProvider — export metadata and result provenance (Workbench)",
     });
   });
 
-  it("showRun keeps the run on screen with its own export and scenario; a later setExport leaves it alone", () => {
+  it("showRun keeps the run on screen with its own export and scenario until reset", () => {
     const { result } = setup();
     expect(result.current.state.displayedRun).toBeNull();
 
@@ -127,12 +135,36 @@ describe("WizardProvider — export metadata and result provenance (Workbench)",
     act(() => result.current.showRun(RUN_1));
     expect(result.current.state.displayedRun).toEqual(RUN_1);
 
-    act(() => result.current.setExport("export-2", {}, null, { filename: "icarus2_v2.ork" }));
-    expect(result.current.state.exportId).toBe("export-2");
-    expect(result.current.state.displayedRun).toEqual(RUN_1);
-
     act(() => result.current.reset());
     expect(result.current.state.displayedRun).toBeNull();
+  });
+
+  it("a new file starts clean: setExport takes the displayed run off screen, whatever the rocket", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", {}, "rocket-1", { filename: "icarus2.ork" }));
+    act(() => result.current.showRun(RUN_1));
+
+    // A new version of the same rocket.
+    act(() => result.current.setExport("export-2", {}, "rocket-1", { filename: "icarus2_v2.ork" }));
+    expect(result.current.state.exportId).toBe("export-2");
+    expect(result.current.state.displayedRun).toBeNull();
+
+    // Another rocket.
+    act(() => result.current.showRun({ ...RUN_1, exportId: "export-2" }));
+    act(() => result.current.setExport("export-3", {}, "rocket-2", { filename: "dedalo.ork" }));
+    expect(result.current.state.displayedRun).toBeNull();
+  });
+
+  it("a new file keeps the launch context: site, date and weather", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", {}, "rocket-1"));
+    act(() => result.current.loadScenario(DRAFT));
+    act(() => result.current.showRun(RUN_1));
+    act(() => result.current.setExport("export-2", {}, "rocket-2"));
+
+    expect(result.current.state.site).toEqual(DRAFT.site);
+    expect(result.current.state.launchDatetime).toBe(DRAFT.launchDatetime);
+    expect(result.current.state.atmosphere).toEqual(DRAFT.atmosphere);
   });
 });
 
@@ -215,12 +247,22 @@ describe("WizardProvider — launch rail defaults and overrides (S4)", () => {
     expect(result.current.state.railOverrides).toEqual({ heading: 90 });
   });
 
-  it("overrides survive a file switch while the defaults follow the new file", () => {
+  it("overrides survive a new file of the same rocket while the defaults follow the new file", () => {
     const { result } = setup();
-    act(() => result.current.setExport("export-1", MANIFEST));
+    act(() => result.current.setExport("export-1", MANIFEST, "rocket-1"));
     act(() => result.current.setRailOverride("length", 3));
-    act(() => result.current.setExport("export-2", { flight: { rail_length: 2, inclination: 87, heading: 0 } }));
+    act(() => result.current.setExport("export-2", { flight: { rail_length: 2, inclination: 87, heading: 0 } }, "rocket-1"));
     expect(result.current.state.railOverrides).toEqual({ length: 3 });
+    expect(result.current.state.railDefaults).toEqual({ length: 2, inclination: 87, heading: 0 });
+  });
+
+  it("another rocket drops the overrides: its rail comes from its own file", () => {
+    const { result } = setup();
+    act(() => result.current.setExport("export-1", MANIFEST, "rocket-1"));
+    act(() => result.current.setRailOverride("length", 3));
+    act(() => result.current.setExport("export-9", { flight: { rail_length: 2, inclination: 87, heading: 0 } }, "rocket-2"));
+    expect(result.current.state.railOverrides).toEqual({});
+    expect("rail" in result.current.scenarioBody()).toBe(false);
     expect(result.current.state.railDefaults).toEqual({ length: 2, inclination: 87, heading: 0 });
   });
 
