@@ -262,6 +262,23 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     expect(failed).toBeDisabled();
     expect(failed).toHaveAccessibleName(/failed runs/i);
   });
+
+  it("a failed run says so in its run cell; there is no status column and done runs carry no pill", async () => {
+    const table = await renderRuns();
+    const rowC = table.getByRole("radio", { name: "Baseline: run run-c" }).closest("tr") as HTMLElement;
+    expect(within(rowC).getByRole("rowheader")).toHaveTextContent("Failed");
+    const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
+    expect(within(rowB).queryByText("Failed")).toBeNull();
+    expect(within(rowB).queryByText("Done")).toBeNull();
+    expect(table.queryByRole("columnheader", { name: "Status" })).toBeNull();
+  });
+
+  it("the Workbench action shows the short label and keeps the full accessible name", async () => {
+    const table = await renderRuns();
+    const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
+    const open = within(rowB).getByRole("link", { name: "Open in Workbench" });
+    expect(open).toHaveTextContent(/^Workbench$/);
+  });
 });
 
 describe("RunsView — empty states", () => {

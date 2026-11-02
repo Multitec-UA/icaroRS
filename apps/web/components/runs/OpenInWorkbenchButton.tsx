@@ -7,6 +7,8 @@
  * simulated on the way (the old "Re-run" started a silent new run). A failed
  * run has no result to open, and a run written before the Rocket/Export
  * split has no file — the control is then a disabled button that says why.
+ * The visible label is the short "Workbench" so the table stays narrow; the
+ * accessible name keeps the full "Open in Workbench".
  */
 
 import Link from "next/link";
@@ -31,7 +33,8 @@ export function OpenInWorkbenchButton({ run }: { run: SimulationSummary }) {
     return (
       <button type="button" disabled title={reason} className={CLASS}>
         <PlayIcon />
-        {t("runs.openInWorkbench")}
+        <span aria-hidden>{t("runs.openInWorkbenchShort")}</span>
+        <span className="sr-only">{t("runs.openInWorkbench")}</span>
         {/* A disabled button gives no reason on its own; say it for assistive tech. */}
         <span className="sr-only">{reason}</span>
       </button>
@@ -39,9 +42,14 @@ export function OpenInWorkbenchButton({ run }: { run: SimulationSummary }) {
   }
 
   return (
-    <Link href={workbenchRunHref(run.simulation_id)} className={CLASS}>
+    <Link
+      href={workbenchRunHref(run.simulation_id)}
+      aria-label={t("runs.openInWorkbench")}
+      title={t("runs.openInWorkbench")}
+      className={CLASS}
+    >
       <PlayIcon />
-      {t("runs.openInWorkbench")}
+      {t("runs.openInWorkbenchShort")}
     </Link>
   );
 }

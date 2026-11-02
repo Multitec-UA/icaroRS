@@ -4,13 +4,16 @@
  * RunsTable — one rocket's runs as a table (S9): a compare checkbox and a
  * baseline radio per row, the run (date, file, id), the launch (date,
  * weather model, site), the four compared numbers with their delta against
- * the baseline, the status and the actions (View report, Open in Workbench). Deltas
+ * the baseline and the actions (View report, Open in Workbench). Deltas
  * and metrics come from lib/domain/runs so the chips agree with them.
  *
- * Layout (T7): numbers never wrap (`whitespace-nowrap` + tabular figures),
+ * Layout (T7): numbers never wrap (`whitespace-nowrap` + tabular figures) while
+ * their headers may ("Tiempo de vuelo" is wider than any value),
  * the actions column is as narrow as its content (`w-px`, "View report"
- * stacked over "Open in Workbench"), the run's file name truncates, and below the table's min width it
- * scrolls sideways inside its card instead of widening the page.
+ * stacked over "Workbench"), the run's file name truncates, the launch wraps,
+ * and a failed run says so inside its run cell (no status column: every
+ * other row would only read "Done"). The table fits a 1024 px window; below
+ * its min width it scrolls sideways inside its card instead of widening the page.
  */
 
 import Link from "next/link";
@@ -43,8 +46,8 @@ const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
   landing: "runs.colLanding",
 };
 
-const HEAD_CELL = "px-3 py-2.5 text-left text-xs font-medium text-muted";
-const CELL = "px-3 py-3 align-top";
+const HEAD_CELL = "px-2.5 py-2.5 text-left text-xs font-medium text-muted";
+const CELL = "px-2.5 py-3 align-top";
 
 export function RunsTable({
   runs,
@@ -76,7 +79,7 @@ export function RunsTable({
 
   return (
     <div className={cn("overflow-x-auto", cardClass)}>
-      <table className="w-full min-w-[1040px] border-collapse text-sm text-ink">
+      <table className="w-full min-w-[760px] border-collapse text-sm text-ink">
         <caption className="sr-only">{t("runs.tableCaption", { rocket: rocketName })}</caption>
         <thead>
           <tr className="border-b border-divider">
@@ -93,13 +96,10 @@ export function RunsTable({
               {t("runs.colLaunch")}
             </th>
             {RUN_METRIC_KEYS.map((key) => (
-              <th key={key} scope="col" className={cn(HEAD_CELL, "whitespace-nowrap text-right")}>
+              <th key={key} scope="col" className={cn(HEAD_CELL, "text-right")}>
                 {t(METRIC_LABEL_KEYS[key])}
               </th>
             ))}
-            <th scope="col" className={HEAD_CELL}>
-              {t("runs.colStatus")}
-            </th>
             <th scope="col" className={cn(HEAD_CELL, "w-px")}>
               <span className="sr-only">{t("runs.colActions")}</span>
             </th>
@@ -153,7 +153,7 @@ export function RunsTable({
                 <th scope="row" className={cn(CELL, "font-normal")}>
                   <span className="flex flex-col gap-0.5">
                     <span className="whitespace-nowrap tabular-nums text-ink">{dateTime.format(new Date(run.created_at))}</span>
-                    <span translate="no" className="block max-w-[200px] truncate font-mono text-[13px] text-ink-2">
+                    <span translate="no" className="block max-w-40 truncate font-mono text-[13px] text-ink-2">
                       {run.ork_filename ?? (run.export_id || "—")}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted">
@@ -165,10 +165,16 @@ export function RunsTable({
                           {t("runs.baselineTag")}
                         </span>
                       )}
+                      {!done && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-bad-soft px-1.5 py-px text-[11px] font-medium text-bad-ink">
+                          <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-bad" />
+                          {t("runs.statusError")}
+                        </span>
+                      )}
                     </span>
                   </span>
                 </th>
-                <td className={cn(CELL, "text-ink-2")}>
+                <td className={cn(CELL, "min-w-36 text-ink-2")}>
                   <span className="flex flex-col gap-0.5">
                     <span className="tabular-nums">
                       {facts.launchDateIso ? dateTime.format(new Date(facts.launchDateIso)) : t("runs.unset")}
@@ -188,17 +194,6 @@ export function RunsTable({
                     locale={locale}
                   />
                 ))}
-                <td className={CELL}>
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
-                      done ? "bg-ok-soft text-ok-ink" : "bg-bad-soft text-bad-ink",
-                    )}
-                  >
-                    <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", done ? "bg-ok" : "bg-bad")} />
-                    {done ? t("runs.statusDone") : t("runs.statusError")}
-                  </span>
-                </td>
                 <td className={cn(CELL, "w-px whitespace-nowrap text-right")}>
                   <span className="flex flex-col items-end gap-1.5">
                     {done && (
