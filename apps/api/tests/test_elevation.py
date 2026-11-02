@@ -109,6 +109,121 @@ class TestLookupElevationSuccess:
 
 
 # ---------------------------------------------------------------------------
+# Open-Meteo fallback
+# ---------------------------------------------------------------------------
+
+_PRIMARY = "https://fake.elevation.test/api/v1/lookup"
+_FALLBACK = "https://fake.open-meteo.test/v1/elevation"
+
+
+def _response(payload=None, status_error=False):
+    response = MagicMock()
+    if status_error:
+        response.raise_for_status.side_effect = httpx.HTTPStatusError(
+            "503", request=MagicMock(), response=MagicMock()
+        )
+    else:
+        response.raise_for_status.return_value = None
+    response.json.return_value = payload
+    return response
+
+
+def _client(responses_by_url):
+    """An AsyncClient double answering each URL with its canned response."""
+    client = AsyncMock()
+    client.__aenter__ = AsyncMock(return_value=client)
+    client.__aexit__ = AsyncMock(return_value=False)
+
+    async def get(url, params=None):
+        outcome = responses_by_url[url]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    client.get = AsyncMock(side_effect=get)
+    return client
+
+
+class TestOpenMeteoFallback:
+    @pytest.mark.asyncio
+    async def test_primary_down_uses_open_meteo(self):
+        """open-elevation 503 → Open-Meteo answers with its own params and shape."""
+        from icaro_api.services.elevation import lookup_elevation
+        from icaro_api.config import Settings
+
+        settings = Settings(elevation_url=_PRIMARY, elevation_fallback_url=_FALLBACK)
+        client = _client(
+            {
+                _PRIMARY: _response(status_error=True),
+                _FALLBACK: _response({"elevation": [197.0]}),
+            }
+        )
+
+        with patch("icaro_api.services.elevation.httpx.AsyncClient", return_value=client):
+            result = await lookup_elevation(41.7272, 0.0770, settings)
+
+        assert result.elevation == pytest.approx(197.0)
+        assert result.source == "dem"
+        assert result.note is None
+        fallback_call = client.get.await_args_list[-1]
+        assert fallback_call.args[0] == _FALLBACK
+        assert fallback_call.kwargs["params"] == {"latitude": 41.7272, "longitude": 0.0770}
+
+    @pytest.mark.asyncio
+    async def test_primary_success_skips_fallback(self):
+        from icaro_api.services.elevation import lookup_elevation
+        from icaro_api.config import Settings
+
+        settings = Settings(elevation_url=_PRIMARY, elevation_fallback_url=_FALLBACK)
+        client = _client({_PRIMARY: _response({"results": [{"elevation": 432.1}]})})
+
+        with patch("icaro_api.services.elevation.httpx.AsyncClient", return_value=client):
+            result = await lookup_elevation(48.8566, 2.3522, settings)
+
+        assert result.elevation == pytest.approx(432.1)
+        assert client.get.await_count == 1
+
+    @pytest.mark.asyncio
+    async def test_both_down_returns_unavailable(self):
+        from icaro_api.services.elevation import lookup_elevation
+        from icaro_api.config import Settings
+
+        settings = Settings(elevation_url=_PRIMARY, elevation_fallback_url=_FALLBACK)
+        client = _client(
+            {
+                _PRIMARY: httpx.TimeoutException("timeout"),
+                _FALLBACK: _response({"error": True, "reason": "down"}),
+            }
+        )
+
+        with patch("icaro_api.services.elevation.httpx.AsyncClient", return_value=client):
+            result = await lookup_elevation(48.8566, 2.3522, settings)
+
+        assert result.elevation is None
+        assert result.source == "unavailable"
+        assert result.note
+
+    @pytest.mark.asyncio
+    async def test_empty_fallback_url_disables_fallback(self):
+        from icaro_api.services.elevation import lookup_elevation
+        from icaro_api.config import Settings
+
+        settings = Settings(elevation_url=_PRIMARY, elevation_fallback_url="")
+        client = _client({_PRIMARY: _response(status_error=True)})
+
+        with patch("icaro_api.services.elevation.httpx.AsyncClient", return_value=client):
+            result = await lookup_elevation(48.8566, 2.3522, settings)
+
+        assert result.source == "unavailable"
+        assert client.get.await_count == 1
+
+    def test_default_fallback_is_open_meteo(self):
+        from icaro_api.config import Settings
+
+        assert Settings().elevation_fallback_url == "https://api.open-meteo.com/v1/elevation"
+
+
+# ---------------------------------------------------------------------------
 # ElevationResult model tests
 # ---------------------------------------------------------------------------
 

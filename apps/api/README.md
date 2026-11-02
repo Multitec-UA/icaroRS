@@ -57,7 +57,8 @@ its dev proxy.
 | --- | --- | --- |
 | `ICARO_RESULTS_DIR` | `.icaro_runs` | Where run outputs (PNGs, `result.json`) are written |
 | `ICARO_ORK_JAR` | — | Path to the OpenRocket `.jar` (for convert) |
-| `ICARO_ELEVATION_URL` | open-elevation | DEM lookup endpoint |
+| `ICARO_ELEVATION_URL` | open-elevation | DEM lookup endpoint (open-elevation protocol) |
+| `ICARO_ELEVATION_FALLBACK_URL` | Open-Meteo | Tried when the primary fails (Open-Meteo protocol); empty disables it |
 | `ICARO_BASIC_USER` | `icaro` | Basic-auth username |
 | `ICARO_BASIC_PASS` | `changeme` | Basic-auth password |
 | `ICARO_ALLOW_FORECAST` | `false` | Allow real GFS forecast fetches (else suggest standard atmosphere) |
