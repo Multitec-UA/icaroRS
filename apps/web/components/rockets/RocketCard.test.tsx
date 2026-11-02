@@ -27,6 +27,7 @@ const exportSummary = (export_id: string, created_at: string) => ({
 
 const getRocketMock = vi.fn();
 const getExportMock = vi.fn();
+const renameRocketMock = vi.fn();
 
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
@@ -39,12 +40,14 @@ vi.mock("@/lib/api", async (importOriginal) => {
     }),
     getRocket: (...args: Parameters<typeof actual.getRocket>) => getRocketMock(...args),
     getExport: (...args: Parameters<typeof actual.getExport>) => getExportMock(...args),
+    renameRocket: (...args: Parameters<typeof actual.renameRocket>) => renameRocketMock(...args),
   };
 });
 
 afterEach(() => {
   getRocketMock.mockReset();
   getExportMock.mockReset();
+  renameRocketMock.mockReset();
 });
 
 interface SeenState {
@@ -155,5 +158,101 @@ describe("RocketCard — locale-aware, hydration-safe formatting", () => {
 
     expect(await screen.findByText("Jan 1, 2026")).toBeInTheDocument();
     expect(screen.getByText("pilot@multitec.dev")).toHaveAttribute("translate", "no");
+  });
+});
+
+describe("RocketCard — rename", () => {
+  function mockRouter() {
+    const refresh = vi.fn();
+    vi.mocked(useRouter).mockReturnValue({
+      push: vi.fn(),
+      replace: vi.fn(),
+      back: vi.fn(),
+      forward: vi.fn(),
+      refresh,
+      prefetch: vi.fn(),
+    });
+    return refresh;
+  }
+
+  async function startEditing() {
+    render(
+      <AppProviders>
+        <RocketCard rocket={rocketSummary} />
+      </AppProviders>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Rename acme-1" }));
+    await screen.findByRole("textbox", { name: "Rocket name" });
+  }
+
+  // Reveal swaps its wrapper after mount, so the input node is re-queried
+  // at every step instead of being held across renders.
+  const nameInput = () => screen.getByRole("textbox", { name: "Rocket name" });
+
+  it("saves the new name on Enter, shows it and refreshes the server list", async () => {
+    const refresh = mockRouter();
+    renameRocketMock.mockResolvedValueOnce({ ...rocketSummary, name: "Acme Mk II" });
+    await startEditing();
+
+    expect(nameInput()).toHaveValue("acme-1");
+    fireEvent.change(nameInput(), { target: { value: "  Acme Mk II " } });
+    fireEvent.submit(nameInput());
+
+    expect(await screen.findByRole("heading", { name: "Acme Mk II" })).toBeInTheDocument();
+    expect(renameRocketMock).toHaveBeenCalledWith("rocket-1", "Acme Mk II");
+    expect(screen.queryByRole("textbox", { name: "Rocket name" })).not.toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
+  });
+
+  it("Escape cancels without saving", async () => {
+    await startEditing();
+    fireEvent.change(nameInput(), { target: { value: "Something else" } });
+    fireEvent.keyDown(nameInput(), { key: "Escape" });
+
+    expect(screen.getByRole("heading", { name: "acme-1" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "Rocket name" })).not.toBeInTheDocument();
+    expect(renameRocketMock).not.toHaveBeenCalled();
+  });
+
+  it("the Cancel button closes the editor without saving", async () => {
+    await startEditing();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.getByRole("heading", { name: "acme-1" })).toBeInTheDocument();
+    expect(renameRocketMock).not.toHaveBeenCalled();
+  });
+
+  it("a blank name cannot be saved", async () => {
+    await startEditing();
+    fireEvent.change(nameInput(), { target: { value: "   " } });
+
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    fireEvent.submit(nameInput());
+    expect(renameRocketMock).not.toHaveBeenCalled();
+  });
+
+  it("an unchanged name closes the editor without a request", async () => {
+    await startEditing();
+    fireEvent.change(nameInput(), { target: { value: " acme-1 " } });
+    fireEvent.submit(nameInput());
+
+    expect(screen.queryByRole("textbox", { name: "Rocket name" })).not.toBeInTheDocument();
+    expect(renameRocketMock).not.toHaveBeenCalled();
+  });
+
+  it("limits the name to 120 characters", async () => {
+    await startEditing();
+    expect(nameInput()).toHaveAttribute("maxLength", "120");
+  });
+
+  it("a failed save keeps the editor and the typed name, with an inline error", async () => {
+    renameRocketMock.mockRejectedValueOnce(new ApiError(500, "boom", { code: "requestFailed" }));
+    await startEditing();
+    fireEvent.change(nameInput(), { target: { value: "Acme Mk II" } });
+    fireEvent.submit(nameInput());
+
+    const error = await screen.findByText("Could not rename this rocket. Please try again.");
+    expect(error).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByRole("textbox", { name: "Rocket name" })).toHaveValue("Acme Mk II");
   });
 });

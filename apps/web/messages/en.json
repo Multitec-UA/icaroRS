@@ -166,7 +166,12 @@
     "colDate": "Saved on",
     "colBy": "By",
     "useThisRocket": "Use this rocket",
-    "runs": "Runs"
+    "runs": "Runs",
+    "rename": "Rename",
+    "renameLabel": "Rename {rocket}",
+    "nameLabel": "Rocket name",
+    "renameSave": "Save",
+    "errorRenameFailed": "Could not rename this rocket. Please try again."
   },
 
   "runs": {

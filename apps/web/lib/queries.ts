@@ -20,6 +20,7 @@ import {
   getExport,
   getRocket,
   getSeries,
+  renameRocket,
   simulate,
   type ConvertResponse,
   type ExportDetail,
@@ -173,6 +174,22 @@ export function useConvertMutation() {
   return useMutation<ConvertResponse, unknown, { file: File; rocketId: string | null }>({
     mutationFn: ({ file, rocketId }) => convert(file, rocketId ?? undefined),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.rockets }),
+  });
+}
+
+/**
+ * PATCH /api/rockets/{rocketId} — rename from the /rockets card. Every view
+ * that shows the name reads it from the rocket list/detail or the run
+ * summaries (which denormalize it live), so both prefixes are invalidated.
+ */
+export function useRenameRocketMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<RocketSummary, unknown, { rocketId: string; name: string }>({
+    mutationFn: ({ rocketId, name }) => renameRocket(rocketId, name),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.rockets });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.history });
+    },
   });
 }
 

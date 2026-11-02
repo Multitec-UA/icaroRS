@@ -559,6 +559,22 @@
         "title": "RocketDetail",
         "type": "object"
       },
+      "RocketRename": {
+        "description": "Request body for PATCH /api/rockets/{rocket_id}.",
+        "properties": {
+          "name": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "RocketRename",
+        "type": "object"
+      },
       "RocketSummary": {
         "description": "One rocket as returned by GET /api/rockets.",
         "properties": {
@@ -1587,6 +1603,57 @@
           }
         },
         "summary": "Get Rocket",
+        "tags": [
+          "rockets"
+        ]
+      },
+      "patch": {
+        "description": "Rename a rocket of the caller's org; returns the updated summary.\n\nThe name is trimmed and must be 1-120 characters (422 otherwise). Only the\nrocket record holds the name: exports keep the design name read from their\nfile, and runs read the rocket's name live, so nothing else is rewritten.\nReturns 404 if the rocket_id is not found OR not owned by the caller's org.",
+        "operationId": "rename_rocket_api_rockets__rocket_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "rocket_id",
+            "required": true,
+            "schema": {
+              "title": "Rocket Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RocketRename"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RocketSummary"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Rocket",
         "tags": [
           "rockets"
         ]

@@ -378,7 +378,16 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Rename Rocket
+         * @description Rename a rocket of the caller's org; returns the updated summary.
+         *
+         *     The name is trimmed and must be 1-120 characters (422 otherwise). Only the
+         *     rocket record holds the name: exports keep the design name read from their
+         *     file, and runs read the rocket's name live, so nothing else is rewritten.
+         *     Returns 404 if the rocket_id is not found OR not owned by the caller's org.
+         */
+        patch: operations["rename_rocket_api_rockets__rocket_id__patch"];
         trace?: never;
     };
     "/api/scenario/template": {
@@ -725,6 +734,14 @@ export interface components {
             name: string;
             /** Rocket Id */
             rocket_id: string;
+        };
+        /**
+         * RocketRename
+         * @description Request body for PATCH /api/rockets/{rocket_id}.
+         */
+        RocketRename: {
+            /** Name */
+            name: string;
         };
         /**
          * RocketSummary
@@ -1340,6 +1357,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RocketDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rename_rocket_api_rockets__rocket_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rocket_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RocketRename"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RocketSummary"];
                 };
             };
             /** @description Validation Error */

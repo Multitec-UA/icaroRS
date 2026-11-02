@@ -3,6 +3,7 @@
 Routes (all require auth via router-level dependency):
   GET /api/rockets                 — paginated list, reverse-chronological
   GET /api/rockets/{rocket_id}     — rocket + its exports, newest first
+  PATCH /api/rockets/{rocket_id}   — rename the rocket
 
 Manifests live on the export: ``GET /api/exports/{export_id}``.
 
@@ -11,11 +12,12 @@ Req: REQ-04.1 (reverse-chrono), REQ-04.3 (pagination).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 
 from icaro_api.auth import Identity, require_auth
 from icaro_api.routers.exports import ExportSummary, export_summary
@@ -30,6 +32,7 @@ router = APIRouter(
 _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
 _MAX_EXPORTS_PER_ROCKET = 100
+MAX_ROCKET_NAME_LENGTH = 120
 
 
 class RocketSummary(BaseModel):
@@ -45,6 +48,15 @@ class RocketDetail(RocketSummary):
     """Response body for GET /api/rockets/{rocket_id} — the rocket plus its exports."""
 
     exports: list[ExportSummary]
+
+
+class RocketRename(BaseModel):
+    """Request body for PATCH /api/rockets/{rocket_id}."""
+
+    name: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1, max_length=MAX_ROCKET_NAME_LENGTH),
+    ]
 
 
 def rocket_summary(rec: RocketRecord) -> dict[str, Any]:
@@ -101,3 +113,28 @@ def get_rocket(
         org_id=identity.org_id, limit=_MAX_EXPORTS_PER_ROCKET, rocket_id=rocket_id
     )
     return {**rocket_summary(record), "exports": [export_summary(e) for e in exports]}
+
+
+@router.patch("/rockets/{rocket_id}", response_model=RocketSummary)
+def rename_rocket(
+    rocket_id: str,
+    body: RocketRename,
+    db: Db = Depends(get_db),
+    identity: Identity = Depends(require_auth),
+) -> dict[str, Any]:
+    """Rename a rocket of the caller's org; returns the updated summary.
+
+    The name is trimmed and must be 1-120 characters (422 otherwise). Only the
+    rocket record holds the name: exports keep the design name read from their
+    file, and runs read the rocket's name live, so nothing else is rewritten.
+    Returns 404 if the rocket_id is not found OR not owned by the caller's org.
+    """
+    record = db.get_rocket(rocket_id, org_id=identity.org_id)
+    if record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Rocket '{rocket_id}' not found.",
+        )
+    renamed = replace(record, name=body.name)
+    db.save_rocket(renamed, org_id=identity.org_id)
+    return rocket_summary(renamed)

@@ -506,6 +506,16 @@ export function getRocket(rocketId: string): Promise<RocketDetail> {
   return request<RocketDetail>(`/api/rockets/${encodeURIComponent(rocketId)}`);
 }
 
+/** PATCH /api/rockets/{rocketId} — rename a rocket; resolves to the updated summary. */
+export function renameRocket(rocketId: string, name: string): Promise<RocketSummary> {
+  const body: components["schemas"]["RocketRename"] = { name };
+  return request<RocketSummary>(`/api/rockets/${encodeURIComponent(rocketId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 /** GET /api/exports/{exportId} — one converted .ork including its manifest. */
 export function getExport(exportId: string): Promise<ExportDetail> {
   return request<ExportDetail>(`/api/exports/${encodeURIComponent(exportId)}`);

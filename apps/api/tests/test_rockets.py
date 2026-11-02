@@ -223,3 +223,81 @@ class TestRocketDetail:
 
     def test_returns_401_without_auth(self):
         assert _make_client(InMemoryDb()).get("/api/rockets/some-id").status_code == 401
+
+
+class TestRocketRename:
+    def test_renames_and_returns_the_summary(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-1", "acme-1", _T1), org_id=_ORG)
+        resp = _make_client(db).patch(
+            "/api/rockets/r-1", json={"name": "Acme Mk II"}, headers=_auth()
+        )
+        assert resp.status_code == 200
+        assert resp.json() == {
+            "rocket_id": "r-1",
+            "name": "Acme Mk II",
+            "created_at": _T1.isoformat(),
+            "created_by": "test-user",
+        }
+        stored = db.get_rocket("r-1", org_id=_ORG)
+        assert stored is not None and stored.name == "Acme Mk II"
+        assert stored.created_at == _T1 and stored.created_by == "test-user"
+
+    def test_name_is_trimmed(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-1", "acme-1", _T1), org_id=_ORG)
+        resp = _make_client(db).patch(
+            "/api/rockets/r-1", json={"name": "  Acme  "}, headers=_auth()
+        )
+        assert resp.status_code == 200 and resp.json()["name"] == "Acme"
+        assert db.get_rocket("r-1", org_id=_ORG).name == "Acme"
+
+    def test_blank_name_is_rejected_and_nothing_changes(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-1", "acme-1", _T1), org_id=_ORG)
+        client = _make_client(db)
+        for blank in ("", "   "):
+            resp = client.patch("/api/rockets/r-1", json={"name": blank}, headers=_auth())
+            assert resp.status_code == 422
+        assert db.get_rocket("r-1", org_id=_ORG).name == "acme-1"
+
+    def test_name_longer_than_120_is_rejected(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-1", "acme-1", _T1), org_id=_ORG)
+        client = _make_client(db)
+        assert client.patch(
+            "/api/rockets/r-1", json={"name": "x" * 121}, headers=_auth()
+        ).status_code == 422
+        assert client.patch(
+            "/api/rockets/r-1", json={"name": "x" * 120}, headers=_auth()
+        ).status_code == 200
+
+    def test_the_list_and_detail_show_the_new_name(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-1", "acme-1", _T1), org_id=_ORG)
+        client = _make_client(db)
+        client.patch("/api/rockets/r-1", json={"name": "Acme Mk II"}, headers=_auth())
+        assert client.get("/api/rockets", headers=_auth()).json()[0]["name"] == "Acme Mk II"
+        assert client.get("/api/rockets/r-1", headers=_auth()).json()["name"] == "Acme Mk II"
+
+    def test_returns_404_for_unknown_id(self):
+        resp = _make_client(InMemoryDb()).patch(
+            "/api/rockets/nope", json={"name": "X"}, headers=_auth()
+        )
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Rocket 'nope' not found."
+
+    def test_another_orgs_rocket_is_404_and_untouched(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-theirs", "Theirs", _T1, org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        resp = _make_client(db).patch(
+            "/api/rockets/r-theirs", json={"name": "Hijacked"}, headers=_auth()
+        )
+        assert resp.status_code == 404
+        assert db.get_rocket("r-theirs", org_id=_OTHER_ORG).name == "Theirs"
+
+    def test_returns_401_without_auth(self):
+        db = InMemoryDb()
+        db.save_rocket(_rocket("r-1", "acme-1", _T1), org_id=_ORG)
+        assert _make_client(db).patch("/api/rockets/r-1", json={"name": "X"}).status_code == 401
+        assert db.get_rocket("r-1", org_id=_ORG).name == "acme-1"

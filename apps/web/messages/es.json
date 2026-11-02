@@ -166,7 +166,12 @@
     "colDate": "Guardado el",
     "colBy": "Por",
     "useThisRocket": "Usar este cohete",
-    "runs": "Simulaciones"
+    "runs": "Simulaciones",
+    "rename": "Renombrar",
+    "renameLabel": "Renombrar {rocket}",
+    "nameLabel": "Nombre del cohete",
+    "renameSave": "Guardar",
+    "errorRenameFailed": "No se pudo renombrar este cohete. Intenta de nuevo."
   },
 
   "runs": {
