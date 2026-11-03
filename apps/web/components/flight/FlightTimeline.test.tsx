@@ -77,7 +77,7 @@ describe("FlightTimeline — events derived from the scalars", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Apogee, jump the replay to 21\.8\ss$/ }));
 
     expect(screen.getByRole("slider", { name: "Scrub flight timeline" })).toHaveValue("21.8");
-    expect(screen.getByText("21.8 / 30 s")).toBeInTheDocument();
+    expect(screen.getByText("21.8 / 30.0 s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
 });

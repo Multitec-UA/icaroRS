@@ -24,7 +24,7 @@ import { cn, focusRing } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { PauseIcon, PlayIcon } from "@/components/workbench/icons";
 import {
-  formatNumber,
+  formatFixed,
   formatQuantity,
   isFiniteNumber,
   landingDistance,
@@ -36,6 +36,11 @@ import { useReplayEngine, useReplayTime, type ReplayEngine, type ReplaySpeed } f
 import { useThemeTokens } from "./useThemeTokens";
 
 const CANVAS_CLASS = "h-[340px] w-full";
+
+/** Live readout precision: whole metres, tenths of m/s and of a second. */
+const ALTITUDE_DECIMALS = 0;
+const SPEED_DECIMALS = 1;
+const TIME_DECIMALS = 1;
 
 function SceneLoading() {
   const t = useT();
@@ -69,6 +74,19 @@ function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSer
       ] as const,
     [t],
   );
+  // Live readouts: fixed decimals per quantity, each right-aligned in the
+  // width of its largest value (monospaced digits, so `ch` is exact): a value
+  // that gains a digit or a decimal never shifts the pills or the timeline.
+  const maxAltitude = Math.max(0, ...(series.altitude ?? []).filter(isFiniteNumber));
+  const maxSpeed = Math.max(0, ...(series.speed ?? []).filter(isFiniteNumber));
+  const live = {
+    altitude: (v: number) => formatFixed(v, ALTITUDE_DECIMALS, locale, "m"),
+    speed: (v: number) => formatFixed(v, SPEED_DECIMALS, locale, "m/s"),
+    time: (v: number) => formatFixed(v, TIME_DECIMALS, locale, "s"),
+  };
+  const clock = (v: number) => formatFixed(v, TIME_DECIMALS, locale);
+  const clockText = (v: number) => t("flight.timeReadout", { time: clock(v), total: clock(duration) });
+
   // The slider moves in tenths of a second; long flights step coarser so
   // the keyboard still crosses the flight in a reasonable number of presses.
   const step = duration > 300 ? 1 : 0.1;
@@ -80,9 +98,17 @@ function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSer
         aria-label={t("flight.liveReadout")}
         className="pointer-events-none absolute right-4 top-3.5 flex flex-wrap justify-end gap-1.5"
       >
-        <LivePill label={t("flight.liveAltitude")} value={altitude === null ? "—" : formatQuantity(altitude, "m", locale)} />
-        <LivePill label={t("flight.liveSpeed")} value={speedNow === null ? "—" : formatQuantity(speedNow, "m/s", locale)} />
-        <LivePill label={t("flight.liveTime")} value={formatQuantity(time, "s", locale)} />
+        <LivePill
+          label={t("flight.liveAltitude")}
+          value={altitude === null ? "—" : live.altitude(altitude)}
+          widest={live.altitude(maxAltitude)}
+        />
+        <LivePill
+          label={t("flight.liveSpeed")}
+          value={speedNow === null ? "—" : live.speed(speedNow)}
+          widest={live.speed(maxSpeed)}
+        />
+        <LivePill label={t("flight.liveTime")} value={live.time(time)} widest={live.time(duration)} />
       </div>
 
       <div className="flex flex-wrap items-center gap-3 px-4 pb-3.5 pt-2.5">
@@ -106,15 +132,15 @@ function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSer
             step={step}
             value={time}
             onChange={(e) => engine.seek(parseFloat(e.target.value))}
-            aria-valuetext={formatQuantity(time, "s", locale)}
+            aria-valuetext={live.time(time)}
             className="h-1.5 flex-1 cursor-pointer appearance-none rounded-full bg-chip accent-primary"
           />
         </label>
-        <span className="tabular-readout shrink-0 text-xs text-muted">
-          {t("flight.timeReadout", {
-            time: formatNumber(time, locale),
-            total: formatNumber(duration, locale),
-          })}
+        <span
+          className="tabular-readout inline-block shrink-0 text-right text-xs text-muted"
+          style={{ minWidth: `${clockText(duration).length}ch` }}
+        >
+          {clockText(time)}
         </span>
         <SegmentedControl
           label={t("flight.speedLabel")}
@@ -129,10 +155,16 @@ function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSer
   );
 }
 
-function LivePill({ label, value }: { label: string; value: string }) {
+function LivePill({ label, value, widest }: { label: string; value: string; widest: string }) {
   return (
     <span className="rounded-full bg-surface px-2.5 py-1 text-xs text-ink-2 shadow-soft">
-      {label} <strong className="tabular-readout font-semibold text-ink">{value}</strong>
+      {label}{" "}
+      <strong
+        className="tabular-readout inline-block text-right font-semibold text-ink"
+        style={{ minWidth: `${widest.length}ch` }}
+      >
+        {value}
+      </strong>
     </span>
   );
 }

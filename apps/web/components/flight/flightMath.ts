@@ -177,6 +177,19 @@ export function formatQuantity(value: number, unit: string, locale: Locale): str
   return unit ? `${num} ${unit}` : num;
 }
 
+/**
+ * A readout that updates while it is watched (the replay's live values):
+ * always `decimals` digits, so "62.0" never collapses to "62" and the text
+ * never changes length when a decimal comes or goes.
+ */
+export function formatFixed(value: number, decimals: number, locale: Locale, unit = ""): string {
+  const num = new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+  return unit ? `${num}\u00a0${unit}` : num;
+}
+
 /** Seconds readout for timelines and captions. */
 export function formatSeconds(value: number, locale: Locale): string {
   return formatQuantity(value, "s", locale);

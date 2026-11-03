@@ -63,12 +63,12 @@ describe("FlightReplay — play/pause, scrubber and speed", () => {
     const slider = screen.getByRole("slider", { name: "Scrub flight timeline" });
     expect(slider).toHaveAttribute("min", "0");
     expect(slider).toHaveAttribute("max", "3");
-    expect(screen.getByText("0 / 3 s")).toBeInTheDocument();
+    expect(screen.getByText("0.0 / 3.0 s")).toBeInTheDocument();
 
     fireEvent.change(slider, { target: { value: "1.5" } });
 
     expect(slider).toHaveValue("1.5");
-    expect(screen.getByText("1.5 / 3 s")).toBeInTheDocument();
+    expect(screen.getByText("1.5 / 3.0 s")).toBeInTheDocument();
     // Scrubbing pauses the replay, so the camera stops orbiting too.
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
   });
@@ -97,10 +97,10 @@ describe("FlightReplay — play/pause, scrubber and speed", () => {
     expect(screen.getByTestId("orbit")).toHaveAttribute("data-auto-rotate", "false");
     const slider = screen.getByRole("slider", { name: "Scrub flight timeline" });
     expect(slider).toHaveValue("3");
-    expect(screen.getByText("3 / 3 s")).toBeInTheDocument();
+    expect(screen.getByText("3.0 / 3.0 s")).toBeInTheDocument();
 
     fireEvent.change(slider, { target: { value: "2" } });
-    expect(screen.getByText("2 / 3 s")).toBeInTheDocument();
+    expect(screen.getByText("2.0 / 3.0 s")).toBeInTheDocument();
   });
 
   it("summarises the flight in words for assistive tech when the scalars allow it", async () => {
@@ -134,6 +134,34 @@ describe("FlightReplay — play/pause, scrubber and speed", () => {
 
     const readout = screen.getByRole("group", { name: "Flight state at the current time" });
     expect(readout).toHaveTextContent("300 m");
-    expect(readout).toHaveTextContent("30 m/s");
+    expect(readout).toHaveTextContent("30.0 m/s");
+  });
+
+  it("keeps the live numbers still: fixed decimals and a width reserved for the largest value", async () => {
+    await renderReplay();
+    const slider = screen.getByRole("slider", { name: "Scrub flight timeline" });
+    const readout = screen.getByRole("group", { name: "Flight state at the current time" });
+    const pill = (label: string) =>
+      Array.from(readout.querySelectorAll("strong")).find(
+        (strong) => strong.parentElement?.firstChild?.textContent?.trim() === label,
+      ) as HTMLElement;
+
+    // A whole second keeps its decimal ("2.0 s", never "2 s").
+    fireEvent.change(slider, { target: { value: "2" } });
+    expect(pill("t")).toHaveTextContent(/^2\.0\ss$/);
+
+    // Each value is right-aligned in the width of its largest value, so it never
+    // pushes the timeline when a digit or a decimal comes or goes.
+    for (const label of ["Alt", "v", "t"]) {
+      expect(pill(label)).toHaveClass("inline-block", "text-right");
+      expect(pill(label).style.minWidth).toMatch(/^\d+ch$/);
+    }
+    const width = pill("t").style.minWidth;
+    fireEvent.change(slider, { target: { value: "0.5" } });
+    expect(pill("t")).toHaveTextContent(/^0\.5\ss$/);
+    expect(pill("t").style.minWidth).toBe(width);
+
+    // The clock reserves the width of "3.0 / 3.0 s" (11 characters).
+    expect(screen.getByText("0.5 / 3.0 s")).toHaveStyle({ minWidth: "11ch" });
   });
 });
