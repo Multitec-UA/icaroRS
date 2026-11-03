@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- The sidebar brand mark (components/workbench/Sidebar.tsx): the rocket
+       glyph of components/workbench/icons.tsx on the light theme's primary colour,
+       stroked a little heavier so it still reads at 16 px. -->
+  <rect width="32" height="32" rx="9.6" fill="#5160cc"/>
+  <g transform="translate(5.5 5) scale(0.875)" fill="none" stroke="#fbfafd" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 2c3 3 4 7 4 11l-4 3-4-3c0-4 1-8 4-11z"/>
+    <path d="M9 18l-2 4M15 18l2 4"/>
+  </g>
+</svg>
