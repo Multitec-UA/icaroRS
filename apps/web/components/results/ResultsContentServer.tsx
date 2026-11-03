@@ -12,7 +12,8 @@
  *     Workbench renders too — warnings, replay, KPIs, the OpenRocket row,
  *     series, timeline, "All results" and "Plots";
  *   - ReportConfiguration: the stored scenario and the rocket card.
- * Print rules (app/globals.css) hide the sidebar and the actions.
+ * PrintableReport wraps them: "Download PDF" prints a separate, formal
+ * technical document (all sections expanded, numbered figures), never the screen.
  *
  * Known trade-off (unchanged from issue #52): a Server Component cannot read
  * the just-simulated result held in WizardProvider, so the Workbench → report
@@ -29,6 +30,7 @@ import { ghostButton } from "@/components/ui/classes";
 import { ReportConfiguration } from "./ReportConfiguration";
 import { ReportHeader } from "./ReportHeader";
 import { ReportRunResults } from "./ReportRunResults";
+import { PrintableReport } from "./PrintableReport";
 
 export async function ResultsContentServer({
   runId,
@@ -68,10 +70,12 @@ export async function ResultsContentServer({
   const { scalars, warnings, plot_urls } = result;
 
   return (
-    <ReplayProvider>
-      <ReportHeader runId={runId} />
-      <ReportRunResults runId={runId} result={{ scalars, warnings, plot_urls }} />
-      <ReportConfiguration runId={runId} />
-    </ReplayProvider>
+    <PrintableReport runId={runId} result={{ scalars, warnings, plot_urls }}>
+      <ReplayProvider>
+        <ReportHeader runId={runId} />
+        <ReportRunResults runId={runId} result={{ scalars, warnings, plot_urls }} />
+        <ReportConfiguration runId={runId} />
+      </ReplayProvider>
+    </PrintableReport>
   );
 }

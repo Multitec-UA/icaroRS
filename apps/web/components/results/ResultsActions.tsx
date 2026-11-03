@@ -16,6 +16,9 @@
  * /runs rows. "New rocket" stays a button: it discards the draft before
  * navigating, which is a mutation, not a navigation — and because it is
  * destructive it asks first instead of resetting on the spot.
+ *
+ * "Download PDF" builds the printable technical report first (PrintableReport)
+ * and opens the print dialog only once it is complete.
  */
 
 import { useState } from "react";
@@ -27,9 +30,11 @@ import { workbenchRunHref } from "@/components/runs/OpenInWorkbenchButton";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { buttonClass, ghostButton } from "@/components/ui/classes";
 import { useReportExport } from "./useReportExport";
+import { usePrintReport } from "./PrintableReport";
 
 export function ResultsActions({ runId }: { runId: string }) {
   const t = useT();
+  const printReport = usePrintReport();
   const router = useRouter();
   const { reset } = useWizardNav();
   const [confirming, setConfirming] = useState(false);
@@ -75,8 +80,15 @@ export function ResultsActions({ runId }: { runId: string }) {
       <span aria-live="polite" className="text-xs text-muted">
         {copied ? t("report.linkCopied") : null}
       </span>
-      <button type="button" onClick={() => window.print()} className={ghostButton} title={t("report.downloadPdfHint")}>
-        {t("report.downloadPdf")}
+      <button
+        type="button"
+        onClick={printReport.print}
+        disabled={printReport.preparing}
+        aria-busy={printReport.preparing || undefined}
+        className={ghostButton}
+        title={t("report.downloadPdfHint")}
+      >
+        {printReport.preparing ? t("printReport.preparing") : t("report.downloadPdf")}
       </button>
       {gone ? (
         <button type="button" disabled title={t("report.fileGone")} className={ghostButton}>

@@ -232,7 +232,45 @@ body {
  * the WebGL replay is swapped for the `trajectory_3d` PNG through Tailwind's
  * `print:` variant in RunResults.
  */
+/*
+ * The run report's PDF is its own document (components/results/PrintableReport):
+ * A4 with print margins, the page number bottom right; the running footer text
+ * (per run and locale) is set by the document itself.
+ */
+@page {
+  size: A4;
+  margin: 16mm 16mm 18mm;
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-size: 8pt;
+    color: #555;
+  }
+  @bottom-left {
+    font-size: 8pt;
+    color: #555;
+  }
+}
+
 @media print {
+  /* The report's PDF: white paper, and the shell around the document (main
+     panels, paddings, rounded surfaces) steps aside so only the document prints. */
+  html:has([data-print-report]),
+  body:has([data-print-report]) {
+    background: #fff !important;
+    /* The page margins outside the root take the canvas colour of the colour
+       scheme: a dark theme would print them dark. */
+    color-scheme: light !important;
+  }
+  body:has([data-print-report]) :has([data-print-report]) {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
   aside:has(> nav),
   .orb-a,
   .orb-b {

@@ -127,6 +127,19 @@ the same file and run replaces the run's own scenario, so the pill reads
 "Changed since run {id}" again with the same chips. "Start fresh" clears
 every stored draft.
 
+## Run report PDF
+
+"Download PDF" on `/results/{id}` prints a separate technical document, not
+the screen (`components/results/PrintableReport.tsx`): a title block (rocket,
+run id, author, file, dates in UTC) and six numbered sections, every one
+expanded: summary against OpenRocket's stored simulation, configuration
+(rocket and launch conditions), warnings, flight events, complete results and
+numbered figures. The print dialog opens only once the run's data and every
+figure have loaded (15 s at most per figure). A4, white paper whatever the
+theme, page numbers and a running footer come from `@page` rules
+(`app/globals.css`); Chromium prints the margin boxes, other browsers skip
+them. Ctrl+P also mounts the document, but cannot wait for the figures.
+
 Below 1024 px (`lg`) the layout is for phones and tablets: the sidebar
 becomes a bottom bar (Workbench · Rockets · Runs · account, 44 px targets,
 safe-area padded). With no file loaded the Workbench has no tabs: the

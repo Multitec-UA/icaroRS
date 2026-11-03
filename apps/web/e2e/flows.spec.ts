@@ -136,3 +136,38 @@ test("a second rocket after a run starts clean, like the first one", async ({ pa
   // The launch context stays.
   await expect(page.locator("#lat")).toHaveValue("38.2655");
 });
+
+test("Download PDF prints a complete technical report: every section expanded, every figure loaded", async ({ page }) => {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __prints: { sections: number; figures: number; loaded: number }[] };
+    w.__prints = [];
+    window.print = () => {
+      const doc = document.querySelector("[data-print-report]");
+      const imgs = Array.from(doc?.querySelectorAll("img") ?? []) as HTMLImageElement[];
+      w.__prints.push({
+        sections: doc?.querySelectorAll("h2").length ?? 0,
+        figures: imgs.length,
+        loaded: imgs.filter((img) => img.complete && img.naturalWidth > 0).length,
+      });
+    };
+  });
+  await page.goto(`/results/${FIXTURE_RUN_ID}`);
+  await expect(page.getByRole("region", { name: "Key results" })).toBeVisible();
+  // The screen keeps its disclosures closed; the PDF never depends on them.
+  await page.getByRole("button", { name: "Download PDF" }).click();
+
+  await expect
+    .poll(() => page.evaluate(() => (window as unknown as { __prints: unknown[] }).__prints.length))
+    .toBe(1);
+  const [printed] = await page.evaluate(
+    () => (window as unknown as { __prints: { sections: number; figures: number; loaded: number }[] }).__prints,
+  );
+  expect(printed.sections).toBe(6);
+  expect(printed.figures).toBe(12);
+  expect(printed.loaded).toBe(12);
+
+  // In print media only the document shows, never the screen report.
+  await page.emulateMedia({ media: "print" });
+  await expect(page.locator("[data-print-report]")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Key results" })).toBeHidden();
+});
