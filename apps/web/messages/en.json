@@ -203,7 +203,6 @@
     "statusError": "Failed",
     "viewReport": "View report",
     "openInWorkbench": "Open in Workbench",
-    "openInWorkbenchShort": "Workbench",
     "openUnavailable": "Failed runs have no result to open.",
     "openNoExport": "Runs saved before their file was tracked cannot be opened in the Workbench.",
     "unset": "unset",

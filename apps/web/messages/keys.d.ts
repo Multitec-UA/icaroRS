@@ -153,7 +153,6 @@ export type MessageKey =
   | "runs.statusError"
   | "runs.viewReport"
   | "runs.openInWorkbench"
-  | "runs.openInWorkbenchShort"
   | "runs.openUnavailable"
   | "runs.openNoExport"
   | "runs.unset"

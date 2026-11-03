@@ -12,7 +12,8 @@
  * right-aligned, each like its header; a numeric column's unit sits in its
  * header and every value and delta of a column shares one precision
  * (`METRIC_DECIMALS`) in tabular figures; one primary line per cell with
- * the secondary lines muted; both row actions share one quiet link style.
+ * the secondary lines muted; the row actions are icon-only with tooltips,
+ * a primary View report and a secondary Workbench, in the same place on every row.
  * Numbers never wrap while their headers may ("Tiempo de vuelo" is wider than any value),
  * the actions column is as narrow as its content (`w-px`, "View report"
  * stacked over "Workbench"), the run's file name truncates, the launch wraps,
@@ -21,7 +22,6 @@
  * its min width it scrolls sideways inside its card instead of widening the page.
  */
 
-import Link from "next/link";
 import { useMemo } from "react";
 import type { SimulationSummary } from "@/lib/api";
 import {
@@ -39,7 +39,7 @@ import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cardClass } from "@/components/ui/classes";
 import { RUN_COLORS } from "./colors";
 import { MAX_OVERLAY } from "./colors";
-import { OpenInWorkbenchButton, rowActionClass } from "./OpenInWorkbenchButton";
+import { OpenInWorkbenchButton, ViewReportButton } from "./OpenInWorkbenchButton";
 import { useRunFormatters } from "./useRunFormatters";
 
 const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
@@ -208,11 +208,12 @@ export function RunsTable({
                   />
                 ))}
                 <td className={cn(CELL, "w-px whitespace-nowrap text-right")}>
-                  <span className="flex flex-col items-end gap-1.5">
-                    {done && (
-                      <Link href={`/results/${encodeURIComponent(run.simulation_id)}`} className={rowActionClass}>
-                        {t("runs.viewReport")}
-                      </Link>
+                  <span className="flex items-center justify-end gap-1.5">
+                    {done ? (
+                      <ViewReportButton runId={run.simulation_id} />
+                    ) : (
+                      // Keeps the Workbench action in the same place on every row.
+                      <span aria-hidden className="w-8" />
                     )}
                     <OpenInWorkbenchButton run={run} />
                   </span>

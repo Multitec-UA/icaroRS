@@ -8,7 +8,7 @@
 import { cn, focusRing } from "@/lib/styles";
 
 export type ButtonVariant = "primary" | "ghost" | "chip" | "danger";
-export type ButtonSize = "md" | "sm";
+export type ButtonSize = "md" | "sm" | "icon";
 
 /** Shape shared by every button: 36 px, radius 9, spring press. */
 const BUTTON_BASE =
@@ -25,6 +25,10 @@ const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
 const BUTTON_SIZES: Record<ButtonSize, string> = {
   md: "h-9 px-3.5",
   sm: "h-8 px-3 text-[13px]",
+  // Icon-only: a 32 px square. Padding is never overridden from outside: cn()
+  // concatenates without merging, so an extra px-0 next to px-3 would lose
+  // to CSS order and squeeze the 16 px glyph.
+  icon: "h-8 w-8",
 };
 
 export function buttonClass({

@@ -72,6 +72,14 @@ describe("ui kit — Button", () => {
     expect(buttonClass({ variant: "primary", size: "sm" })).toContain("h-8");
   });
 
+  it("has an icon size: a 32 px square with no horizontal padding, so the glyph keeps its 16 px", () => {
+    const classes = buttonClass({ variant: "primary", size: "icon" }).split(/\s+/);
+    expect(classes).toEqual(expect.arrayContaining(["h-8", "w-8"]));
+    // No conflicting padding class: cn() concatenates, it does not merge, so
+    // a px-3 next to a px-0 lets the CSS order decide and squeezes the icon.
+    expect(classes.filter((c) => /^px-/.test(c))).toEqual([]);
+  });
+
   it("uses no literal colour in any variant", () => {
     for (const variant of ["primary", "ghost", "chip", "danger"] as const) {
       expect(buttonClass({ variant })).not.toMatch(/-(?:white|black|cyan|rose|emerald|slate|zinc|gray)\b|#[0-9a-f]{3}/);

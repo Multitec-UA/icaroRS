@@ -14,6 +14,7 @@ export { SegmentedControl } from "./SegmentedControl";
 export { Spinner } from "./Spinner";
 export { StatusPill } from "./StatusPill";
 export { Toaster, dismissToast, showToast, type ToastInput } from "./Toast";
+export { Tooltip } from "./Tooltip";
 export {
   buttonClass,
   cardClass,

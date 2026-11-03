@@ -294,12 +294,21 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     expect(within(rowA).getByRole("rowheader")).toHaveClass("text-left");
   });
 
-  it("both row actions share one link style", async () => {
+  it("row actions have a hierarchy: a primary View report and a secondary Workbench, icon-only with tooltips", async () => {
     const table = await renderRuns();
     const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
     const report = within(rowA).getByRole("link", { name: "View report" });
     const workbench = within(rowA).getByRole("link", { name: "Open in Workbench" });
-    expect(workbench.className).toBe(report.className);
+    expect(report).toHaveClass("bg-primary");
+    expect(workbench).not.toHaveClass("bg-primary");
+    expect(workbench).toHaveClass("border-border");
+    // Icon-only: no visible text, the tooltip says what each does.
+    expect(report).toHaveTextContent(/^$/);
+    expect(workbench).toHaveTextContent(/^$/);
+    fireEvent.focus(report);
+    expect(within(rowA).getByText("View report")).toBeInTheDocument();
+    fireEvent.mouseEnter(workbench.parentElement as HTMLElement);
+    expect(within(rowA).getByText("Open in Workbench")).toBeInTheDocument();
   });
 
   it("the launch cell names the site, never the scenario's default label", async () => {
@@ -307,13 +316,6 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
     expect(within(rowB).getByText("38.3452, -0.481")).toBeInTheDocument();
     expect(within(rowB).queryByText(/my_scenario/)).toBeNull();
-  });
-
-  it("the Workbench action shows the short label and keeps the full accessible name", async () => {
-    const table = await renderRuns();
-    const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
-    const open = within(rowB).getByRole("link", { name: "Open in Workbench" });
-    expect(open).toHaveTextContent(/^Workbench$/);
   });
 });
 
