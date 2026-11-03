@@ -30,7 +30,7 @@ export function ReportHeader({ runId }: { runId: string }) {
   const run = summary.data ?? null;
 
   const facts = run ? scenarioFacts(run.scenario) : null;
-  const site = facts ? (facts.name ?? (facts.site ? siteLabel(facts.site) : null)) : null;
+  const site = facts?.site ? siteLabel(facts.site) : null;
   const title = run
     ? site
       ? t("report.title", { rocket: run.name, site })

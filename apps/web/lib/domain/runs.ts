@@ -110,9 +110,12 @@ export interface ScenarioRail {
   heading: number | null;
 }
 
+/**
+ * What a stored run's scenario says about its launch. The scenario's `name`
+ * is deliberately absent: the Workbench never asks for one and sends a
+ * default label ("my_scenario"), so the site is what names a launch.
+ */
 export interface ScenarioFacts {
-  /** The scenario's own name, trimmed; null when blank. */
-  name: string | null;
   site: ScenarioSite | null;
   /** The launch hour as an ISO instant in UTC (`2026-11-07T11:00:00Z`). */
   launchDateIso: string | null;
@@ -138,14 +141,12 @@ function launchDateIso(date: Record<string, unknown> | null): string | null {
 /** What a stored scenario says, tolerant of partial or legacy shapes. */
 export function scenarioFacts(scenario: unknown): ScenarioFacts {
   const s = record(scenario) ?? {};
-  const name = typeof s.name === "string" && s.name.trim() ? s.name.trim() : null;
   const site = record(s.site);
   const latitude = finite(site?.latitude);
   const longitude = finite(site?.longitude);
   const atmosphere = record(s.atmosphere);
   const rail = record(s.rail);
   return {
-    name,
     site:
       latitude !== null && longitude !== null
         ? { latitude, longitude, elevation: finite(site?.elevation) }

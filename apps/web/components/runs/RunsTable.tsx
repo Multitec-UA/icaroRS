@@ -181,7 +181,7 @@ export function RunsTable({
                       {facts.model && ` · ${modelLabel(facts.model)}`}
                     </span>
                     <span className="text-xs text-muted">
-                      {facts.name ?? (facts.site ? siteLabel(facts.site) : t("runs.unset"))}
+                      {facts.site ? siteLabel(facts.site) : t("runs.unset")}
                     </span>
                   </span>
                 </td>

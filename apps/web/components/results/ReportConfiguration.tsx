@@ -35,7 +35,7 @@ export function ReportConfiguration({ runId }: { runId: string }) {
         {
           key: "site",
           label: t("report.configSite"),
-          value: facts.name ?? (facts.site ? siteLabel(facts.site) : unset),
+          value: facts.site ? siteLabel(facts.site) : unset,
         },
         {
           key: "elevation",

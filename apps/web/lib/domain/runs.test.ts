@@ -147,7 +147,6 @@ describe("whatChanged — compared run against the baseline, on the canonical di
 describe("scenarioFacts — what a scenario says, for labels", () => {
   it("extracts the site, launch date, model and rail", () => {
     expect(scenarioFacts(baseScenario)).toEqual({
-      name: null,
       site: { latitude: 38.3452, longitude: -0.481, elevation: 12 },
       launchDateIso: "2026-11-07T11:00:00Z",
       model: "forecast",
@@ -157,12 +156,12 @@ describe("scenarioFacts — what a scenario says, for labels", () => {
 
   it("tolerates a scenario with nothing filled in", () => {
     expect(scenarioFacts({})).toEqual({
-      name: null,
       site: null,
       launchDateIso: null,
       model: null,
       rail: null,
     });
-    expect(scenarioFacts({ name: "Alicante pad" }).name).toBe("Alicante pad");
+    // The scenario's name is never a fact: the Workbench sends a default label.
+    expect(scenarioFacts({ name: "my_scenario" })).not.toHaveProperty("name");
   });
 });

@@ -55,7 +55,8 @@ const SUMMARY = {
   created_by: "pilot@multitec.dev",
   status: "done" as const,
   scenario: {
-    name: "",
+    // What the Workbench sends: a default label, never a place.
+    name: "my_scenario",
     site: { latitude: 38.3452, longitude: -0.481, elevation: 12 },
     date: { year: 2026, month: 11, day: 7, hour: 11 },
     atmosphere: { model: "forecast", file: null, station: null, fallback: "standard_atmosphere" },
@@ -101,6 +102,7 @@ describe("Run report (S9, board C) — header", () => {
     expect(within(crumbs).getByText("run run-1")).toHaveAttribute("aria-current", "page");
 
     expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Icarus-2 over 38.3452, -0.481");
+    expect(screen.queryByText(/my_scenario/)).toBeNull();
     // The file name shows in the subtitle and again in the configuration list.
     const files = screen.getAllByText("icarus2.ork");
     expect(files.length).toBeGreaterThanOrEqual(1);
@@ -127,6 +129,7 @@ describe("Run report — body", () => {
 
     const config = await screen.findByRole("region", { name: "Configuration" });
     expect(within(config).getByText("Rocket file").nextElementSibling).toHaveTextContent("icarus2.ork");
+    expect(within(config).getByText("Site").nextElementSibling).toHaveTextContent("38.3452, -0.481");
     expect(within(config).getByText("Weather").nextElementSibling).toHaveTextContent("Real forecast (GFS)");
     expect(within(config).getByText("Rail").nextElementSibling).toHaveTextContent("5.2 m · 84° · 133°");
   });

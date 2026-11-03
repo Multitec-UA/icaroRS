@@ -30,7 +30,8 @@ const ROCKETS = [
 ];
 
 const SCENARIO = {
-  name: "",
+  // What the Workbench sends: a default label, never a place.
+  name: "my_scenario",
   site: { latitude: 38.3452, longitude: -0.481, elevation: 12 },
   date: { year: 2026, month: 11, day: 7, hour: 11 },
   atmosphere: { model: "forecast", file: null, station: null, fallback: "standard_atmosphere" },
@@ -271,6 +272,13 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     expect(within(rowB).queryByText("Failed")).toBeNull();
     expect(within(rowB).queryByText("Done")).toBeNull();
     expect(table.queryByRole("columnheader", { name: "Status" })).toBeNull();
+  });
+
+  it("the launch cell names the site, never the scenario's default label", async () => {
+    const table = await renderRuns();
+    const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
+    expect(within(rowB).getByText("38.3452, -0.481")).toBeInTheDocument();
+    expect(within(rowB).queryByText(/my_scenario/)).toBeNull();
   });
 
   it("the Workbench action shows the short label and keeps the full accessible name", async () => {
