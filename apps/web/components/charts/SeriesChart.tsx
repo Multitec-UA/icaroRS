@@ -244,8 +244,9 @@ export function SeriesChart({
                 "h-8 rounded-full border px-3.5 text-[13px] font-medium transition-[background-color,border-color,color] duration-300 ease-[var(--ease-spring)] pointer-coarse:min-h-11",
                 focusRing,
                 active === m.key
-                  ? "border-accent bg-accent-soft text-accent-ink"
-                  : "border-transparent bg-chip text-ink-2 hover:bg-accent-soft hover:text-accent-ink",
+                  ? // Selection is graphite, like every control: red is brand or error.
+                    "border-primary bg-primary text-on-primary"
+                  : "border-transparent bg-chip text-ink-2 hover:bg-accent-soft hover:text-ink",
             )}
           >
             {t(m.labelKey)}

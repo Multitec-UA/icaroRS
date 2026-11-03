@@ -3,8 +3,11 @@
 /*
  * icaro — two soft palettes, one token set.
  *
- * Light is pastel (lavender-tinted greys, periwinkle accent); dark is soft
- * (deep indigo-grey, never OLED black). Neither theme uses pure black or white.
+ * Multitec identity (design/multitec-brand/01-identity-graphite.html): warm
+ * greys, graphite actions, and the Multitec red #AE2418 only where it
+ * identifies (logo, active nav, chart series 1); its lighter
+ * #e96d62 carries it on dark surfaces. Errors use a distinct raspberry so red
+ * never reads as both brand and danger. Neither theme uses pure black or white.
  * Components style against the tokens below (`bg-surface`, `text-ink`,
  * `border-divider`, …) and never against a literal colour, so both themes
  * stay in sync by construction.
@@ -21,108 +24,118 @@
 :root,
 .palette-light {
   /* --- light (default) --- */
-  --bg: #f3f1f8;
-  --surface: #fbfafd;
-  --surface-2: #f0edf6;
-  --border: #e2ddec;
-  --divider: #ebe7f2;
-  --ink: #2b2840;
-  --ink-2: #4a4662;
-  --muted: #6e6987;
-  --axis: #c9c3da;
-  --accent: #6b7fe0;
-  --accent-ink: #4757b8;
-  --accent-soft: #e3e7fb;
-  /* #5160cc: --on-primary on it is 5.18:1 (WCAG AA); #5b6cd6 was 4.43:1. */
-  --primary: #5160cc;
-  --on-primary: #fbfafd;
-  --chip: #ece8f4;
+  --bg: #f5f3f2;
+  --surface: #fcfbfa;
+  --surface-2: #f1eeec;
+  --border: #e3dedb;
+  --divider: #ece8e5;
+  --ink: #24201f;
+  --ink-2: #4a4442;
+  --muted: #6c6562; /* 4.65:1 on --chip, the lowest light surface it sits on */
+  --axis: #cdc6c2;
+  /* Identity and data: the Multitec red for the active nav, chart series 1
+     and the rocket dot; never for focus or actions. */
+  --accent: #ae2418;
+  /* Links and selection stay graphite. */
+  --accent-ink: #4a4442;
+  --accent-soft: #f1eeec;
+  /* Graphite actions: --on-primary on --primary is 14.49:1. */
+  --primary: #2a2625;
+  --on-primary: #fcfbfa;
+  --chip: #ece7e3;
   --ok: #5fb38d;
   --ok-soft: #dff3ea;
   --ok-ink: #2d6a50;
   --warn: #e3a857;
   --warn-soft: #fcefd9;
   --warn-ink: #7a5420;
-  --bad: #e07b86;
-  --bad-soft: #fbe3e6;
-  --bad-ink: #9e3a47;
-  --peach: #ee9a72;
-  --scrim: rgba(43, 40, 64, 0.28);
-  --shadow: 0 1px 2px rgba(43, 40, 64, 0.04), 0 8px 24px -12px rgba(43, 40, 64, 0.14);
-  --shadow-lg: 0 12px 40px -16px rgba(43, 40, 64, 0.28);
-  --orb-a: rgba(107, 127, 224, 0.18);
-  --orb-b: rgba(238, 154, 114, 0.14);
+  --bad: #d9497a;
+  --bad-soft: #fbe4ec;
+  --bad-ink: #a3264f;
+  --peach: #6c6562; /* chart series 2: graphite next to the red series 1 */
+  /* The Multitec mark (logo, favicon): the same red in both themes. */
+  --brand: #ae2418;
+  --on-brand: #fcfbfa;
+  --scrim: rgba(36, 32, 31, 0.28);
+  --shadow: 0 1px 2px rgba(36, 32, 31, 0.04), 0 8px 24px -12px rgba(36, 32, 31, 0.14);
+  --shadow-lg: 0 12px 40px -16px rgba(36, 32, 31, 0.28);
+  --orb-a: rgba(174, 36, 24, 0.05);
+  --orb-b: rgba(111, 104, 101, 0.06);
 
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #1e1d2a;
-    --surface: #262535;
-    --surface-2: #2e2d3f;
-    --border: #3a384d;
-    --divider: #33324a;
-    --ink: #e6e3f2;
-    --ink-2: #c4c0d8;
-    --muted: #9a96b2;
-    --axis: #4b4961;
-    --accent: #8e9cf2;
-    --accent-ink: #aeb8f7;
-    --accent-soft: #34385c;
-    --primary: #8e9cf2;
-    --on-primary: #1e1d2a;
-    --chip: #34324a;
+    --bg: #1c1a19;
+    --surface: #252221;
+    --surface-2: #2e2a29;
+    --border: #3b3634;
+    --divider: #332f2d;
+    --ink: #ece7e4;
+    --ink-2: #c9c2be;
+    --muted: #a39b97;
+    --axis: #4d4744;
+    --accent: #e96d62;
+    --accent-ink: #c9c2be;
+    --accent-soft: #2e2a29;
+    --primary: #e6e1de;
+    --on-primary: #1c1a19;
+    --chip: #36312f;
     --ok: #6fc79f;
     --ok-soft: #27402f;
     --ok-ink: #a9e3c6;
     --warn: #e8b86a;
     --warn-soft: #4a3a22;
     --warn-ink: #f2d39a;
-    --bad: #e8909a;
-    --bad-soft: #4a2a30;
-    --bad-ink: #f3b6bd;
-    --peach: #f2ae8b;
-    --scrim: rgba(14, 13, 22, 0.55);
+    --bad: #f0789f;
+    --bad-soft: #4a2433;
+    --bad-ink: #f7b3c9;
+    --peach: #a39b97;
+    --brand: #ae2418;
+    --on-brand: #fcfbfa;
+    --scrim: rgba(12, 11, 10, 0.55);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
     --shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
-    --orb-a: rgba(142, 156, 242, 0.16);
-    --orb-b: rgba(242, 174, 139, 0.1);
+    --orb-a: rgba(233, 109, 98, 0.06);
+    --orb-b: rgba(163, 155, 151, 0.05);
     color-scheme: dark;
   }
 }
 
 :root[data-theme="dark"] {
-  --bg: #1e1d2a;
-  --surface: #262535;
-  --surface-2: #2e2d3f;
-  --border: #3a384d;
-  --divider: #33324a;
-  --ink: #e6e3f2;
-  --ink-2: #c4c0d8;
-  --muted: #9a96b2;
-  --axis: #4b4961;
-  --accent: #8e9cf2;
-  --accent-ink: #aeb8f7;
-  --accent-soft: #34385c;
-  --primary: #8e9cf2;
-  --on-primary: #1e1d2a;
-  --chip: #34324a;
+  --bg: #1c1a19;
+  --surface: #252221;
+  --surface-2: #2e2a29;
+  --border: #3b3634;
+  --divider: #332f2d;
+  --ink: #ece7e4;
+  --ink-2: #c9c2be;
+  --muted: #a39b97;
+  --axis: #4d4744;
+  --accent: #e96d62;
+  --accent-ink: #c9c2be;
+  --accent-soft: #2e2a29;
+  --primary: #e6e1de;
+  --on-primary: #1c1a19;
+  --chip: #36312f;
   --ok: #6fc79f;
   --ok-soft: #27402f;
   --ok-ink: #a9e3c6;
   --warn: #e8b86a;
   --warn-soft: #4a3a22;
   --warn-ink: #f2d39a;
-  --bad: #e8909a;
-  --bad-soft: #4a2a30;
-  --bad-ink: #f3b6bd;
-  --peach: #f2ae8b;
-  --scrim: rgba(14, 13, 22, 0.55);
+  --bad: #f0789f;
+  --bad-soft: #4a2433;
+  --bad-ink: #f7b3c9;
+  --peach: #a39b97;
+  --brand: #ae2418;
+  --on-brand: #fcfbfa;
+  --scrim: rgba(12, 11, 10, 0.55);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
-  --orb-a: rgba(142, 156, 242, 0.16);
-  --orb-b: rgba(242, 174, 139, 0.1);
+  --orb-a: rgba(233, 109, 98, 0.06);
+  --orb-b: rgba(163, 155, 151, 0.05);
   color-scheme: dark;
 }
 
@@ -152,6 +165,8 @@
   --color-bad-soft: var(--bad-soft);
   --color-bad-ink: var(--bad-ink);
   --color-peach: var(--peach);
+  --color-brand: var(--brand);
+  --color-on-brand: var(--on-brand);
 
   --shadow-soft: var(--shadow);
   --shadow-soft-lg: var(--shadow-lg);

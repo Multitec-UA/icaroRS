@@ -54,9 +54,9 @@ export const textLink = cn(
   focusRing,
 );
 
-/** Text controls: 36 px, radius 9, bordered surface; accent ring on focus. */
+/** Text controls: 36 px, radius 9, bordered surface; a graphite ring on focus (red is brand or error). */
 export const inputClass =
-  "h-9 w-full min-w-0 rounded-[9px] border border-border bg-surface px-3 text-sm text-ink outline-none transition-[background-color,border-color,box-shadow,color] duration-300 ease-[var(--ease-spring)] placeholder:text-muted disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40 aria-[invalid=true]:border-bad pointer-coarse:min-h-11";
+  "h-9 w-full min-w-0 rounded-[9px] border border-border bg-surface px-3 text-sm text-ink outline-none transition-[background-color,border-color,box-shadow,color] duration-300 ease-[var(--ease-spring)] placeholder:text-muted disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-muted focus-visible:border-ink-2 focus-visible:ring-2 focus-visible:ring-ink/20 aria-[invalid=true]:border-bad pointer-coarse:min-h-11";
 
 /**
  * Native select matching the input, with a token-coloured chevron. Options get

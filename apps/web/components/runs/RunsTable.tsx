@@ -145,7 +145,7 @@ export function RunsTable({
                       title={!selected && limitReached ? t("runs.selectionLimit", { count: MAX_OVERLAY }) : undefined}
                       aria-label={t("runs.selectRun", { id })}
                       onChange={() => onToggle(run.simulation_id)}
-                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]"
                     />
                     <span
                       aria-hidden
@@ -160,7 +160,7 @@ export function RunsTable({
                     checked={isBaseline}
                     aria-label={t("runs.baselineRun", { id })}
                     onChange={() => onBaseline(run.simulation_id)}
-                    className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
+                    className="mt-0.5 h-4 w-4 accent-[var(--primary)]"
                   />
                 </td>
                 <th scope="row" className={cn(CELL, "text-left font-normal")}>
@@ -245,12 +245,9 @@ function MetricCell({
       <span className="flex flex-col items-end gap-0.5">
         <span className="tabular-nums text-ink">{shown}</span>
         {delta !== null && (
-          <span
-            className={cn(
-              "text-xs tabular-nums",
-              delta > 0 ? "text-ok-ink" : delta < 0 ? "text-bad-ink" : "text-muted",
-            )}
-          >
+          // Neutral on purpose: a lower apogee is a difference, not an error,
+          // and red stays for the brand and for failures.
+          <span className="text-xs tabular-nums text-muted">
             {new Intl.NumberFormat(locale, { ...fixed, signDisplay: "exceptZero" }).format(delta)}
           </span>
         )}

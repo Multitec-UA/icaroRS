@@ -17,16 +17,16 @@ const TOKENS = ["bg", "surface", "surface-2", "border", "divider", "ink", "muted
 type Token = (typeof TOKENS)[number];
 
 const LIGHT_FALLBACK: Record<Token, string> = {
-  bg: "#f3f1f8",
-  surface: "#fbfafd",
-  "surface-2": "#f0edf6",
-  border: "#e2ddec",
-  divider: "#ebe7f2",
-  ink: "#2b2840",
-  muted: "#6e6987",
-  axis: "#c9c3da",
-  accent: "#6b7fe0",
-  peach: "#ee9a72",
+  bg: "#f5f3f2",
+  surface: "#fcfbfa",
+  "surface-2": "#f1eeec",
+  border: "#e3dedb",
+  divider: "#ece8e5",
+  ink: "#24201f",
+  muted: "#6c6562",
+  axis: "#cdc6c2",
+  accent: "#ae2418",
+  peach: "#6c6562",
   ok: "#5fb38d",
   warn: "#e3a857",
 };

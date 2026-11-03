@@ -153,7 +153,7 @@ function PrintReport({
       {/* Running footer and page numbers live in @page margin boxes; their text is per run and locale. */}
       <style>{`@page { @bottom-left { content: ${cssString(footer)}; } }`}</style>
 
-      <header className="mb-6 border-b-2 border-black pb-3">
+      <header className="mb-6 border-b-2 border-t-[3px] border-b-black border-t-brand pb-3 pt-3">
         <p className="text-[9pt] uppercase tracking-wider text-neutral-600">{t("workbench.brand")}</p>
         <h1 className="mt-1 text-[18pt] font-semibold">{t("printReport.title")}</h1>
         <p className="mt-0.5 text-[13pt]">{run?.name ?? rocket?.name ?? ""}</p>

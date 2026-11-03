@@ -159,7 +159,7 @@ function RailInput({
       inputMode="decimal"
       autoComplete="off"
       step="any"
-      className={cn("h-9", overridden && "border-accent bg-accent-soft")}
+      className={cn("h-9", overridden && "border-ink-2 bg-accent-soft")}
       value={shown}
       onChange={(e) => {
         const text = e.target.value;

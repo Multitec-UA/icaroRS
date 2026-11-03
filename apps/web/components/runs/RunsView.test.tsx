@@ -170,8 +170,12 @@ describe("RunsView — baseline and deltas", () => {
     // run-b: apogee 3088 vs 3142, max speed 290 vs 287, flight time 150 vs 142, landing 1,749 m vs 1,500 m.
     const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
     // Deltas carry their column's precision and no unit (the unit is in the header).
-    expect(within(rowB).getByText("-54")).toHaveClass("text-bad-ink");
-    expect(within(rowB).getByText("+3")).toHaveClass("text-ok-ink");
+    // A difference is not a verdict: deltas are neutral, never green or red
+    // (red is the brand and the error colour).
+    expect(within(rowB).getByText("-54")).toHaveClass("text-muted");
+    expect(within(rowB).getByText("-54")).not.toHaveClass("text-bad-ink");
+    expect(within(rowB).getByText("+3")).toHaveClass("text-muted");
+    expect(within(rowB).getByText("+3")).not.toHaveClass("text-ok-ink");
     expect(within(rowB).getByText("+8.0")).toBeInTheDocument();
     expect(within(rowB).getByText("+249.3")).toBeInTheDocument();
     // A failed run has no numbers: dashes, never NaN.
@@ -186,7 +190,7 @@ describe("RunsView — baseline and deltas", () => {
     fireEvent.click(table.getByRole("radio", { name: "Baseline: run run-b" }));
 
     const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
-    expect(within(rowA).getByText("+54")).toHaveClass("text-ok-ink");
+    expect(within(rowA).getByText("+54")).toHaveClass("text-muted");
   });
 });
 

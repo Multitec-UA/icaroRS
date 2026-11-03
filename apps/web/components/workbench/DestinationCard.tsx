@@ -38,8 +38,8 @@ export function DestinationCard({
   const canConvert = destination === "new" || rocketId !== "";
 
   const optionClass =
-    "flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-[border-color,background-color] duration-300 ease-[var(--ease-spring)] has-[:checked]:border-accent has-[:checked]:bg-accent-soft/40";
-  const radioClass = "mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]";
+    "flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-surface px-3 py-3 transition-[border-color,background-color] duration-300 ease-[var(--ease-spring)] has-[:checked]:border-ink-2 has-[:checked]:bg-accent-soft/40";
+  const radioClass = "mt-0.5 h-4 w-4 shrink-0 accent-[var(--primary)]";
 
   return (
     <Reveal>

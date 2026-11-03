@@ -243,7 +243,7 @@ export function RocketPanel({
                     <label
                       className={cn(
                         "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 transition-[border-color,background-color] duration-300 ease-[var(--ease-spring)]",
-                        active ? "border-accent bg-accent-soft/40" : "border-transparent hover:bg-surface-2",
+                        active ? "border-ink-2 bg-accent-soft/40" : "border-transparent hover:bg-surface-2",
                       )}
                     >
                       <input
@@ -253,7 +253,7 @@ export function RocketPanel({
                         checked={active}
                         disabled={busy}
                         onChange={() => activate(exp)}
-                        className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                        className="h-4 w-4 shrink-0 accent-[var(--primary)]"
                       />
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="truncate font-mono text-[13px] text-ink">
@@ -338,7 +338,7 @@ export function RocketPanel({
             <label
               className={cn(
                 chipButton,
-                "cursor-pointer border border-dashed border-axis bg-transparent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/60",
+                "cursor-pointer border border-dashed border-axis bg-transparent has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ink/50",
               )}
             >
               <input

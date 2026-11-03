@@ -59,11 +59,11 @@ export function ImportDropZone({
       onDrop={onDrop}
       className={cn(
         "flex cursor-pointer rounded-2xl border border-dashed transition-[border-color,background-color,box-shadow] duration-300 ease-[var(--ease-spring)]",
-        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-accent/60 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-bg",
+        "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ink/50 has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-bg",
         compact
           ? "items-center gap-3 px-4 py-3 text-left"
           : "flex-col items-center justify-center gap-2 px-6 py-10 text-center",
-        dragging ? "border-accent bg-accent-soft shadow-soft" : "border-axis bg-surface-2 hover:border-accent hover:bg-surface",
+        dragging ? "border-ink-2 bg-accent-soft shadow-soft" : "border-axis bg-surface-2 hover:border-ink-2 hover:bg-surface",
       )}
     >
       <input

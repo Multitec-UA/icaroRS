@@ -54,7 +54,7 @@ export function Sidebar() {
       <div className="flex items-center gap-2.5 px-2 pb-4 max-lg:hidden">
         <span
           aria-hidden
-          className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-primary text-on-primary"
+          className="flex h-[30px] w-[30px] items-center justify-center rounded-[9px] bg-brand text-on-brand"
         >
           <RocketIcon />
         </span>
@@ -75,7 +75,9 @@ export function Sidebar() {
                 "lg:h-9 lg:gap-2.5 lg:px-2.5 lg:text-sm",
                 focusRing,
                 active
-                  ? "font-medium text-ink lg:bg-surface lg:shadow-soft max-lg:bg-surface-2"
+                  ? // The Multitec red marks where you are: a bar on the sidebar edge
+                    // (desktop), along the top of the tab (bottom bar).
+                    "relative bg-surface-2 font-medium text-ink before:absolute before:rounded-full before:bg-accent lg:before:-left-3 lg:before:inset-y-1.5 lg:before:w-[3px] max-lg:before:inset-x-3 max-lg:before:-top-1 max-lg:before:h-[3px]"
                   : "text-ink-2 hover:bg-surface-2 hover:text-ink",
               )}
             >

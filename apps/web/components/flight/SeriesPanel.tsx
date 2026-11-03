@@ -108,7 +108,7 @@ export function SeriesPanel({ series }: { series: FlightSeries }) {
                 className={cn(
                   "h-[30px] rounded-full px-3 text-sm transition-[background-color,color] duration-300 ease-[var(--ease-spring)]",
                   focusRing,
-                  selected ? "bg-accent-soft font-medium text-accent-ink" : "bg-chip text-ink-2 hover:text-ink",
+                  selected ? "bg-primary font-medium text-on-primary" : "bg-chip text-ink-2 hover:text-ink",
                 )}
               >
                 {t(m.labelKey)}

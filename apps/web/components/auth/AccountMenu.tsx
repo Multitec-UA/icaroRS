@@ -93,7 +93,7 @@ export function AccountMenu() {
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface transition-[border-color,transform] duration-300 ease-[var(--ease-spring)] hover:border-accent active:scale-[0.96]",
+          "flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface transition-[border-color,transform] duration-300 ease-[var(--ease-spring)] hover:border-ink-2 active:scale-[0.96]",
           focusRing,
         )}
       >

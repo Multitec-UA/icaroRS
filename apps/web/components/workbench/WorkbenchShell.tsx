@@ -232,7 +232,7 @@ export function WorkbenchShell() {
         {dragging && (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-2xl border-2 border-dashed border-accent bg-[var(--scrim)]"
+            className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center rounded-2xl border-2 border-dashed border-ink-2 bg-[var(--scrim)]"
           >
             <span className="flex items-center gap-2.5 rounded-xl bg-surface px-4 py-3 text-sm font-medium text-ink shadow-soft-lg">
               <UploadIcon className="text-accent-ink" />

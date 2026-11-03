@@ -1,0 +1,27 @@
+{
+  "title": "Multitec brand",
+  "brief": "te voy a pasar el color de Multitech. Quiero que esté presente y que sea algo así como el color primario. Lo que pasa es que es un color rojo, entonces a lo mejor no es lo correcto ponerlo para los botones principales y demás. Quiero que me ayudes un poco a analizar cómo podríamos darle la imagen de marca de Multitech a este software. #AE2418",
+  "artboards": [
+    {
+      "file": "01-identity-graphite.html",
+      "title": "Brand as identity, graphite as action",
+      "tradeoff": "Strong, calm brand presence and red errors stay unambiguous; buttons carry no brand colour.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-red-primary.html",
+      "title": "Red as the primary colour",
+      "tradeoff": "Maximum brand presence; red stops meaning “danger”, so errors need a plum hue, outlines and icons to read as errors.",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-minimal-logo.html",
+      "title": "Minimal: logo only",
+      "tradeoff": "Zero risk to the current system and errors; the Multitec brand barely shows.",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}
