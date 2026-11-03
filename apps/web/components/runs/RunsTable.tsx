@@ -7,8 +7,13 @@
  * the baseline and the actions (View report, Open in Workbench). Deltas
  * and metrics come from lib/domain/runs so the chips agree with them.
  *
- * Layout (T7): numbers never wrap (`whitespace-nowrap` + tabular figures) while
- * their headers may ("Tiempo de vuelo" is wider than any value),
+ * Layout follows common table guidance (NN/g "Data Tables", GOV.UK Design
+ * System "Table", Carbon "Data table"): text left-aligned and numbers
+ * right-aligned, each like its header; a numeric column's unit sits in its
+ * header and every value and delta of a column shares one precision
+ * (`METRIC_DECIMALS`) in tabular figures; one primary line per cell with
+ * the secondary lines muted; both row actions share one quiet link style.
+ * Numbers never wrap while their headers may ("Tiempo de vuelo" is wider than any value),
  * the actions column is as narrow as its content (`w-px`, "View report"
  * stacked over "Workbench"), the run's file name truncates, the launch wraps,
  * and a failed run says so inside its run cell (no status column: every
@@ -22,7 +27,6 @@ import type { SimulationSummary } from "@/lib/api";
 import {
   RUN_METRIC_KEYS,
   RUN_METRIC_UNITS,
-  formatDelta,
   runDeltas,
   runMetrics,
   scenarioFacts,
@@ -30,13 +34,12 @@ import {
   siteLabel,
   type RunMetricKey,
 } from "@/lib/domain/runs";
-import { formatScalar } from "@/lib/scalars";
 import { cn } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { cardClass, textLink } from "@/components/ui/classes";
+import { cardClass } from "@/components/ui/classes";
 import { RUN_COLORS } from "./colors";
 import { MAX_OVERLAY } from "./colors";
-import { OpenInWorkbenchButton } from "./OpenInWorkbenchButton";
+import { OpenInWorkbenchButton, rowActionClass } from "./OpenInWorkbenchButton";
 import { useRunFormatters } from "./useRunFormatters";
 
 const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
@@ -46,7 +49,16 @@ const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
   landing: "runs.colLanding",
 };
 
-const HEAD_CELL = "px-2.5 py-2.5 text-left text-xs font-medium text-muted";
+/** One precision per column: whole metres and m/s; tenths of a second and of a metre. */
+const METRIC_DECIMALS: Record<RunMetricKey, number> = {
+  apogee: 0,
+  maxSpeed: 0,
+  flightTime: 1,
+  landing: 1,
+};
+
+// Headers sit on the data (bottom-aligned), so a wrapped header still lines up.
+const HEAD_CELL = "px-2.5 py-2.5 text-left align-bottom text-xs font-medium text-muted";
 const CELL = "px-2.5 py-3 align-top";
 
 export function RunsTable({
@@ -97,7 +109,8 @@ export function RunsTable({
             </th>
             {RUN_METRIC_KEYS.map((key) => (
               <th key={key} scope="col" className={cn(HEAD_CELL, "text-right")}>
-                {t(METRIC_LABEL_KEYS[key])}
+                {t(METRIC_LABEL_KEYS[key])}{" "}
+                <span className="whitespace-nowrap font-normal">({RUN_METRIC_UNITS[key]})</span>
               </th>
             ))}
             <th scope="col" className={cn(HEAD_CELL, "w-px")}>
@@ -124,7 +137,7 @@ export function RunsTable({
                 )}
               >
                 <td className={CELL}>
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-start gap-2">
                     <input
                       type="checkbox"
                       checked={selected}
@@ -132,11 +145,11 @@ export function RunsTable({
                       title={!selected && limitReached ? t("runs.selectionLimit", { count: MAX_OVERLAY }) : undefined}
                       aria-label={t("runs.selectRun", { id })}
                       onChange={() => onToggle(run.simulation_id)}
-                      className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
                     />
                     <span
                       aria-hidden
-                      className={cn("h-2 w-2 shrink-0 rounded-full", color === null ? "bg-transparent" : RUN_COLORS[color].dot)}
+                      className={cn("mt-1.5 h-2 w-2 shrink-0 rounded-full", color === null ? "bg-transparent" : RUN_COLORS[color].dot)}
                     />
                   </span>
                 </td>
@@ -147,13 +160,13 @@ export function RunsTable({
                     checked={isBaseline}
                     aria-label={t("runs.baselineRun", { id })}
                     onChange={() => onBaseline(run.simulation_id)}
-                    className="h-4 w-4 accent-[var(--accent)]"
+                    className="mt-0.5 h-4 w-4 accent-[var(--accent)]"
                   />
                 </td>
-                <th scope="row" className={cn(CELL, "font-normal")}>
+                <th scope="row" className={cn(CELL, "text-left font-normal")}>
                   <span className="flex flex-col gap-0.5">
                     <span className="whitespace-nowrap tabular-nums text-ink">{dateTime.format(new Date(run.created_at))}</span>
-                    <span translate="no" className="block max-w-40 truncate font-mono text-[13px] text-ink-2">
+                    <span translate="no" title={run.ork_filename ?? undefined} className="block max-w-40 truncate text-xs text-ink-2">
                       {run.ork_filename ?? (run.export_id || "—")}
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted">
@@ -176,10 +189,10 @@ export function RunsTable({
                 </th>
                 <td className={cn(CELL, "min-w-36 text-ink-2")}>
                   <span className="flex flex-col gap-0.5">
-                    <span className="tabular-nums">
+                    <span className="whitespace-nowrap tabular-nums text-ink">
                       {facts.launchDateIso ? dateTime.format(new Date(facts.launchDateIso)) : t("runs.unset")}
-                      {facts.model && ` · ${modelLabel(facts.model)}`}
-                    </span>
+                      </span>
+                    {facts.model && <span className="text-xs">{modelLabel(facts.model)}</span>}
                     <span className="text-xs text-muted">
                       {facts.site ? siteLabel(facts.site) : t("runs.unset")}
                     </span>
@@ -190,14 +203,14 @@ export function RunsTable({
                     key={key}
                     value={metrics[key]}
                     delta={deltas?.[key] ?? null}
-                    unit={RUN_METRIC_UNITS[key]}
+                    decimals={METRIC_DECIMALS[key]}
                     locale={locale}
                   />
                 ))}
                 <td className={cn(CELL, "w-px whitespace-nowrap text-right")}>
                   <span className="flex flex-col items-end gap-1.5">
                     {done && (
-                      <Link href={`/results/${encodeURIComponent(run.simulation_id)}`} className={textLink}>
+                      <Link href={`/results/${encodeURIComponent(run.simulation_id)}`} className={rowActionClass}>
                         {t("runs.viewReport")}
                       </Link>
                     )}
@@ -216,26 +229,28 @@ export function RunsTable({
 function MetricCell({
   value,
   delta,
-  unit,
+  decimals,
   locale,
 }: {
   value: number | null;
   delta: number | null;
-  unit: string;
+  decimals: number;
   locale: "en" | "es";
 }) {
+  const fixed = { minimumFractionDigits: decimals, maximumFractionDigits: decimals };
+  const shown = value === null || !Number.isFinite(value) ? "—" : value.toLocaleString(locale, fixed);
   return (
     <td className={cn(CELL, "whitespace-nowrap text-right tabular-nums")}>
       <span className="flex flex-col items-end gap-0.5">
-        <span className="text-ink">{formatScalar(value, unit, locale)}</span>
+        <span className="tabular-nums text-ink">{shown}</span>
         {delta !== null && (
           <span
             className={cn(
-              "text-xs",
+              "text-xs tabular-nums",
               delta > 0 ? "text-ok-ink" : delta < 0 ? "text-bad-ink" : "text-muted",
             )}
           >
-            {formatDelta(delta, locale, unit)}
+            {new Intl.NumberFormat(locale, { ...fixed, signDisplay: "exceptZero" }).format(delta)}
           </span>
         )}
       </span>

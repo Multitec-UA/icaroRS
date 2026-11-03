@@ -13,11 +13,17 @@
 
 import Link from "next/link";
 import type { SimulationSummary } from "@/lib/api";
-import { buttonClass } from "@/components/ui";
+import { textLink } from "@/components/ui/classes";
+import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { PlayIcon } from "@/components/workbench/icons";
 
-const CLASS = buttonClass({ variant: "ghost", size: "sm", className: "px-2.5" });
+/**
+ * One style for every row action of the runs table (Carbon, NN/g: row
+ * actions are consistent and quiet, in the same place on every row).
+ */
+export const rowActionClass = cn(textLink, "inline-flex items-center gap-1 whitespace-nowrap");
+const DISABLED_CLASS = cn(rowActionClass, "cursor-not-allowed text-muted no-underline hover:text-muted");
 
 /** The Workbench URL that shows one run (S8). */
 export function workbenchRunHref(runId: string): string {
@@ -31,8 +37,8 @@ export function OpenInWorkbenchButton({ run }: { run: SimulationSummary }) {
   if (unavailable) {
     const reason = !run.export_id ? t("runs.openNoExport") : t("runs.openUnavailable");
     return (
-      <button type="button" disabled title={reason} className={CLASS}>
-        <PlayIcon />
+      <button type="button" disabled title={reason} className={DISABLED_CLASS}>
+        <PlayIcon className="h-3.5 w-3.5" />
         <span aria-hidden>{t("runs.openInWorkbenchShort")}</span>
         <span className="sr-only">{t("runs.openInWorkbench")}</span>
         {/* A disabled button gives no reason on its own; say it for assistive tech. */}
@@ -46,9 +52,9 @@ export function OpenInWorkbenchButton({ run }: { run: SimulationSummary }) {
       href={workbenchRunHref(run.simulation_id)}
       aria-label={t("runs.openInWorkbench")}
       title={t("runs.openInWorkbench")}
-      className={CLASS}
+      className={rowActionClass}
     >
-      <PlayIcon />
+      <PlayIcon className="h-3.5 w-3.5" />
       {t("runs.openInWorkbenchShort")}
     </Link>
   );

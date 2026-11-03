@@ -169,10 +169,11 @@ describe("RunsView — baseline and deltas", () => {
     expect(table.getByRole("radio", { name: "Baseline: run run-a" })).toBeChecked();
     // run-b: apogee 3088 vs 3142, max speed 290 vs 287, flight time 150 vs 142, landing 1,749 m vs 1,500 m.
     const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
-    expect(within(rowB).getByText("-54 m")).toHaveClass("text-bad-ink");
-    expect(within(rowB).getByText("+3 m/s")).toHaveClass("text-ok-ink");
-    expect(within(rowB).getByText("+8 s")).toBeInTheDocument();
-    expect(within(rowB).getByText("+249 m")).toBeInTheDocument();
+    // Deltas carry their column's precision and no unit (the unit is in the header).
+    expect(within(rowB).getByText("-54")).toHaveClass("text-bad-ink");
+    expect(within(rowB).getByText("+3")).toHaveClass("text-ok-ink");
+    expect(within(rowB).getByText("+8.0")).toBeInTheDocument();
+    expect(within(rowB).getByText("+249.3")).toBeInTheDocument();
     // A failed run has no numbers: dashes, never NaN.
     const rowC = table.getByRole("radio", { name: "Baseline: run run-c" }).closest("tr") as HTMLElement;
     expect(within(rowC).getAllByText("—").length).toBeGreaterThanOrEqual(4);
@@ -185,7 +186,7 @@ describe("RunsView — baseline and deltas", () => {
     fireEvent.click(table.getByRole("radio", { name: "Baseline: run run-b" }));
 
     const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
-    expect(within(rowA).getByText("+54 m")).toHaveClass("text-ok-ink");
+    expect(within(rowA).getByText("+54")).toHaveClass("text-ok-ink");
   });
 });
 
@@ -272,6 +273,33 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     expect(within(rowB).queryByText("Failed")).toBeNull();
     expect(within(rowB).queryByText("Done")).toBeNull();
     expect(table.queryByRole("columnheader", { name: "Status" })).toBeNull();
+  });
+
+  it("numeric columns carry the unit in the header and one precision per column (GOV.UK, NN/g)", async () => {
+    const table = await renderRuns();
+    for (const name of ["Apogee (m)", "Max speed (m/s)", "Flight time (s)", "Landing (m)"]) {
+      expect(table.getByRole("columnheader", { name })).toHaveClass("text-right");
+    }
+    const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
+    // apogee 3142, max speed 287: whole numbers; flight time 142 and landing 1500: one decimal.
+    for (const value of ["3,142", "287", "142.0", "1,500.0"]) {
+      expect(within(rowA).getByText(value)).toHaveClass("tabular-nums");
+    }
+    expect(within(rowA).queryByText(/ m$| m\/s$| s$/)).toBeNull();
+  });
+
+  it("text columns are left-aligned like their headers, the run cell included", async () => {
+    const table = await renderRuns();
+    const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
+    expect(within(rowA).getByRole("rowheader")).toHaveClass("text-left");
+  });
+
+  it("both row actions share one link style", async () => {
+    const table = await renderRuns();
+    const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
+    const report = within(rowA).getByRole("link", { name: "View report" });
+    const workbench = within(rowA).getByRole("link", { name: "Open in Workbench" });
+    expect(workbench.className).toBe(report.className);
   });
 
   it("the launch cell names the site, never the scenario's default label", async () => {

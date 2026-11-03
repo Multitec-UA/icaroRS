@@ -160,8 +160,13 @@ export function scenarioFacts(scenario: unknown): ScenarioFacts {
 }
 
 /** `38.3452, -0.481` — the coordinates as stored, for labels and chips. */
+/** 5 decimals is about 1 m: the precision canonicalScenario compares sites at. */
+function coordinate(value: number): string {
+  return String(Number(value.toFixed(5)));
+}
+
 export function siteLabel(site: ScenarioSite): string {
-  return `${site.latitude}, ${site.longitude}`;
+  return `${coordinate(site.latitude)}, ${coordinate(site.longitude)}`;
 }
 
 // ---------------------------------------------------------------------------

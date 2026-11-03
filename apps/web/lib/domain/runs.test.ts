@@ -4,6 +4,7 @@ import {
   runDeltas,
   runMetrics,
   scenarioFacts,
+  siteLabel,
   whatChanged,
   type RunInputs,
 } from "./runs";
@@ -163,5 +164,12 @@ describe("scenarioFacts — what a scenario says, for labels", () => {
     });
     // The scenario's name is never a fact: the Workbench sends a default label.
     expect(scenarioFacts({ name: "my_scenario" })).not.toHaveProperty("name");
+  });
+});
+
+describe("siteLabel", () => {
+  it("rounds coordinates to 5 decimals (about 1 m), the precision scenarios are compared at", () => {
+    expect(siteLabel({ latitude: 41.7318811, longitude: 0.1094522, elevation: null })).toBe("41.73188, 0.10945");
+    expect(siteLabel({ latitude: 38.3452, longitude: -0.481, elevation: 12 })).toBe("38.3452, -0.481");
   });
 });
