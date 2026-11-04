@@ -16,6 +16,7 @@ import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { RUN_COLORS } from "./colors";
 import { useRunFormatters } from "./useRunFormatters";
+import { fileLabel } from "@/lib/domain/exports";
 
 /** The chip label of each input group, shared with the Workbench status (TopBar). */
 export const CHANGE_GROUP_LABEL = {
@@ -118,7 +119,7 @@ export function WhatChanged({
                     className={cn("h-2 w-2 shrink-0 rounded-full", color === null ? "bg-chip" : RUN_COLORS[color].dot)}
                   />
                   <span translate="no" className="truncate font-mono">
-                    {`${run.ork_filename ?? run.export_id} · ${shortRunId(run.simulation_id)}`}
+                    {`${fileLabel(run.ork_filename, run.ork_revision, run.export_id)} · ${shortRunId(run.simulation_id)}`}
                   </span>
                 </span>
                 {changes.length === 0 ? (

@@ -50,6 +50,7 @@ export function RocketPicker() {
       onSuccess: ({ rocket, export: exp }) => {
         setExport(exp.export_id, exp.manifest, rocket.rocket_id, {
           filename: exp.ork_filename,
+          revision: exp.ork_revision ?? null,
           rocketName: rocket.name,
         });
       },

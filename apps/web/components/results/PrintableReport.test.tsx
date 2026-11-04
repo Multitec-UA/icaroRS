@@ -25,6 +25,7 @@ const SUMMARY = {
   export_id: "exp-1",
   name: "Icarus-2",
   ork_filename: "icarus2.ork",
+  ork_revision: 2,
   created_at: "2026-10-24T12:32:00Z",
   created_by: "pilot@multitec.dev",
   status: "done" as const,
@@ -154,7 +155,7 @@ describe("PrintReport — a formal technical document with everything expanded",
     expect(doc.getByRole("heading", { level: 1 })).toHaveTextContent("Flight simulation report");
     expect(doc.getByText("20261024T123200Z-run1")).toBeInTheDocument();
     expect(doc.getByText("pilot@multitec.dev")).toBeInTheDocument();
-    expect(doc.getByText("icarus2.ork")).toBeInTheDocument();
+    expect(doc.getByText("icarus2.ork v2")).toBeInTheDocument();
     expect(doc.getByText("Oct 24, 2026, 12:32 PM UTC")).toBeInTheDocument();
   });
 

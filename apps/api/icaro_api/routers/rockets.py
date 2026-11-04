@@ -20,7 +20,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, StringConstraints
 
 from icaro_api.auth import Identity, require_auth
-from icaro_api.routers.exports import ExportSummary, export_summary
+from icaro_api.routers.exports import (
+    MAX_EXPORTS_PER_ROCKET,
+    ExportSummary,
+    export_summary,
+    ork_revisions,
+)
 from icaro_api.runs import get_db
 from icaro_api.services.db import Db, RocketRecord
 
@@ -31,7 +36,6 @@ router = APIRouter(
 
 _DEFAULT_LIMIT = 20
 _MAX_LIMIT = 100
-_MAX_EXPORTS_PER_ROCKET = 100
 MAX_ROCKET_NAME_LENGTH = 120
 
 
@@ -110,9 +114,13 @@ def get_rocket(
             detail=f"Rocket '{rocket_id}' not found.",
         )
     exports = db.list_exports(
-        org_id=identity.org_id, limit=_MAX_EXPORTS_PER_ROCKET, rocket_id=rocket_id
+        org_id=identity.org_id, limit=MAX_EXPORTS_PER_ROCKET, rocket_id=rocket_id
     )
-    return {**rocket_summary(record), "exports": [export_summary(e) for e in exports]}
+    revisions = ork_revisions(exports)
+    return {
+        **rocket_summary(record),
+        "exports": [export_summary(e, revisions[e.export_id]) for e in exports],
+    }
 
 
 @router.patch("/rockets/{rocket_id}", response_model=RocketSummary)

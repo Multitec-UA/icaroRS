@@ -30,7 +30,7 @@ class TestExportDetail:
         data = resp.json()
         assert set(data.keys()) == {
             "export_id", "rocket_id", "name", "created_at", "created_by",
-            "export_prefix", "gcs_ref", "ork_filename", "has_source_ork", "manifest",
+            "export_prefix", "gcs_ref", "ork_filename", "has_source_ork", "ork_revision", "manifest",
         }
         assert data["export_id"] == "e-detail"
         assert data["rocket_id"] == "r-1"

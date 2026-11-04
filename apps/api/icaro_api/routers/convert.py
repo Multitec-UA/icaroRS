@@ -25,6 +25,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
+from icaro_api.routers.exports import rocket_ork_revisions
 from icaro_api.auth import Identity, require_auth
 from icaro_api.config import Settings, get_settings
 from icaro_api.runs import get_db, get_storage, make_run_id
@@ -61,6 +62,8 @@ class ConvertResult(BaseModel):
     export_id: str
     rocket_id: str
     manifest: dict[str, Any]
+    #: Which import of this file name in the rocket it is (routers/exports.py).
+    ork_revision: int | None = None
 
 
 @router.post("/convert", response_model=ConvertResult)
@@ -208,6 +211,7 @@ async def post_convert(
             "export_id": run_id,
             "rocket_id": rocket.rocket_id,
             "manifest": manifest,
+            "ork_revision": rocket_ork_revisions(db, identity.org_id, rocket.rocket_id).get(run_id),
         }
 
     finally:

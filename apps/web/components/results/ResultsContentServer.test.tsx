@@ -51,6 +51,7 @@ const SUMMARY = {
   export_id: "exp-1",
   name: "Icarus-2",
   ork_filename: "icarus2.ork",
+  ork_revision: 2,
   created_at: "2026-10-24T12:32:00Z",
   created_by: "pilot@multitec.dev",
   status: "done" as const,
@@ -128,7 +129,8 @@ describe("Run report — body", () => {
     expect(within(all).getByText("Maximum Mach number").nextElementSibling).toHaveTextContent("0.84");
 
     const config = await screen.findByRole("region", { name: "Configuration" });
-    expect(within(config).getByText("Rocket file").nextElementSibling).toHaveTextContent("icarus2.ork");
+    // The run simulated the second import of icarus2.ork.
+    expect(within(config).getByText("Rocket file").nextElementSibling).toHaveTextContent(/^icarus2\.ork v2$/);
     expect(within(config).getByText("Site").nextElementSibling).toHaveTextContent("38.3452, -0.481");
     expect(within(config).getByText("Weather").nextElementSibling).toHaveTextContent("Real forecast (GFS)");
     expect(within(config).getByText("Rail").nextElementSibling).toHaveTextContent("5.2 m · 84° · 133°");

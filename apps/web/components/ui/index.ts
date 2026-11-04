@@ -9,6 +9,7 @@ export { Callout } from "./Callout";
 export { Card } from "./Card";
 export { Disclosure } from "./Disclosure";
 export { Field, Select, TextInput } from "./Field";
+export { FileName } from "./FileName";
 export { Kbd } from "./Kbd";
 export { SegmentedControl } from "./SegmentedControl";
 export { Spinner } from "./Spinner";

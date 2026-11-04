@@ -189,6 +189,7 @@ class TestHistoryList:
             "export_id",
             "name",
             "ork_filename",
+            "ork_revision",
             "created_at",
             "created_by",
             "status",

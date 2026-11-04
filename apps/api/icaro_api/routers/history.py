@@ -30,6 +30,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
+from icaro_api.routers.exports import rocket_ork_revisions
 from icaro_api.auth import Identity, require_auth
 from icaro_api.runs import get_db
 from icaro_api.services.db import Db
@@ -51,6 +52,8 @@ class SimulationSummary(BaseModel):
     export_id: str
     name: str
     ork_filename: str | None
+    #: Which import of ``ork_filename`` in its rocket was simulated (routers/exports.py).
+    ork_revision: int | None = None
     created_at: str
     created_by: str
     status: Literal["done", "error"]
@@ -91,10 +94,13 @@ def list_history(
         org_id=identity.org_id, limit=effective_limit, before=before, rocket_id=rocket_id
     )
 
-    return [_summary_row(sim, db, identity.org_id) for sim in records]
+    revisions: dict[str, dict[str, int | None]] = {}
+    return [_summary_row(sim, db, identity.org_id, revisions) for sim in records]
 
 
-def _summary_row(sim, db: Db, org_id: str) -> dict[str, Any]:
+def _summary_row(
+    sim, db: Db, org_id: str, revisions: dict[str, dict[str, int | None]] | None = None
+) -> dict[str, Any]:
     """Serialise one SimRecord to the SimulationSummary wire shape.
 
     Denormalizes the rocket name and the export's file name with one
@@ -105,6 +111,13 @@ def _summary_row(sim, db: Db, org_id: str) -> dict[str, Any]:
     rocket_name = rocket.name if rocket is not None else ""
     export = db.get_export(sim.export_id, org_id=org_id) if sim.export_id else None
     ork_filename = export.ork_filename if export is not None else None
+    # One revision lookup per rocket and request, shared across a page of rows.
+    revisions = {} if revisions is None else revisions
+    ork_revision = None
+    if export is not None:
+        if export.rocket_id not in revisions:
+            revisions[export.rocket_id] = rocket_ork_revisions(db, org_id, export.rocket_id)
+        ork_revision = revisions[export.rocket_id].get(export.export_id)
 
     # Extract apogee from scalars — expose at top level per REQ-05.2.
     apogee = sim.scalars.get("apogee_m") or sim.scalars.get("apogee")
@@ -115,6 +128,7 @@ def _summary_row(sim, db: Db, org_id: str) -> dict[str, Any]:
         "export_id": sim.export_id,
         "name": rocket_name,
         "ork_filename": ork_filename,
+        "ork_revision": ork_revision,
         "created_at": sim.created_at.isoformat(),
         "created_by": sim.created_by,
         "status": sim.status,

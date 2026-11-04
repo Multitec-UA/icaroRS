@@ -103,13 +103,14 @@ export function useOrkImport(): OrkImport {
       mutate(
         { file, rocketId },
         {
-          onSuccess: ({ export_id, rocket_id, manifest }) => {
+          onSuccess: ({ export_id, rocket_id, manifest, ork_revision }) => {
             // Attached to one of the org's rockets: the context names THAT
             // rocket (the destination the user chose), never the file's own
             // design name. A new rocket is named as the API names it.
             const destination = rockets.data?.find((r) => r.rocket_id === rocket_id);
             setExport(export_id, manifest, rocket_id, {
               filename: file.name,
+              revision: ork_revision ?? null,
               rocketName: destination?.name ?? rocketNameFor(file, manifest),
             });
             setPhase({ kind: "idle" });

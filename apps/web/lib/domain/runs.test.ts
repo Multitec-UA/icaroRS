@@ -89,6 +89,14 @@ describe("whatChanged — compared run against the baseline, on the canonical di
     ]);
   });
 
+  it("tells apart two imports of the same file by their version", () => {
+    const first = { ...baseline, export_id: "exp-1", ork_filename: "MT1-v1.6.0.ork", ork_revision: 1 };
+    const third = { ...baseline, export_id: "exp-3", ork_filename: "MT1-v1.6.0.ork", ork_revision: 3 };
+    expect(whatChanged(first, third)).toEqual([
+      { group: "file", key: "file", from: "MT1-v1.6.0.ork v1", to: "MT1-v1.6.0.ork v3" },
+    ]);
+  });
+
   it("names the site's elevation and the weather's fallback, which the old diff ignored", () => {
     const run: RunInputs = {
       ...baseline,

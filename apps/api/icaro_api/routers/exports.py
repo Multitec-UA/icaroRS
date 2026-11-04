@@ -3,6 +3,12 @@
 Routes (all require auth via router-level dependency):
   GET /api/exports/{export_id}   — export metadata + manifest
 
+``ork_revision`` tells apart the imports of one ``.ork`` file name within a
+rocket: they are numbered 1..n by import date (``created_at``, then
+``export_id`` on a tie). A file name imported once, or an export without a
+file name, has ``None``. Computed on read from the rocket's exports
+(``MAX_EXPORTS_PER_ROCKET`` newest), never stored.
+
 An *export* is what ``POST /api/convert`` produces and what
 ``POST /api/simulate`` runs. Exports belong to a *rocket* (see
 ``routers/rockets.py``); the rocket detail lists them.
@@ -11,6 +17,8 @@ An *export* is what ``POST /api/convert`` produces and what
 from __future__ import annotations
 
 import json
+from collections import defaultdict
+from collections.abc import Iterable
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -26,6 +34,9 @@ router = APIRouter(
     dependencies=[Depends(require_auth)],
 )
 
+#: How many of a rocket's exports its detail lists and revisions count over.
+MAX_EXPORTS_PER_ROCKET = 100
+
 
 class ExportSummary(BaseModel):
     """One export (converted ``.ork``) as listed inside a rocket detail."""
@@ -39,6 +50,7 @@ class ExportSummary(BaseModel):
     gcs_ref: str
     ork_filename: str | None
     has_source_ork: bool
+    ork_revision: int | None = None
 
 
 class ExportDetail(ExportSummary):
@@ -47,7 +59,32 @@ class ExportDetail(ExportSummary):
     manifest: dict[str, Any]
 
 
-def export_summary(rec: ExportRecord) -> dict[str, Any]:
+def ork_revisions(exports: Iterable[ExportRecord]) -> dict[str, int | None]:
+    """Number the exports that share an ``ork_filename`` 1..n by import date.
+
+    Every export id maps to its revision, or ``None`` when its file name is
+    missing or appears once. Pass one rocket's exports of one organization.
+    """
+    exports = list(exports)
+    by_name: dict[str, list[ExportRecord]] = defaultdict(list)
+    for rec in exports:
+        if rec.ork_filename:
+            by_name[rec.ork_filename].append(rec)
+    revisions: dict[str, int | None] = {rec.export_id: None for rec in exports}
+    for same_name in by_name.values():
+        if len(same_name) > 1:
+            ordered = sorted(same_name, key=lambda rec: (rec.created_at, rec.export_id))
+            for number, rec in enumerate(ordered, start=1):
+                revisions[rec.export_id] = number
+    return revisions
+
+
+def rocket_ork_revisions(db: Db, org_id: str, rocket_id: str) -> dict[str, int | None]:
+    """``ork_revisions`` over one rocket's exports, read from the Db."""
+    return ork_revisions(db.list_exports(org_id=org_id, limit=MAX_EXPORTS_PER_ROCKET, rocket_id=rocket_id))
+
+
+def export_summary(rec: ExportRecord, revision: int | None = None) -> dict[str, Any]:
     """Serialise an ``ExportRecord`` to the ``ExportSummary`` wire shape."""
     return {
         "export_id": rec.export_id,
@@ -59,6 +96,7 @@ def export_summary(rec: ExportRecord) -> dict[str, Any]:
         "gcs_ref": rec.gcs_ref,
         "ork_filename": rec.ork_filename,
         "has_source_ork": rec.has_source_ork,
+        "ork_revision": revision,
     }
 
 
@@ -93,4 +131,5 @@ def get_export(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Export '{export_id}' not found.",
         )
-    return {**export_summary(record), "manifest": load_manifest(storage, record.export_prefix)}
+    revision = rocket_ork_revisions(db, identity.org_id, record.rocket_id).get(export_id)
+    return {**export_summary(record, revision), "manifest": load_manifest(storage, record.export_prefix)}
