@@ -19,6 +19,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { cn, focusRing } from "@/lib/styles";
+import { popoverClass } from "@/components/ui/classes";
 
 const POPOVER_WIDTH = 288; // matches max-w-72
 const VIEWPORT_GUTTER = 8;
@@ -106,7 +107,7 @@ export function InfoTip({ term }: { term: string }) {
           "relative inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full p-0 leading-none normal-case tracking-normal transition-colors duration-200",
           // Larger invisible hit area for touch without changing the layout.
           "after:absolute after:-inset-2 after:content-['']",
-          open ? "text-cyan-300" : "text-white/45 hover:text-white/85",
+          open ? "text-accent-ink" : "text-muted hover:text-ink",
           focusRing,
         )}
       >
@@ -119,7 +120,7 @@ export function InfoTip({ term }: { term: string }) {
             id={popoverId}
             role="status"
             style={{ left: placement.left, top: placement.top, bottom: placement.bottom }}
-            className="fixed z-50 w-72 max-w-[calc(100vw-1rem)] rounded-2xl bg-[#0b0b0e]/95 px-4 py-3 text-left text-xs font-normal normal-case leading-relaxed tracking-normal text-foreground/90 shadow-[0_12px_48px_rgba(0,0,0,0.6)] ring-1 ring-inset ring-white/10 backdrop-blur-md"
+            className={cn("fixed z-50 w-72 max-w-[calc(100vw-1rem)] px-4 py-3 text-left text-xs font-normal normal-case leading-relaxed tracking-normal", popoverClass)}
           >
             {def}
           </div>,

@@ -7,7 +7,15 @@ from .._helpers import _dict_to_string
 logger = logging.getLogger(__name__)
 
 
-def search_stored_results(bs, datapoints, data_labels, time_vector, burnout_position):
+def search_stored_results(
+    bs,
+    datapoints,
+    data_labels,
+    time_vector,
+    burnout_position,
+    simulation=None,
+    selection=None,
+):
     """Search for the stored simulation results in the bs and return the
     settings as a dict.
 
@@ -15,16 +23,21 @@ def search_stored_results(bs, datapoints, data_labels, time_vector, burnout_posi
     ----------
     bs : BeautifulSoup
         BeautifulSoup object of the .ork file.
+    simulation : bs4.element.Tag, optional
+        The reference simulation. Defaults to the first ``<simulation>``.
+    selection : str, optional
+        The rule that selected the reference simulation.
 
     Returns
     -------
     settings : dict
-        A dict containing the settings for the launch conditions. The keys are:
-        "maxaltitude", "maxvelocity", "maxacceleration", "maxmach", "timetoapogee",
-        "flighttime", "groundhitvelocity" and "launchrodvelocity".
+        The numeric results of the simulation (0 when OpenRocket did not store
+        one, kept for backward compatibility) plus its provenance:
+        "simulation_name", "status", "config_id" and "selection" (``None`` when
+        unknown).
     """
     settings = {}
-    sim = bs.find("simulation")
+    sim = simulation if simulation is not None else bs.find("simulation")
     sim_data = sim.find("flightdata")
     logger.info("Found the 'flightdata' tag in the 'simulation' tag.")
     name_map = {
@@ -68,6 +81,14 @@ def search_stored_results(bs, datapoints, data_labels, time_vector, burnout_posi
     settings["max_thrust"] = __get_parameter(
         datapoints, data_labels, time_vector, ["Thrust", "Empuje"], position="max"
     )
+
+    name = sim.find("name", recursive=False)
+    conditions = sim.find("conditions")
+    config_id = conditions.find("configid") if conditions is not None else None
+    settings["simulation_name"] = name.text if name is not None else None
+    settings["status"] = sim.get("status")
+    settings["config_id"] = config_id.text.strip() if config_id is not None else None
+    settings["selection"] = selection
 
     logger.info(
         "The flight data was successfully retrieved:\n%s",

@@ -3,7 +3,10 @@
         "rocket_name": "Rocket",
         "comment": null,
         "designer": null,
-        "filepath": "examples/MT1--2026/v1.5.0/rocket.ork"
+        "filepath": "examples/MT1--2026/v1.5.0/rocket.ork",
+        "ork_format_version": "1.10",
+        "creator": "OpenRocket 24.12",
+        "serializer_version": "0.2.0"
     },
     "environment": {
         "latitude": 38.37122612,
@@ -18,13 +21,13 @@
     },
     "rocket": {
         "radius": 0.03,
-        "mass": 1.293,
+        "mass": 1.635,
         "inertia": [
-            0.0009109,
-            0.0009109,
-            0.171
+            0.001,
+            0.001,
+            0.333
         ],
-        "center_of_mass_without_propellant": 0.657,
+        "center_of_mass_without_propellant": 0.875,
         "coordinate_system_orientation": "nose_to_tail",
         "drag_curve": "tests/acceptance/MT1--2026/drag_curve.csv"
     },
@@ -84,7 +87,7 @@
         "angular_position": 0.0
     },
     "motors": {
-        "grain_density": 802.735443071147,
+        "grain_density": 777.4524369901658,
         "grain_initial_inner_radius": 0.0095,
         "grain_outer_radius": 0.019,
         "grain_initial_height": 0.186,
@@ -102,8 +105,19 @@
         "grain_separation": 0,
         "nozzle_position": -0.093,
         "coordinate_system_orientation": "nozzle_to_combustion_chamber",
-        "position": 1.0962142857142847,
-        "thrust_source": "tests/acceptance/MT1--2026/thrust_source.csv"
+        "position": 1.2782459016393448,
+        "thrust_source": "tests/acceptance/MT1--2026/thrust_source.csv",
+        "identity": {
+            "designation": "232H123-14A",
+            "manufacturer": "Cesaroni Technology",
+            "ork_motor_type": "reload",
+            "config_id": "1bf20f9b-872b-4700-bef7-87c806d620e0",
+            "motor_count": 1,
+            "impulse_class": "H",
+            "total_impulse_newton_seconds": 234.223761,
+            "impulse_check": "ok",
+            "burn_time_seconds": 1.939
+        }
     },
     "flight": {
         "rail_length": 2.0,
@@ -119,9 +133,13 @@
         "flight_time": 78.756,
         "ground_hit_velocity": 8.881,
         "launch_rod_velocity": 15.074,
-        "max_stability_margin": 3.722,
+        "max_stability_margin": 3.776,
         "min_stability_margin": 0.0,
-        "burnout_stability_margin": 3.705,
-        "max_thrust": 152.496
+        "burnout_stability_margin": 3.759,
+        "max_thrust": 148.377,
+        "simulation_name": "Simulation 1",
+        "status": "uptodate",
+        "config_id": "1bf20f9b-872b-4700-bef7-87c806d620e0",
+        "selection": "uptodate_default"
     }
 }

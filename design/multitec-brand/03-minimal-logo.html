@@ -1,0 +1,278 @@
+<!doctype html>
+<!--
+Multitec brand direction 3: Minimal: logo only
+WCAG 2 contrast, computed from relative luminance (text needs 4.5:1; [non-text] UI parts need 3:1).
+The brand mark is a logotype (exempt under SC 1.4.3/1.4.11); its glyph is still checked.
+LIGHT
+  --ink on --bg: #2b2840 on #f3f1f8 = 12.67:1 (needs 4.5)
+  --ink on --surface: #2b2840 on #fbfafd = 13.64:1 (needs 4.5)
+  --ink-2 on --surface: #4a4662 on #fbfafd = 8.62:1 (needs 4.5)
+  --muted on --surface: #6e6987 on #fbfafd = 5.01:1 (needs 4.5)
+  --muted on --bg: #6e6987 on #f3f1f8 = 4.65:1 (needs 4.5)
+  --ink-2 on --surface-2 (segmented, note): #4a4662 on #f0edf6 = 7.74:1 (needs 4.5)
+  --ink-2 on --sel (baseline row meta): #4a4662 on #e3e7fb = 7.29:1 (needs 4.5)
+  --ink-2 on --chip: #4a4662 on #ece8f4 = 7.43:1 (needs 4.5)
+  --on-primary on --primary: #fbfafd on #5160cc = 5.18:1 (needs 4.5)
+  --link on --surface: #4757b8 on #fbfafd = 6.08:1 (needs 4.5)
+  --link on --bg: #4757b8 on #f3f1f8 = 5.64:1 (needs 4.5)
+  --sel-ink on --sel (baseline row, badge): #4757b8 on #e3e7fb = 5.14:1 (needs 4.5)
+  --nav-ink on --nav-bg (active nav): #2b2840 on #fbfafd = 13.64:1 (needs 4.5)
+  --ctx-ink on --ctx-soft (rocket chip glyph): #4757b8 on #e3e7fb = 5.14:1 (needs 3.0)
+  --warn-ink on --warn-soft: #7a5420 on #fcefd9 = 5.93:1 (needs 4.5)
+  --ok-ink on --ok-soft: #2d6a50 on #dff3ea = 5.52:1 (needs 4.5)
+  --bad-ink on --bad-soft: #9e3a47 on #fbe3e6 = 5.47:1 (needs 4.5)
+  --bad-ink on --surface: #9e3a47 on #fbfafd = 6.41:1 (needs 4.5)
+  brand glyph on brand mark: #fbfafd on #AE2418 = 6.59:1 (needs 4.5)
+  [non-text] --primary vs --surface (icon button edge): #5160cc on #fbfafd = 5.18:1 (needs 3.0)
+  [non-text] --focus ring vs --surface: #6b7fe0 on #fbfafd = 3.52:1 (needs 3.0)
+  [non-text] --focus ring vs --bg: #6b7fe0 on #f3f1f8 = 3.27:1 (needs 3.0)
+  [non-text] series 1 vs --surface: #6b7fe0 on #fbfafd = 3.52:1 (needs 3.0)
+  ADVISORY [non-text] series 2 vs --surface: #ee9a72 on #fbfafd = 2.13:1 (needs 3.0); unchanged system --peach, also told apart by its dash pattern and legend
+DARK
+  --ink on --bg: #e6e3f2 on #1e1d2a = 13.16:1 (needs 4.5)
+  --ink on --surface: #e6e3f2 on #262535 = 11.89:1 (needs 4.5)
+  --ink-2 on --surface: #c4c0d8 on #262535 = 8.49:1 (needs 4.5)
+  --muted on --surface: #9a96b2 on #262535 = 5.28:1 (needs 4.5)
+  --muted on --bg: #9a96b2 on #1e1d2a = 5.84:1 (needs 4.5)
+  --ink-2 on --surface-2 (segmented, note): #c4c0d8 on #2e2d3f = 7.60:1 (needs 4.5)
+  --ink-2 on --sel (baseline row meta): #c4c0d8 on #34385c = 6.37:1 (needs 4.5)
+  --ink-2 on --chip: #c4c0d8 on #34324a = 6.98:1 (needs 4.5)
+  --on-primary on --primary: #1e1d2a on #8e9cf2 = 6.48:1 (needs 4.5)
+  --link on --surface: #aeb8f7 on #262535 = 7.87:1 (needs 4.5)
+  --link on --bg: #aeb8f7 on #1e1d2a = 8.70:1 (needs 4.5)
+  --sel-ink on --sel (baseline row, badge): #aeb8f7 on #34385c = 5.89:1 (needs 4.5)
+  --nav-ink on --nav-bg (active nav): #e6e3f2 on #2e2d3f = 10.64:1 (needs 4.5)
+  --ctx-ink on --ctx-soft (rocket chip glyph): #aeb8f7 on #34385c = 5.89:1 (needs 3.0)
+  --warn-ink on --warn-soft: #f2d39a on #4a3a22 = 7.59:1 (needs 4.5)
+  --ok-ink on --ok-soft: #a9e3c6 on #27402f = 7.79:1 (needs 4.5)
+  --bad-ink on --bad-soft: #f3b6bd on #4a2a30 = 7.35:1 (needs 4.5)
+  --bad-ink on --surface: #f3b6bd on #262535 = 8.75:1 (needs 4.5)
+  brand glyph on brand mark: #fbfafd on #AE2418 = 6.59:1 (needs 4.5)
+  [non-text] --primary vs --surface (icon button edge): #8e9cf2 on #262535 = 5.85:1 (needs 3.0)
+  [non-text] --focus ring vs --surface: #8e9cf2 on #262535 = 5.85:1 (needs 3.0)
+  [non-text] --focus ring vs --bg: #8e9cf2 on #1e1d2a = 6.48:1 (needs 3.0)
+  [non-text] series 1 vs --surface: #8e9cf2 on #262535 = 5.85:1 (needs 3.0)
+  [non-text] series 2 vs --surface: #f2ae8b on #262535 = 8.01:1 (needs 3.0)
+-->
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Multitec brand · 03 Minimal: logo only</title>
+<style>
+:root,[data-theme="light"]{--bg:#f3f1f8;--surface:#fbfafd;--surface-2:#f0edf6;--border:#e2ddec;--divider:#ebe7f2;--ink:#2b2840;--ink-2:#4a4662;--muted:#6e6987;--axis:#c9c3da;--chip:#ece8f4;--ok:#5fb38d;--ok-soft:#dff3ea;--ok-ink:#2d6a50;--warn:#e3a857;--warn-soft:#fcefd9;--warn-ink:#7a5420;--scrim:rgba(43,40,64,.28);--shadow:0 1px 2px rgba(43,40,64,.04),0 8px 24px -12px rgba(43,40,64,.14);--shadow-lg:0 12px 40px -16px rgba(43,40,64,.28);--primary:#5160cc;--on-primary:#fbfafd;--focus:#6b7fe0;--link:#4757b8;--sel:#e3e7fb;--sel-ink:#4757b8;--mark:#AE2418;--glyph:#fbfafd;--brand-line:#6b7fe0;--s1:#6b7fe0;--s2:#ee9a72;--bad:#e07b86;--bad-soft:#fbe3e6;--bad-ink:#9e3a47;--nav-bg:#fbfafd;--nav-ink:#2b2840;--ind:transparent;--ctx-soft:#e3e7fb;--ctx-ink:#4757b8}
+[data-theme="dark"]{--bg:#1e1d2a;--surface:#262535;--surface-2:#2e2d3f;--border:#3a384d;--divider:#33324a;--ink:#e6e3f2;--ink-2:#c4c0d8;--muted:#9a96b2;--axis:#4b4961;--chip:#34324a;--ok:#6fc79f;--ok-soft:#27402f;--ok-ink:#a9e3c6;--warn:#e8b86a;--warn-soft:#4a3a22;--warn-ink:#f2d39a;--scrim:rgba(14,13,22,.55);--shadow:0 1px 2px rgba(0,0,0,.2),0 8px 24px -12px rgba(0,0,0,.5);--shadow-lg:0 16px 48px -16px rgba(0,0,0,.6);--primary:#8e9cf2;--on-primary:#1e1d2a;--focus:#8e9cf2;--link:#aeb8f7;--sel:#34385c;--sel-ink:#aeb8f7;--mark:#AE2418;--glyph:#fbfafd;--brand-line:#8e9cf2;--s1:#8e9cf2;--s2:#f2ae8b;--bad:#e8909a;--bad-soft:#4a2a30;--bad-ink:#f3b6bd;--nav-bg:#2e2d3f;--nav-ink:#e6e3f2;--ind:transparent;--ctx-soft:#34385c;--ctx-ink:#aeb8f7}
+
+:root{--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace;--ease-spring:cubic-bezier(.32,.72,0,1)}
+*{box-sizing:border-box}
+html{color-scheme:light}html[data-theme="dark"]{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3,p{margin:0}
+a{color:var(--link);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;border-radius:4px}
+a:hover{color:var(--ink)}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.mono{font-family:var(--mono)}.muted{color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:9px;border:1px solid transparent;font:600 14px/1 var(--sans);cursor:pointer;white-space:nowrap;text-decoration:none;transition:background-color .3s var(--ease-spring),box-shadow .3s var(--ease-spring),transform .3s var(--ease-spring)}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--primary);color:var(--on-primary)}.btn-primary:hover{box-shadow:var(--shadow);color:var(--on-primary)}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--border);font-weight:500}.btn-ghost:hover{background:var(--surface-2)}
+.btn-danger{background:var(--bad-soft);color:var(--bad-ink)}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+.btn-icon{width:32px;height:32px;padding:0}
+@media (pointer:coarse){.btn{min-height:44px}}
+kbd{font-family:var(--mono);font-size:11px;border-radius:5px;padding:2px 6px;font-weight:500}
+.btn-primary kbd{border:1px solid currentColor;opacity:.85}
+.pill{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap;border:1px solid transparent}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill-sm{height:24px;font-size:12px;padding:0 9px;gap:6px}
+.pill-ok{background:var(--ok-soft);color:var(--ok-ink)}
+.pill-bad{background:var(--bad-soft);color:var(--bad-ink)}
+.badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--sel);color:var(--sel-ink)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:5px;min-width:0}
+.field label{font-size:13px;font-weight:500;color:var(--ink-2)}
+.hint{font-size:12px;color:var(--muted)}
+.input{height:36px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);font:14px var(--sans);padding:0 10px;width:100%;font-variant-numeric:tabular-nums}
+.input:focus-visible{outline:2px solid var(--focus);outline-offset:1px;border-color:var(--focus)}
+.unit{position:relative}.unit .input{padding-right:30px}.unit span{position:absolute;right:10px;top:9px;color:var(--muted);font-size:13px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{height:30px;border:0;border-radius:7px;background:transparent;color:var(--ink-2);font:500 13px var(--sans);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.theme-toggle{position:fixed;top:10px;right:10px;z-index:50;width:30px;height:30px;padding:0;display:grid;place-items:center;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--ink-2);box-shadow:var(--shadow-lg);cursor:pointer}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;padding:16px 12px;border-right:1px solid var(--divider);background:var(--surface)}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:700;font-size:17px;letter-spacing:-.01em}
+.mark{width:30px;height:30px;border-radius:9px;background:var(--mark);color:var(--glyph);display:grid;place-items:center;flex:none}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{position:relative;display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:9px;color:var(--ink-2);font-weight:500;text-decoration:none}
+.nav a:hover{background:var(--surface-2);color:var(--ink)}
+.nav a[aria-current="page"]{background:var(--nav-bg);color:var(--nav-ink)}
+.nav a[aria-current="page"]::before{content:"";position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--ind)}
+.nav .count{margin-left:auto;font-size:12px;color:var(--muted)}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--divider);padding-top:14px}
+.side-foot .seg button{font-size:12px;height:28px}
+.account{display:flex;align-items:center;gap:10px;padding:4px 8px}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--chip);color:var(--ink-2);display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
+.account b{display:block;font-size:13px}.account span{font-size:12px;color:var(--muted)}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{display:flex;align-items:center;gap:12px;height:60px;padding:0 56px 0 24px;border-bottom:1px solid var(--divider);background:var(--bg)}
+.ctx{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 6px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:500 14px var(--sans);cursor:pointer}
+.ctx:hover{background:var(--surface-2)}
+.ctx .rk{width:24px;height:24px;border-radius:7px;background:var(--ctx-soft);color:var(--ctx-ink);display:grid;place-items:center}
+.ctx .file{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.grow{flex:1}
+.work{display:grid;grid-template-columns:316px 1fr;gap:20px;padding:18px 24px 24px;align-items:start}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+.section{padding:12px 16px 14px;display:flex;flex-direction:column;gap:9px}
+.section h2{font-size:14px;font-weight:600}
+.row3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.confirm{border-color:var(--border)}
+.confirm .acts{display:flex;justify-content:flex-end;gap:8px}
+.note{border:1px dashed var(--axis);border-radius:14px;padding:10px 14px;display:flex;flex-direction:column;gap:5px;background:var(--surface)}
+.note h2{font-size:14px;font-weight:650}
+.note p{font-size:12px;color:var(--ink-2);line-height:1.45}
+.note .tradeoff{color:var(--ink)}
+.swatches{display:flex;flex-wrap:wrap;gap:4px 10px}
+.sw{display:inline-flex;align-items:center;gap:5px;font:11px var(--mono);color:var(--ink-2)}
+.sw i{width:12px;height:12px;border-radius:3px;border:1px solid var(--border);display:inline-block}
+.res-head{display:flex;align-items:baseline;gap:10px}
+.res-head h1{font-size:18px;font-weight:650}
+.callouts{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.callout{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:12px;border:1px solid transparent;font-size:13px}
+.callout svg{flex:none;margin-top:1px}
+.callout b{display:block;font-size:13px}
+.callout-warn{background:var(--warn-soft);color:var(--warn-ink);border-color:var(--warn)}
+.callout-bad{background:var(--bad-soft);color:var(--bad-ink);border-color:var(--bad)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.kpi{padding:12px 14px 13px;display:flex;flex-direction:column;gap:2px}
+.kpi h3{font-size:13px;color:var(--muted);font-weight:500}
+.kpi .v{font-family:var(--mono);font-size:26px;font-weight:600;letter-spacing:-.02em;line-height:1.15}
+.kpi .v small{font-size:14px;font-weight:500;color:var(--muted);margin-left:3px;letter-spacing:0}
+.kpi .s{font-size:12px;color:var(--ink-2)}
+.panel-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px 0}
+.panel-head h2{font-size:14px;font-weight:600}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.chart{padding:4px 12px 8px}.chart svg{display:block;width:100%;height:auto}
+table.runs{width:100%;border-collapse:collapse;font-size:13px}
+table.runs th{font-weight:500;color:var(--muted);text-align:left;padding:8px 12px;border-bottom:1px solid var(--divider);font-size:12px;white-space:nowrap}
+table.runs td{padding:8px 12px;border-bottom:1px solid var(--divider);vertical-align:middle}
+table.runs tr:last-child td{border-bottom:0}
+table.runs tr.base td{background:var(--sel)}table.runs tr.base .delta{color:var(--ink-2)}
+table.runs .num{font-family:var(--mono);text-align:right;white-space:nowrap}
+table.runs th.num{font-family:var(--sans)}
+.delta{display:block;font-size:11px;color:var(--muted)}
+.acts-row{display:flex;justify-content:flex-end;gap:6px}
+.acts-row .spacer{width:32px}
+
+.delta.neg{color:var(--bad-ink)}.delta.pos{color:var(--ok-ink)}
+.nav a[aria-current="page"]{box-shadow:var(--shadow)}
+
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false" aria-label="Review tool: show dark palette" title="Review tool: switch light/dark palette"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></button>
+<div class="app">
+<aside class="sidebar" aria-label="Primary">
+  <div class="brand"><span class="mark" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c3 3 4 7 4 11l-4 3-4-3c0-4 1-8 4-11z"/><path d="M9 18l-2 4M15 18l2 4"/></svg></span><span>icaro</span></div>
+  <nav class="nav" aria-label="Main">
+    <a href="#workbench" aria-current="page"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.8" y="2.5" width="12.4" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M6.4 2.5v11" stroke="currentColor" stroke-width="1.4"/></svg>Workbench</a>
+    <a href="#rockets"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c3 3 4 7 4 11l-4 3-4-3c0-4 1-8 4-11z"/><path d="M9 18l-2 4M15 18l2 4"/></svg>Rockets<span class="count">3</span></a>
+    <a href="#runs"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Runs<span class="count">14</span></a>
+  </nav>
+  <div class="side-foot">
+    <div><p class="eyebrow" id="theme-label" style="margin:0 0 6px 2px">Theme</p>
+      <div class="seg" role="group" aria-labelledby="theme-label"><button type="button" aria-pressed="true">System</button><button type="button" aria-pressed="false">Light</button><button type="button" aria-pressed="false">Dark</button></div></div>
+    <div class="account"><span class="avatar" aria-hidden="true">LM</span><div><b>Lucía Martín</b><span>Multitec · Aerospace</span></div></div>
+  </div>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button type="button" class="ctx" aria-haspopup="dialog" aria-expanded="false"><span class="rk"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c3 3 4 7 4 11l-4 3-4-3c0-4 1-8 4-11z"/><path d="M9 18l-2 4M15 18l2 4"/></svg></span><span>Icarus Mk II</span><span class="muted" aria-hidden="true">·</span><span class="file">icarus-mk2-v3.ork</span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3.5 5.5 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <span class="pill pill-ok" role="status">Up to date · run s-0004</span>
+  <span class="grow"></span>
+  <button type="button" class="btn btn-primary">Run again <kbd>⌘↵</kbd></button>
+</header>
+<main class="work" id="main">
+<section class="col" aria-label="Scenario inputs">
+  <section class="card section" aria-labelledby="site-h"><h2 id="site-h">Launch site</h2>
+    <div class="row3">
+      <div class="field"><label for="lat">Latitude</label><input class="input" id="lat" value="38.2655"></div>
+      <div class="field"><label for="lon">Longitude</label><input class="input" id="lon" value="−0.6981"></div>
+      <div class="field"><label for="elev">Elevation</label><div class="unit"><input class="input" id="elev" value="42"><span>m</span></div></div>
+    </div></section>
+  <section class="card section" aria-labelledby="wx-h"><h2 id="wx-h">Weather</h2>
+    <div class="seg" role="group" aria-labelledby="wx-h"><button type="button" aria-pressed="true">Forecast</button><button type="button" aria-pressed="false">Standard</button><button type="button" aria-pressed="false">Sounding</button></div>
+    <p class="hint">GFS forecast · 14 Nov 2026, 10:30 Madrid</p></section>
+  <section class="card section" aria-labelledby="rail-h"><h2 id="rail-h">Launch rail</h2>
+    <div class="row3">
+      <div class="field"><label for="rlen">Length</label><div class="unit"><input class="input" id="rlen" value="5.2"><span>m</span></div></div>
+      <div class="field"><label for="incl">Inclination</label><div class="unit"><input class="input" id="incl" value="85"><span>°</span></div></div>
+      <div class="field"><label for="head">Heading</label><div class="unit"><input class="input" id="head" value="90"><span>°</span></div></div>
+    </div></section>
+  <section class="card section confirm" role="alertdialog" aria-labelledby="cf-h" aria-describedby="cf-d">
+    <h2 id="cf-h">Discard the draft and start a new rocket?</h2>
+    <p id="cf-d" class="hint">Unsaved edits to Icarus Mk II will be lost. Saved runs are kept.</p>
+    <div class="acts"><button type="button" class="btn btn-ghost btn-sm">Cancel</button><button type="button" class="btn btn-danger btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>Confirm</button></div>
+  </section>
+  <aside class="note" aria-labelledby="note-h">
+    <p class="eyebrow">Direction 3 of 3 · review note</p>
+    <h2 id="note-h">Minimal: logo only</h2>
+    <p>Current indigo system unchanged. #AE2418 only in the logo square and the favicon. Errors, destructive Confirm and negative deltas keep the existing --bad tokens.</p>
+    <p class="tradeoff"><b>Tradeoff:</b> Zero risk to the current system and errors; the Multitec brand barely shows.</p>
+    <div class="swatches"><span class="sw"><i style="background:#AE2418"></i>Brand #AE2418</span><span class="sw"><i style="background:#5160cc"></i>Primary #5160cc</span><span class="sw"><i style="background:#8e9cf2"></i>dark #8e9cf2</span><span class="sw"><i style="background:#9e3a47"></i>Error #9e3a47</span><span class="sw"><i style="background:#f3b6bd"></i>dark #f3b6bd</span></div>
+    <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-2)"><span style="display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:8px 8px 0 0;background:var(--surface);border:1px solid var(--border);border-bottom:0"><span style="width:14px;height:14px;border-radius:4px;background:var(--mark);color:var(--glyph);display:grid;place-items:center"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2c3 3 4 7 4 11l-4 3-4-3c0-4 1-8 4-11z"/><path d="M9 18l-2 4M15 18l2 4"/></svg></span>Workbench · icaro</span><span class="muted">favicon-sized mark</span></div>
+  </aside>
+</section>
+<section class="col" aria-label="Result of run s-0004">
+  <div class="res-head"><h1>Run s-0004</h1><span class="muted" style="font-size:13px">3 Nov 2026, 10:42 · Lucía Martín</span><span class="grow"></span><a href="#report" style="font-size:13px">View report</a></div>
+  <div class="callouts">
+    <div class="callout callout-warn" role="status"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M9 2.2 16.2 15H1.8z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M9 7v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="9" cy="12.7" r=".9" fill="currentColor"/></svg><div><b>Warning</b>Forecast unavailable for the requested hour; fell back to the standard atmosphere.</div></div>
+    <div class="callout callout-bad" role="alert"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><circle cx="9" cy="9" r="7" stroke="currentColor" stroke-width="1.5"/><path d="m6.4 6.4 5.2 5.2m0-5.2-5.2 5.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><div><b>Error · run s-0003 failed</b>The motor thrust curve in icarus-mk2-v3.ork has no data points.</div></div>
+  </div>
+  <section class="kpis" aria-label="Key results">
+    <article class="card kpi"><h3>Apogee</h3><p class="v">1,813<small>m</small></p><p class="s">at T+21.0 s, above the pad</p></article>
+    <article class="card kpi"><h3>Max speed</h3><p class="v">289<small>m/s</small></p><p class="s">Mach 0.85 at T+3.6 s</p></article>
+    <article class="card kpi"><h3>Stability off rail</h3><p class="v">2.14<small>cal</small></p><p class="s">at 31 m/s rail exit</p></article>
+    <article class="card kpi"><h3>Landing</h3><p class="v">440<small>m</small></p><p class="s">from the pad, bearing 78°</p></article>
+  </section>
+  <section class="card" aria-labelledby="alt-h">
+    <div class="panel-head"><h2 id="alt-h">Altitude</h2><div class="legend"><span><svg width="18" height="4" aria-hidden="true"><line x1="0" x2="18" y1="2" y2="2" stroke="var(--s1)" stroke-width="2.4"/></svg>s-0004</span><span><svg width="18" height="4" aria-hidden="true"><line x1="0" x2="18" y1="2" y2="2" stroke="var(--s2)" stroke-width="2" stroke-dasharray="5 3"/></svg>s-0002 · baseline</span></div></div>
+    <div class="chart"><svg viewBox="0 0 860 210" role="img" aria-label="Altitude versus time. Run s-0004 peaks at 1,813 m at 21.0 s and lands at 148.2 s; baseline s-0002 peaks at 1,830 m and lands at 149.6 s.">
+      <line x1="44" x2="834" y1="186.0" y2="186.0" stroke="var(--divider)"/><text x="36" y="190.0" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">0</text><line x1="44" x2="834" y1="143.0" y2="143.0" stroke="var(--divider)"/><text x="36" y="147.0" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">500</text><line x1="44" x2="834" y1="100.0" y2="100.0" stroke="var(--divider)"/><text x="36" y="104.0" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">1,000</text><line x1="44" x2="834" y1="57.0" y2="57.0" stroke="var(--divider)"/><text x="36" y="61.0" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">1,500</text><line x1="44" x2="834" y1="14.0" y2="14.0" stroke="var(--divider)"/><text x="36" y="18.0" text-anchor="end" font-size="11" fill="var(--muted)" font-family="var(--mono)">2,000</text><text x="44.0" y="204" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">0 s</text><text x="202.0" y="204" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">30 s</text><text x="360.0" y="204" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">60 s</text><text x="518.0" y="204" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">90 s</text><text x="676.0" y="204" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">120 s</text><text x="834.0" y="204" text-anchor="middle" font-size="11" fill="var(--muted)" font-family="var(--mono)">150 s</text>
+      <line x1="44" x2="44" y1="14" y2="186" stroke="var(--axis)"/><line x1="44" x2="834" y1="186" y2="186" stroke="var(--axis)"/>
+      <polyline points="44.0,186.0 50.6,168.1 57.1,151.3 63.7,135.6 70.3,120.9 76.8,107.4 83.4,94.9 90.0,83.5 96.5,73.1 103.1,63.9 109.7,55.7 116.2,48.6 122.8,42.6 129.4,37.6 135.9,33.8 142.5,31.0 149.1,29.3 155.6,28.6 162.2,31.1 168.7,33.7 175.3,36.4 181.9,39.0 188.4,41.7 195.0,44.3 201.6,47.0 208.1,49.7 214.7,52.3 221.3,55.0 227.8,57.6 234.4,60.3 241.0,63.0 247.5,65.6 254.1,68.3 260.7,70.9 267.2,73.6 273.8,76.2 280.4,78.9 286.9,81.6 293.5,84.2 300.1,86.9 306.6,89.5 313.2,92.2 319.8,94.9 326.3,97.5 332.9,100.2 339.5,102.8 346.0,105.5 352.6,108.2 359.2,110.8 365.7,113.5 372.3,116.1 378.9,118.8 385.4,121.4 392.0,124.1 398.6,126.8 405.1,129.4 411.7,132.1 418.2,134.7 424.8,137.4 431.4,140.1 437.9,142.7 444.5,145.4 451.1,148.0 457.6,150.7 464.2,153.3 470.8,156.0 477.3,158.7 483.9,160.4 490.5,160.9 497.0,161.4 503.6,161.9 510.2,162.3 516.7,162.8 523.3,163.3 529.9,163.8 536.4,164.3 543.0,164.8 549.6,165.2 556.1,165.7 562.7,166.2 569.3,166.7 575.8,167.2 582.4,167.6 589.0,168.1 595.5,168.6 602.1,169.1 608.7,169.6 615.2,170.1 621.8,170.5 628.4,171.0 634.9,171.5 641.5,172.0 648.1,172.5 654.6,173.0 661.2,173.4 667.7,173.9 674.3,174.4 680.9,174.9 687.4,175.4 694.0,175.9 700.6,176.3 707.1,176.8 713.7,177.3 720.3,177.8 726.8,178.3 733.4,178.8 740.0,179.2 746.5,179.7 753.1,180.2 759.7,180.7 766.2,181.2 772.8,181.7 779.4,182.1 785.9,182.6 792.5,183.1 799.1,183.6 805.6,184.1 812.2,184.6 818.8,185.0 825.3,185.5 831.9,186.0" fill="none" stroke="var(--s2)" stroke-width="2" stroke-dasharray="6 5" stroke-linejoin="round"/>
+      <polyline points="44.0,186.0 50.5,168.2 57.0,151.5 63.5,135.8 70.0,121.3 76.5,107.8 83.0,95.4 89.5,84.1 96.0,73.8 102.5,64.6 109.0,56.5 115.5,49.5 122.1,43.6 128.6,38.7 135.1,34.9 141.6,32.2 148.1,30.6 154.6,30.1 161.1,32.7 167.6,35.3 174.1,38.0 180.6,40.6 187.1,43.2 193.6,45.9 200.1,48.5 206.6,51.1 213.1,53.8 219.6,56.4 226.1,59.0 232.6,61.7 239.1,64.3 245.6,67.0 252.1,69.6 258.6,72.2 265.1,74.9 271.7,77.5 278.2,80.1 284.7,82.8 291.2,85.4 297.7,88.0 304.2,90.7 310.7,93.3 317.2,95.9 323.7,98.6 330.2,101.2 336.7,103.8 343.2,106.5 349.7,109.1 356.2,111.7 362.7,114.4 369.2,117.0 375.7,119.6 382.2,122.3 388.7,124.9 395.2,127.5 401.7,130.2 408.2,132.8 414.7,135.4 421.3,138.1 427.8,140.7 434.3,143.3 440.8,146.0 447.3,148.6 453.8,151.3 460.3,153.9 466.8,156.5 473.3,159.2 479.8,160.5 486.3,161.0 492.8,161.5 499.3,161.9 505.8,162.4 512.3,162.9 518.8,163.4 525.3,163.9 531.8,164.3 538.3,164.8 544.8,165.3 551.3,165.8 557.8,166.3 564.3,166.7 570.9,167.2 577.4,167.7 583.9,168.2 590.4,168.7 596.9,169.2 603.4,169.6 609.9,170.1 616.4,170.6 622.9,171.1 629.4,171.6 635.9,172.0 642.4,172.5 648.9,173.0 655.4,173.5 661.9,174.0 668.4,174.4 674.9,174.9 681.4,175.4 687.9,175.9 694.4,176.4 700.9,176.9 707.4,177.3 713.9,177.8 720.5,178.3 727.0,178.8 733.5,179.3 740.0,179.7 746.5,180.2 753.0,180.7 759.5,181.2 766.0,181.7 772.5,182.1 779.0,182.6 785.5,183.1 792.0,183.6 798.5,184.1 805.0,184.6 811.5,185.0 818.0,185.5 824.5,186.0" fill="none" stroke="var(--s1)" stroke-width="2.4" stroke-linejoin="round"/>
+      <circle cx="154.6" cy="30.1" r="4.5" fill="var(--surface)" stroke="var(--s1)" stroke-width="2"/>
+      <text x="164.6" y="26.1" font-size="11" fill="var(--ink)" font-family="var(--mono)">1,813 m · 21.0 s</text>
+    </svg></div>
+  </section>
+  <section class="card" aria-labelledby="runs-h">
+    <div class="panel-head" style="padding-bottom:6px"><h2 id="runs-h">Recent runs · Icarus Mk II</h2><a href="#runs" style="font-size:13px">All runs</a></div>
+    <table class="runs"><caption class="sr-only">Last three runs of Icarus Mk II</caption>
+      <thead><tr><th scope="col">Run</th><th scope="col">Status</th><th scope="col" class="num">Apogee (m)</th><th scope="col" class="num">Max speed (m/s)</th><th scope="col" class="num">Flight time (s)</th><th scope="col" class="num">Landing (m)</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono" style="font-weight:600">s-0004</span><span class="delta">3 Nov · Lucía Martín</span></td><td><span class="pill pill-ok pill-sm">Done</span></td>
+          <td class="num">1,813<span class="delta neg">−17</span></td><td class="num">289<span class="delta neg">−2</span></td><td class="num">148.2<span class="delta neg">−1.4</span></td><td class="num">440<span class="delta neg">−12</span></td>
+          <td><div class="acts-row"><a class="btn btn-primary btn-icon" href="#report-4" aria-label="View report of run s-0004" title="View report"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></a><a class="btn btn-ghost btn-icon" href="#wb-4" aria-label="Open run s-0004 in Workbench" title="Open in Workbench"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg></a></div></td></tr>
+        <tr><td><span class="mono" style="font-weight:600">s-0003</span><span class="delta">3 Nov · Lucía Martín</span></td><td><span class="pill pill-bad pill-sm">Failed</span></td>
+          <td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td><td class="num muted">—</td>
+          <td><div class="acts-row"><span class="spacer" aria-hidden="true"></span><a class="btn btn-ghost btn-icon" href="#wb-3" aria-label="Open run s-0003 in Workbench" title="Open in Workbench"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg></a></div></td></tr>
+        <tr class="base"><td><span class="mono" style="font-weight:600">s-0002</span> <span class="badge">Baseline</span><span class="delta">31 Oct · Pablo Gil</span></td><td><span class="pill pill-ok pill-sm">Done</span></td>
+          <td class="num">1,830</td><td class="num">291</td><td class="num">149.6</td><td class="num">452</td>
+          <td><div class="acts-row"><a class="btn btn-primary btn-icon" href="#report-2" aria-label="View report of run s-0002" title="View report"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></a><a class="btn btn-ghost btn-icon" href="#wb-2" aria-label="Open run s-0002 in Workbench" title="Open in Workbench"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16l13-8z"/></svg></a></div></td></tr>
+      </tbody></table>
+  </section>
+</section>
+</main></div></div>
+<script>
+(function(){var r=document.documentElement,b=document.getElementById('theme-toggle');
+function s(){var t=r.getAttribute('data-theme');b.setAttribute('aria-label','Review tool: show '+(t==='dark'?'light':'dark')+' palette');b.setAttribute('aria-pressed',t==='dark'?'true':'false');}
+b.addEventListener('click',function(){r.setAttribute('data-theme',r.getAttribute('data-theme')==='dark'?'light':'dark');s();});s();})();
+</script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 """Elevation lookup — API-layer edge service (ADR-1).
 
-Performs an HTTP GET to an external DEM API (default: open-elevation.com)
-to retrieve the ground elevation at a given lat/lon.
+Performs an HTTP GET to an external DEM API (default: open-elevation.com,
+with Open-Meteo as the fallback) to retrieve the ground elevation at a given
+lat/lon.
 
 Architecture note (ADR-1)
 --------------------------
@@ -11,12 +12,17 @@ The *HTTP call* to an external service is network I/O at the edge — it belongs
 here, not in the domain package.  Putting it in icaro would force a network
 dependency on the domain (icaro must remain pure/offline-installable).
 
-URL is env-configurable (``ICARO_ELEVATION_URL``) so the provider can be
-swapped without a code change (open-elevation ↔ Open-Meteo elevation).
+The two providers speak different protocols, so each has its own setting:
+
+* ``ICARO_ELEVATION_URL`` — an open-elevation compatible service
+  (``?locations=lat,lon`` → ``{"results": [{"elevation": ...}]}``).
+* ``ICARO_ELEVATION_FALLBACK_URL`` — an Open-Meteo compatible service
+  (``?latitude=&longitude=`` → ``{"elevation": [...]}``); empty disables it.
 
 Fallback chain
 --------------
-On any error (timeout, HTTP error, parse error):
+The primary is tried first; on any error (timeout, HTTP error, parse error)
+the Open-Meteo fallback is tried. When both fail:
   → returns ``ElevationResult(elevation=None, source="unavailable", note=...)``.
   → The router returns 503 (per AC-RG-2.9).
   → The UI shows a "please enter elevation manually" note — simulate never blocks.
@@ -86,33 +92,47 @@ async def lookup_elevation(
         On success: ``{elevation: float, source: "dem"}``.
         On any error: ``{elevation: None, source: "unavailable", note: ...}``.
     """
-    url = settings.elevation_url
-    params = {"locations": f"{lat},{lon}"}
-
-    try:
-        async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
-            response = await client.get(url, params=params)
-            response.raise_for_status()
-            data = response.json()
-
-            # open-elevation / Open-Meteo elevation response shape:
-            # {"results": [{"latitude": ..., "longitude": ..., "elevation": ...}]}
-            results = data.get("results") or []
-            if results and results[0].get("elevation") is not None:
-                elevation = float(results[0]["elevation"])
-                return ElevationResult(elevation=elevation, source="dem")
-
-            # Unexpected shape — treat as unavailable
-            return ElevationResult(
-                elevation=None,
-                source="unavailable",
-                note=_FALLBACK_NOTE,
+    async with httpx.AsyncClient(timeout=_TIMEOUT_SECONDS) as client:
+        elevation = await _query_open_elevation(client, settings.elevation_url, lat, lon)
+        if elevation is None and settings.elevation_fallback_url:
+            elevation = await _query_open_meteo(
+                client, settings.elevation_fallback_url, lat, lon
             )
 
-    except Exception:  # noqa: BLE001
-        # Any error (timeout, HTTP, parse) → graceful fallback.
-        return ElevationResult(
-            elevation=None,
-            source="unavailable",
-            note=_FALLBACK_NOTE,
-        )
+    if elevation is None:
+        return ElevationResult(elevation=None, source="unavailable", note=_FALLBACK_NOTE)
+    return ElevationResult(elevation=elevation, source="dem")
+
+
+async def _get_json(client: httpx.AsyncClient, url: str, params: dict) -> object:
+    response = await client.get(url, params=params)
+    response.raise_for_status()
+    return response.json()
+
+
+async def _query_open_elevation(
+    client: httpx.AsyncClient, url: str, lat: float, lon: float
+) -> float | None:
+    """``{"results": [{"elevation": ...}]}``; ``None`` on any error or odd shape."""
+    try:
+        data = await _get_json(client, url, {"locations": f"{lat},{lon}"})
+        results = data.get("results") or []
+        if results and results[0].get("elevation") is not None:
+            return float(results[0]["elevation"])
+    except Exception:  # noqa: BLE001 — any failure falls through to the next provider
+        pass
+    return None
+
+
+async def _query_open_meteo(
+    client: httpx.AsyncClient, url: str, lat: float, lon: float
+) -> float | None:
+    """``{"elevation": [...]}``; ``None`` on any error or odd shape."""
+    try:
+        data = await _get_json(client, url, {"latitude": lat, "longitude": lon})
+        values = data.get("elevation") or []
+        if values and values[0] is not None:
+            return float(values[0])
+    except Exception:  # noqa: BLE001 — any failure means no elevation
+        pass
+    return None

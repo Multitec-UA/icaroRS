@@ -3,7 +3,10 @@
         "rocket_name": "Valetudo",
         "comment": "Foguete voou no fim da tarde do dia 10 de agosto de 2019, mais precisamente às 17:56 no horário de Brasília. O apogeu registrado pelo altímetro comercial RRC3 foi de 872 metros, enquanto que nossas estimativas feitas com o uso do Rocketpy foram de 840-850 metros",
         "designer": "Projeto Jupiter - Gerência 2019-2020",
-        "filepath": "examples/ProjetoJupiter--Valetudo--2019/rocket.ork"
+        "filepath": "examples/ProjetoJupiter--Valetudo--2019/rocket.ork",
+        "ork_format_version": "1.4",
+        "creator": "OpenRocket 15.03",
+        "serializer_version": "0.2.0"
     },
     "environment": {
         "latitude": -23.36417778,
@@ -90,7 +93,18 @@
         "nozzle_position": -0.378,
         "coordinate_system_orientation": "nozzle_to_combustion_chamber",
         "position": 2.052896709219859,
-        "thrust_source": "tests/acceptance/ProjetoJupiter--Valetudo--2019/thrust_source.csv"
+        "thrust_source": "tests/acceptance/ProjetoJupiter--Valetudo--2019/thrust_source.csv",
+        "identity": {
+            "designation": "KERON",
+            "manufacturer": "PJ",
+            "ork_motor_type": null,
+            "config_id": "f9708ad6-3212-4c76-be7b-c03fcf0811e1",
+            "motor_count": 1,
+            "impulse_class": null,
+            "total_impulse_newton_seconds": 1411.81777775,
+            "impulse_check": "unchecked",
+            "burn_time_seconds": 5.2802
+        }
     },
     "flight": {
         "rail_length": 5.7,
@@ -109,6 +123,10 @@
         "max_stability_margin": 3.2714,
         "min_stability_margin": 0.0,
         "burnout_stability_margin": 2.4363,
-        "max_thrust": 1067.7
+        "max_thrust": 1067.7,
+        "simulation_name": "finalSimulation",
+        "status": "outdated",
+        "config_id": "f9708ad6-3212-4c76-be7b-c03fcf0811e1",
+        "selection": "fallback"
     }
 }

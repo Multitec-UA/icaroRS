@@ -3,7 +3,10 @@
         "rocket_name": "Foguete",
         "comment": null,
         "designer": null,
-        "filepath": "examples/EPFL--BellaLui--2020/rocket.ork"
+        "filepath": "examples/EPFL--BellaLui--2020/rocket.ork",
+        "ork_format_version": "1.4",
+        "creator": "OpenRocket 15.03",
+        "serializer_version": "0.2.0"
     },
     "environment": {
         "latitude": 28.61,
@@ -82,7 +85,18 @@
         "nozzle_position": -0.2895,
         "coordinate_system_orientation": "nozzle_to_combustion_chamber",
         "position": 2.3379117844381234,
-        "thrust_source": "tests/acceptance/EPFL--BellaLui--2020/thrust_source.csv"
+        "thrust_source": "tests/acceptance/EPFL--BellaLui--2020/thrust_source.csv",
+        "identity": {
+            "designation": "K828FJ",
+            "manufacturer": "AeroTech",
+            "ork_motor_type": "reload",
+            "config_id": "e45473ed-2a6a-4b2b-b9f5-bb90f680dbe9",
+            "motor_count": 1,
+            "impulse_class": "K",
+            "total_impulse_newton_seconds": 2133.58808555,
+            "impulse_check": "ok",
+            "burn_time_seconds": 2.5279
+        }
     },
     "flight": {
         "rail_length": 1.0,
@@ -101,6 +115,10 @@
         "max_stability_margin": 4.8193,
         "min_stability_margin": 0.85185,
         "burnout_stability_margin": 3.1703,
-        "max_thrust": 1287.5
+        "max_thrust": 1287.5,
+        "simulation_name": "Simulation 1",
+        "status": "uptodate",
+        "config_id": "e45473ed-2a6a-4b2b-b9f5-bb90f680dbe9",
+        "selection": "uptodate_default"
     }
 }

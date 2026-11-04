@@ -5,8 +5,8 @@ import {
   getElevation,
   getIdentity,
   logout,
+  plotUrl,
   simulate,
-  validateScenario,
 } from "./api";
 
 interface MockResponseInit {
@@ -85,7 +85,7 @@ describe("ApiError status → code mapping", () => {
     const fieldErrors = [{ loc: ["body", "name"], field: "name", message: "required" }];
     mockFetchResolve({ ok: false, status: 422, json: jsonOf({ detail: fieldErrors }) });
 
-    const err: ApiError = await validateScenario({}).catch((e) => e);
+    const err: ApiError = await simulate("export-1", {}).catch((e) => e);
 
     expect(err.status).toBe(422);
     expect(err.code).toBe("validation");
@@ -96,7 +96,7 @@ describe("ApiError status → code mapping", () => {
   it("does not take the validation branch for a non-array 422 detail", async () => {
     mockFetchResolve({ ok: false, status: 422, json: jsonOf({ detail: "not an array" }) });
 
-    const err: ApiError = await validateScenario({}).catch((e) => e);
+    const err: ApiError = await simulate("export-1", {}).catch((e) => e);
 
     expect(err.code).toBe("requestFailed");
     expect(err.fieldErrors).toBeUndefined();
@@ -291,5 +291,14 @@ describe("retrying requests that never reached the API", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(err.code).toBe("requestFailed");
     expect(err.message).toBe("boom");
+  });
+});
+
+describe("plotUrl", () => {
+  it("builds the plot URL from a stored name that already carries .png (the API's shape)", () => {
+    expect(plotUrl("run-4", "altitude.png")).toBe("/api/results/run-4/plots/altitude.png");
+  });
+  it("still accepts a bare stem", () => {
+    expect(plotUrl("run-4", "altitude")).toBe("/api/results/run-4/plots/altitude.png");
   });
 });

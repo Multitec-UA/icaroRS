@@ -16,11 +16,41 @@
         "inclination": 87.0,
         "rail_length": 2.0
     },
+    "freeform_fins": {
+        "0": {
+            "cant_angle": 0.0,
+            "name": "Aletas de forma libre",
+            "number": 4,
+            "position": 1.5399999999999998,
+            "section": "airfoil",
+            "shape_points": [
+                [
+                    0.0,
+                    0.0
+                ],
+                [
+                    0.125,
+                    0.055
+                ],
+                [
+                    0.15,
+                    0.055
+                ],
+                [
+                    0.15,
+                    0.0
+                ]
+            ]
+        }
+    },
     "id": {
         "comment": null,
+        "creator": "OpenRocket 24.12",
         "designer": null,
         "filepath": "examples/MT1--2026/v1.4.0/rocket.ork",
-        "rocket_name": "Rocket"
+        "ork_format_version": "1.10",
+        "rocket_name": "Rocket",
+        "serializer_version": "0.2.0"
     },
     "motors": {
         "center_of_dry_mass_position": 0,
@@ -31,16 +61,27 @@
             0
         ],
         "dry_mass": 0,
-        "grain_density": 802.735443071147,
+        "grain_density": 865.9429582735992,
         "grain_initial_height": 0.186,
         "grain_initial_inner_radius": 0.0095,
         "grain_number": 1,
         "grain_outer_radius": 0.019,
         "grain_separation": 0,
         "grains_center_of_mass_position": 0,
+        "identity": {
+            "burn_time_seconds": 2.24,
+            "config_id": "a134b10f-df9a-444f-9e4e-47f0d543fcbc",
+            "designation": "261H120-14A",
+            "impulse_check": "ok",
+            "impulse_class": "H",
+            "manufacturer": "Cesaroni Technology",
+            "motor_count": 1,
+            "ork_motor_type": "reload",
+            "total_impulse_newton_seconds": 260.44301800000005
+        },
         "nozzle_position": -0.093,
         "nozzle_radius": 0.014249999999999999,
-        "position": 1.1023307086614156,
+        "position": 1.0874705882352935,
         "throat_radius": 0.0095,
         "thrust_source": "examples/MT1--2026/v1.4.0/thrust_source.csv"
     },
@@ -70,30 +111,34 @@
         "upper_position": 1.0389999999999997
     },
     "rocket": {
-        "center_of_mass_without_propellant": 0.545,
+        "center_of_mass_without_propellant": 0.661,
         "coordinate_system_orientation": "nose_to_tail",
         "drag_curve": "examples/MT1--2026/v1.4.0/drag_curve.csv",
         "inertia": [
-            0.001,
-            0.001,
-            0.213
+            0.0009566,
+            0.0009566,
+            0.173
         ],
-        "mass": 1.786,
+        "mass": 1.314,
         "radius": 0.031
     },
     "stored_results": {
-        "burnout_stability_margin": 5.606,
-        "flight_time": 71.83,
-        "ground_hit_velocity": 9.274,
-        "launch_rod_velocity": 14.787,
-        "max_acceleration": 69.476,
-        "max_altitude": 549.578,
-        "max_mach": 0.312,
-        "max_stability_margin": 5.615,
-        "max_thrust": 152.496,
-        "max_velocity": 105.654,
+        "burnout_stability_margin": 3.648,
+        "config_id": "a134b10f-df9a-444f-9e4e-47f0d543fcbc",
+        "flight_time": 125.838,
+        "ground_hit_velocity": 7.974,
+        "launch_rod_velocity": 12.42,
+        "max_acceleration": 93.099,
+        "max_altitude": 882.746,
+        "max_mach": 0.453,
+        "max_stability_margin": 3.671,
+        "max_thrust": 147.681,
+        "max_velocity": 153.845,
         "min_stability_margin": 0.0,
-        "time_to_apogee": 11.119
+        "selection": "uptodate_default",
+        "simulation_name": "Simulation 2",
+        "status": "uptodate",
+        "time_to_apogee": 13.19
     },
     "tails": {
         "0": {

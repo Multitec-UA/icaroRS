@@ -22,7 +22,7 @@ export function NotFoundContent({
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">404</p>
-      <h1 className="text-2xl font-semibold text-balance text-foreground">{title}</h1>
+      <h1 className="text-2xl font-semibold text-balance text-ink">{title}</h1>
       <p className="max-w-sm text-sm text-muted">{message}</p>
       <ButtonLink href="/" className="mt-4">
         {backLabel}
