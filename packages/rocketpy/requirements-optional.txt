@@ -1,5 +1,5 @@
 windrose>=1.6.8
-ipython
+ipython>=8.10.0
 ipywidgets>=7.6.3
 jsonpickle
 timezonefinder

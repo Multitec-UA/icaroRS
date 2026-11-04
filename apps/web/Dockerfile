@@ -13,13 +13,13 @@
 # next.config.ts rewrites()).
 
 # --- deps --------------------------------------------------------------------
-FROM node:20-slim AS deps
+FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # --- build -------------------------------------------------------------------
-FROM node:20-slim AS build
+FROM node:22-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # Next 16 evaluates `rewrites()` at BUILD time and bakes the resolved routes
@@ -44,16 +44,20 @@ COPY . .
 RUN npm run build
 
 # --- runtime -----------------------------------------------------------------
-FROM node:20-slim AS runtime
+FROM node:22-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=8080 \
     HOSTNAME=0.0.0.0
 
-# Run as non-root.
+# Run as non-root. The server only needs `node`: drop the npm and corepack the
+# base image bundles, so their own dependencies (tar, pacote, sigstore...) are
+# not shipped as unpatched attack surface.
 RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 nextjs
+    && adduser --system --uid 1001 nextjs \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 # Standalone bundle: server.js + minimal node_modules, then the static assets
 # and public/ it serves (these live outside the traced bundle by design).

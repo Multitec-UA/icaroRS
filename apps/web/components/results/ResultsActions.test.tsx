@@ -54,6 +54,7 @@ describe("ResultsActions (issue #52 — client island)", () => {
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     let capturedExportId: string | null | undefined;

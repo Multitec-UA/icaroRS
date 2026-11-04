@@ -237,6 +237,7 @@ describe("WorkbenchShell — running in place (S7)", () => {
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
     const run = await seedReady();
 
