@@ -543,6 +543,8 @@ export interface components {
             manifest: {
                 [key: string]: unknown;
             };
+            /** Ork Revision */
+            ork_revision?: number | null;
             /** Rocket Id */
             rocket_id: string;
         };
@@ -606,6 +608,8 @@ export interface components {
             name: string;
             /** Ork Filename */
             ork_filename: string | null;
+            /** Ork Revision */
+            ork_revision?: number | null;
             /** Rocket Id */
             rocket_id: string;
         };
@@ -630,6 +634,8 @@ export interface components {
             name: string;
             /** Ork Filename */
             ork_filename: string | null;
+            /** Ork Revision */
+            ork_revision?: number | null;
             /** Rocket Id */
             rocket_id: string;
         };
@@ -882,6 +888,8 @@ export interface components {
             name: string;
             /** Ork Filename */
             ork_filename: string | null;
+            /** Ork Revision */
+            ork_revision?: number | null;
             /** Plot Names */
             plot_names: string[];
             /** Result Prefix */

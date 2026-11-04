@@ -112,6 +112,17 @@
             "title": "Manifest",
             "type": "object"
           },
+          "ork_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Revision"
+          },
           "rocket_id": {
             "title": "Rocket Id",
             "type": "string"
@@ -215,6 +226,17 @@
             ],
             "title": "Ork Filename"
           },
+          "ork_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Revision"
+          },
           "rocket_id": {
             "title": "Rocket Id",
             "type": "string"
@@ -276,6 +298,17 @@
               }
             ],
             "title": "Ork Filename"
+          },
+          "ork_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Revision"
           },
           "rocket_id": {
             "title": "Rocket Id",
@@ -838,6 +871,17 @@
               }
             ],
             "title": "Ork Filename"
+          },
+          "ork_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ork Revision"
           },
           "plot_names": {
             "items": {

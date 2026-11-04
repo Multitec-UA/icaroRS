@@ -252,7 +252,7 @@ class TestConvertRocketDestination:
             )
         assert resp.status_code == 200
         data = resp.json()
-        assert set(data.keys()) == {"export_id", "rocket_id", "manifest"}
+        assert set(data.keys()) == {"export_id", "rocket_id", "manifest", "ork_revision"}
         assert data["rocket_id"] != data["export_id"]
 
         rocket = db.get_rocket(data["rocket_id"], org_id="test-org")

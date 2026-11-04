@@ -190,7 +190,7 @@ class TestRocketDetail:
         newest = data["exports"][0]
         assert set(newest.keys()) == {
             "export_id", "rocket_id", "name", "created_at", "created_by",
-            "export_prefix", "gcs_ref", "ork_filename", "has_source_ork",
+            "export_prefix", "gcs_ref", "ork_filename", "has_source_ork", "ork_revision",
         }
         assert newest["rocket_id"] == "r-detail"
         assert newest["ork_filename"] == "icarus_v2.ork"
