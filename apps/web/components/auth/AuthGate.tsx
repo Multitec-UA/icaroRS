@@ -29,12 +29,12 @@ import {
   signInWithPassword,
   signOut as firebaseSignOut,
 } from "@/lib/firebase";
-import { Button, Callout, Card, Eyebrow, Field, Spinner, TextInput } from "@/components/ui";
+import { Button, Callout, Card, Field, Spinner, TextInput } from "@/components/ui";
 import { cn, focusRing } from "@/lib/styles";
 import { Reveal } from "@/components/motion";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { AppNav } from "@/components/AppNav";
+import { AppShell } from "@/components/shell/AppShell";
 
 interface AuthContextValue {
   identity: Identity;
@@ -95,7 +95,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   if (status === "checking") {
     return (
       <div className="flex min-h-[100dvh] flex-1 items-center justify-center">
-        <Spinner className="text-slate-400" />
+        <Spinner className="text-muted" />
       </div>
     );
   }
@@ -111,16 +111,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
       <a
         href="#main"
         className={cn(
-          "sr-only rounded-full bg-foreground px-4 py-2 text-sm font-medium text-[#050505] focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50",
+          "sr-only rounded-full bg-primary px-4 py-2 text-sm font-medium text-on-primary focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50",
           focusRing,
         )}
       >
         {t("common.skipToContent")}
       </a>
-      <AppNav />
-      <main id="main" className="flex flex-1 flex-col">
-        {children}
-      </main>
+      {/* The sidebar and the main landmark, shared by every signed-in route. */}
+      <AppShell>{children}</AppShell>
     </AuthContext.Provider>
   );
 }
@@ -193,15 +191,17 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
       </div>
       <Reveal className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center gap-5 text-center">
-          <Eyebrow>{t("auth.eyebrow")}</Eyebrow>
-          <h1 className="bg-gradient-to-br from-white to-white/55 bg-clip-text text-5xl font-semibold tracking-tight text-balance text-transparent">
+          <span className="inline-flex h-7 items-center rounded-full bg-chip px-3 text-[11px] font-medium uppercase tracking-[0.14em] text-ink-2">
+            {t("auth.eyebrow")}
+          </span>
+          <h1 className="text-5xl font-semibold tracking-tight text-balance text-ink">
             {t("auth.title")}
           </h1>
           <p className="max-w-xs text-sm text-muted">
             {t("auth.subtitle")}
           </p>
         </div>
-        <Card innerClassName="p-6 sm:p-6">
+        <Card className="p-6">
           <form onSubmit={submit} className="flex flex-col gap-4">
             <Field label={t("auth.email")} htmlFor="email">
               <TextInput
@@ -233,7 +233,7 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 onClick={forgotPassword}
                 disabled={reset === "sending"}
                 className={cn(
-                  "rounded-sm text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-foreground hover:underline disabled:pointer-events-none disabled:opacity-40",
+                  "rounded-sm text-xs text-muted underline-offset-4 transition-colors duration-300 hover:text-ink hover:underline disabled:pointer-events-none disabled:opacity-40",
                   focusRing,
                 )}
               >
@@ -245,12 +245,12 @@ function LoginScreen({ onSuccess }: { onSuccess: (identity: Identity) => void })
                 </p>
               )}
               {reset === "requested" && (
-                <p role="status" className="text-right text-xs text-emerald-400">
+                <p role="status" className="text-right text-xs text-ok-ink">
                   {t("auth.forgotPasswordRequested")}
                 </p>
               )}
               {reset === "failed" && (
-                <p role="alert" className="text-right text-xs text-rose-400">
+                <p role="alert" className="text-right text-xs text-bad-ink">
                   {t("auth.forgotPasswordFailed")}
                 </p>
               )}

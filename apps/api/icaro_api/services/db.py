@@ -7,10 +7,19 @@ Two adapters:
 
 The ``Db`` Protocol is the surface routers touch; adapter choice is in ``runs.py``.
 
-Firestore collections (Design §Firestore Shape)
-------------------------------------------------
-* ``rockets``     — id == rocket_id (== export_id / convert run id)
-* ``simulations`` — id == simulation_id (== simulate run id)
+Firestore collections
+---------------------
+* ``rockets``     — id == rocket_id. A team's rocket: the group that holds the
+  ``.ork`` files uploaded for it. Metadata only (name, org, author, date).
+* ``exports``     — id == export_id (== convert run id). One converted ``.ork``
+  file, attached to a rocket through ``rocket_id``. The manifest is NOT stored
+  here (see ``FirestoreDb.save_export``).
+* ``simulations`` — id == simulation_id (== simulate run id). References the
+  export it simulated (``export_id``) and, denormalised, its rocket
+  (``rocket_id``) so "runs of this rocket" is a single query.
+
+Migration from the pre-split shape (one ``rockets`` doc per file) lives in
+``icaro_api.scripts.migrate_rocket_exports``.
 """
 
 from __future__ import annotations
@@ -27,34 +36,65 @@ from typing import Any, Protocol, runtime_checkable
 
 @dataclass
 class RocketRecord:
-    """Firestore ``rockets`` document shape.
+    """Firestore ``rockets`` document shape — a rocket that groups exports.
 
     Attributes
     ----------
     rocket_id : str
-        Unique stable id (== convert run_id, returned as ``export_id``).
+        Unique stable id (minted with ``make_run_id`` on the first convert, or
+        equal to the legacy export id for migrated records).
+    name : str
+        Display name. Defaults to the first export's ``manifest["name"]``.
+    created_at : datetime
+        UTC timestamp of creation.
+    created_by : str
+        Identity Platform user id of the creator — per-user audit field.
+    org_id : str
+        Owning organization — the tenancy boundary. Every read is filtered by
+        this in the ``Db`` layer (never in routers); see ``Db.list_rockets``.
+    """
+
+    rocket_id: str
+    name: str
+    created_at: datetime
+    created_by: str
+    org_id: str
+
+
+@dataclass
+class ExportRecord:
+    """Firestore ``exports`` document shape — one converted ``.ork`` file.
+
+    Attributes
+    ----------
+    export_id : str
+        Unique stable id (== convert run_id, returned to clients as ``export_id``).
+    rocket_id : str
+        Foreign reference to the ``rockets`` collection: the rocket this file
+        belongs to. Chosen explicitly by the user on upload (never inferred).
     name : str
         Rocket name from ``parameters.json`` ``manifest["name"]``.
     created_at : datetime
         UTC timestamp of the convert request.
     created_by : str
-        Identity Platform user id of the creator — a genuine per-user audit
-        field now that ``org_id`` is the access-control key.
+        Identity Platform user id of the uploader.
     org_id : str
-        Owning organization — the tenancy boundary. Every read is filtered by
-        this in the ``Db`` layer (never in routers); see ``Db.list_rockets``.
+        Owning organization — the tenancy boundary (see ``RocketRecord``).
     export_prefix : str
-        GCS prefix where export artifacts live, e.g. ``exports/{rocket_id}/``.
+        Object-storage prefix where export artifacts live, e.g.
+        ``orgs/{org_id}/exports/{export_id}/``. Always read from the record,
+        never rebuilt: legacy records use the flat ``exports/{id}/`` scheme.
     manifest : dict[str, Any]
-        Full ``parameters.json`` content.
+        Full ``parameters.json`` content (served from storage, not persisted).
     gcs_ref : str
         Same as *export_prefix* (kept as separate field for API surface clarity).
     ork_filename : str | None
         Original ``.ork`` filename, ``None`` if not stored.
     has_source_ork : bool
-        Whether the ``.ork`` was uploaded to GCS.
+        Whether the ``.ork`` was uploaded to object storage.
     """
 
+    export_id: str
     rocket_id: str
     name: str
     created_at: datetime
@@ -76,7 +116,8 @@ class SimRecord:
     simulation_id : str
         Unique id (== simulate run_id).
     rocket_id : str
-        Foreign reference to the ``rockets`` collection.
+        Denormalised reference to the ``rockets`` collection (the rocket of the
+        simulated export) so runs can be listed per rocket.
     scenario : dict[str, Any]
         Full scenario JSON as submitted by the client.
     created_at : datetime
@@ -89,6 +130,10 @@ class SimRecord:
         this in the ``Db`` layer (never in routers); see ``Db.list_simulations``.
     status : str
         ``"done"`` on success, ``"error"`` on failure.
+    export_id : str
+        Reference to the ``exports`` collection: the file that was simulated.
+        Empty only for records written before the Rocket/Export split and not
+        yet migrated.
     scalars : dict[str, Any]
         Flight result scalars.
     warnings : list[str]
@@ -110,6 +155,7 @@ class SimRecord:
     created_by: str
     org_id: str
     status: str
+    export_id: str = ""
     scalars: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     result_prefix: str = ""
@@ -132,6 +178,8 @@ class Db(Protocol):
     signature makes a router that forgets to scope a query a type error
     instead of a silent cross-organization leak.
     """
+
+    # -- rockets (groups) ---------------------------------------------------
 
     def save_rocket(self, rec: RocketRecord, org_id: str) -> None:
         """Persist a rocket record (upsert by rocket_id), owned by org_id."""
@@ -158,6 +206,40 @@ class Db(Protocol):
         """
         ...
 
+    # -- exports (converted files) -----------------------------------------
+
+    def save_export(self, rec: ExportRecord, org_id: str) -> None:
+        """Persist an export record (upsert by export_id), owned by org_id."""
+        ...
+
+    def get_export(self, export_id: str, org_id: str) -> ExportRecord | None:
+        """Return the export record, or ``None`` if not found OR not owned by org_id."""
+        ...
+
+    def list_exports(
+        self,
+        org_id: str,
+        limit: int = 20,
+        before: datetime | None = None,
+        rocket_id: str | None = None,
+    ) -> list[ExportRecord]:
+        """Return org_id's exports in reverse-chronological order.
+
+        Parameters
+        ----------
+        org_id : str
+            Only exports owned by this organization are returned.
+        limit : int
+            Maximum number of records to return (default 20, max 100).
+        before : datetime | None
+            Cursor — only records with ``created_at < before``.
+        rocket_id : str | None
+            If set, only the exports attached to that rocket.
+        """
+        ...
+
+    # -- simulations ---------------------------------------------------------
+
     def save_simulation(self, rec: SimRecord, org_id: str) -> None:
         """Persist a simulation record (upsert by simulation_id), owned by org_id."""
         ...
@@ -167,7 +249,11 @@ class Db(Protocol):
         ...
 
     def list_simulations(
-        self, org_id: str, limit: int = 20, before: datetime | None = None
+        self,
+        org_id: str,
+        limit: int = 20,
+        before: datetime | None = None,
+        rocket_id: str | None = None,
     ) -> list[SimRecord]:
         """Return org_id's simulations in reverse-chronological order.
 
@@ -179,6 +265,8 @@ class Db(Protocol):
             Maximum number of records to return (default 20, max 100).
         before : datetime | None
             Cursor — only records with ``created_at < before``.
+        rocket_id : str | None
+            If set, only the runs of that rocket (any of its exports).
         """
         ...
 
@@ -186,6 +274,11 @@ class Db(Protocol):
 # ---------------------------------------------------------------------------
 # InMemoryDb — dev / CI adapter
 # ---------------------------------------------------------------------------
+
+
+def _check_org(label: str, rec_org: str, org_id: str) -> None:
+    if rec_org != org_id:
+        raise ValueError(f"{label}.org_id ({rec_org!r}) does not match org_id ({org_id!r}).")
 
 
 class InMemoryDb:
@@ -196,7 +289,19 @@ class InMemoryDb:
 
     def __init__(self) -> None:
         self._rockets: dict[str, RocketRecord] = {}
+        self._exports: dict[str, ExportRecord] = {}
         self._simulations: dict[str, SimRecord] = {}
+
+    @staticmethod
+    def _page(records, org_id: str, limit: int, before: datetime | None, predicate=None):
+        rows = sorted(
+            (r for r in records if r.org_id == org_id and (predicate is None or predicate(r))),
+            key=lambda r: r.created_at,
+            reverse=True,
+        )
+        if before is not None:
+            rows = [r for r in rows if r.created_at < before]
+        return rows[:limit]
 
     # ------------------------------------------------------------------
     # Rocket operations
@@ -208,10 +313,7 @@ class InMemoryDb:
         Raises ``ValueError`` if *rec.org_id* disagrees with the explicit
         *org_id* argument — the two must always come from the same identity.
         """
-        if rec.org_id != org_id:
-            raise ValueError(
-                f"RocketRecord.org_id ({rec.org_id!r}) does not match org_id ({org_id!r})."
-            )
+        _check_org("RocketRecord", rec.org_id, org_id)
         self._rockets[rec.rocket_id] = rec
 
     def get_rocket(self, rocket_id: str, org_id: str) -> RocketRecord | None:
@@ -225,14 +327,34 @@ class InMemoryDb:
         self, org_id: str, limit: int = 20, before: datetime | None = None
     ) -> list[RocketRecord]:
         """Return org_id's rockets reverse-chronologically, optionally from cursor."""
-        records = sorted(
-            (r for r in self._rockets.values() if r.org_id == org_id),
-            key=lambda r: r.created_at,
-            reverse=True,
-        )
-        if before is not None:
-            records = [r for r in records if r.created_at < before]
-        return records[:limit]
+        return self._page(self._rockets.values(), org_id, limit, before)
+
+    # ------------------------------------------------------------------
+    # Export operations
+    # ------------------------------------------------------------------
+
+    def save_export(self, rec: ExportRecord, org_id: str) -> None:
+        """Upsert an export record keyed by ``export_id`` (same org rule as rockets)."""
+        _check_org("ExportRecord", rec.org_id, org_id)
+        self._exports[rec.export_id] = rec
+
+    def get_export(self, export_id: str, org_id: str) -> ExportRecord | None:
+        """Return the export record, or ``None`` if absent or owned by another org."""
+        rec = self._exports.get(export_id)
+        if rec is None or rec.org_id != org_id:
+            return None
+        return rec
+
+    def list_exports(
+        self,
+        org_id: str,
+        limit: int = 20,
+        before: datetime | None = None,
+        rocket_id: str | None = None,
+    ) -> list[ExportRecord]:
+        """Return org_id's exports reverse-chronologically, optionally one rocket's."""
+        pred = None if rocket_id is None else (lambda r: r.rocket_id == rocket_id)
+        return self._page(self._exports.values(), org_id, limit, before, pred)
 
     # ------------------------------------------------------------------
     # Simulation operations
@@ -244,10 +366,7 @@ class InMemoryDb:
         Raises ``ValueError`` if *rec.org_id* disagrees with the explicit
         *org_id* argument — the two must always come from the same identity.
         """
-        if rec.org_id != org_id:
-            raise ValueError(
-                f"SimRecord.org_id ({rec.org_id!r}) does not match org_id ({org_id!r})."
-            )
+        _check_org("SimRecord", rec.org_id, org_id)
         self._simulations[rec.simulation_id] = rec
 
     def get_simulation(self, simulation_id: str, org_id: str) -> SimRecord | None:
@@ -258,22 +377,65 @@ class InMemoryDb:
         return rec
 
     def list_simulations(
-        self, org_id: str, limit: int = 20, before: datetime | None = None
+        self,
+        org_id: str,
+        limit: int = 20,
+        before: datetime | None = None,
+        rocket_id: str | None = None,
     ) -> list[SimRecord]:
-        """Return org_id's simulations reverse-chronologically, optionally from cursor."""
-        records = sorted(
-            (r for r in self._simulations.values() if r.org_id == org_id),
-            key=lambda r: r.created_at,
-            reverse=True,
-        )
-        if before is not None:
-            records = [r for r in records if r.created_at < before]
-        return records[:limit]
+        """Return org_id's simulations reverse-chronologically, optionally one rocket's."""
+        pred = None if rocket_id is None else (lambda r: r.rocket_id == rocket_id)
+        return self._page(self._simulations.values(), org_id, limit, before, pred)
 
 
 # ---------------------------------------------------------------------------
-# FirestoreDb — production adapter (stub; full impl in Step 10)
+# FirestoreDb — production adapter
 # ---------------------------------------------------------------------------
+
+
+def _rocket_from_doc(rocket_id: str, d: dict[str, Any]) -> RocketRecord:
+    return RocketRecord(
+        rocket_id=rocket_id,
+        name=d.get("name", ""),
+        created_at=d.get("created_at", datetime.now(timezone.utc)),
+        created_by=d.get("created_by", ""),
+        org_id=d.get("org_id", ""),
+    )
+
+
+def _export_from_doc(export_id: str, d: dict[str, Any]) -> ExportRecord:
+    return ExportRecord(
+        export_id=export_id,
+        rocket_id=d.get("rocket_id", ""),
+        name=d.get("name", ""),
+        created_at=d.get("created_at", datetime.now(timezone.utc)),
+        created_by=d.get("created_by", ""),
+        org_id=d.get("org_id", ""),
+        export_prefix=d.get("export_prefix", ""),
+        manifest=d.get("manifest", {}),
+        gcs_ref=d.get("gcs_ref", ""),
+        ork_filename=d.get("ork_filename"),
+        has_source_ork=d.get("has_source_ork", False),
+    )
+
+
+def _sim_from_doc(simulation_id: str, d: dict[str, Any]) -> SimRecord:
+    return SimRecord(
+        simulation_id=simulation_id,
+        rocket_id=d.get("rocket_id", ""),
+        export_id=d.get("export_id", ""),
+        scenario=d.get("scenario", {}),
+        created_at=d.get("created_at", datetime.now(timezone.utc)),
+        created_by=d.get("created_by", ""),
+        org_id=d.get("org_id", ""),
+        status=d.get("status", "done"),
+        scalars=d.get("scalars", {}),
+        warnings=d.get("warnings", []),
+        result_prefix=d.get("result_prefix", ""),
+        plot_names=d.get("plot_names", []),
+        has_series=d.get("has_series", False),
+        artifact_refs=d.get("artifact_refs", {}),
+    )
 
 
 class FirestoreDb:
@@ -294,6 +456,32 @@ class FirestoreDb:
 
         self._db = firestore.Client(project=project, database=database)
 
+    def _query(
+        self,
+        collection: str,
+        org_id: str,
+        limit: int,
+        before: datetime | None,
+        rocket_id: str | None = None,
+    ):
+        """Build the shared ``org_id`` + ``created_at DESC`` query.
+
+        Uses the ``"DESCENDING"`` direction string (accepted by all Firestore
+        SDK versions) instead of importing ``Query.DESCENDING`` at call time —
+        this keeps the method mockable without a live ``google`` package.
+
+        Each combination of filters needs its composite index in
+        ``firestore.indexes.json`` (``org_id``, optional ``rocket_id``,
+        ``created_at DESC``).
+        """
+        q = self._db.collection(collection).where("org_id", "==", org_id)
+        if rocket_id is not None:
+            q = q.where("rocket_id", "==", rocket_id)
+        q = q.order_by("created_at", direction="DESCENDING").limit(limit)
+        if before is not None:
+            q = q.start_after({"created_at": before})
+        return q
+
     # ------------------------------------------------------------------
     # Rocket operations
     # ------------------------------------------------------------------
@@ -303,21 +491,9 @@ class FirestoreDb:
 
         Raises ``ValueError`` if *rec.org_id* disagrees with the explicit
         *org_id* argument — the two must always come from the same identity.
-
-        The ``manifest`` (the full ``parameters.json``) is intentionally NOT
-        persisted to Firestore. It can contain arrays nested directly inside
-        arrays (e.g. ``freeform_fins[].shape_points``), which Firestore Native
-        rejects with ``400 InvalidArgument: Property manifest contains an
-        invalid nested entity``. The manifest is already stored verbatim in
-        object storage at ``{export_prefix}parameters.json`` and is served from
-        there by the rocket-detail endpoint — so Firestore holds metadata only.
         """
-        if rec.org_id != org_id:
-            raise ValueError(
-                f"RocketRecord.org_id ({rec.org_id!r}) does not match org_id ({org_id!r})."
-            )
+        _check_org("RocketRecord", rec.org_id, org_id)
         doc = asdict(rec)
-        doc.pop("manifest", None)
         doc["created_at"] = rec.created_at  # keep as datetime; Firestore handles it
         self._db.collection("rockets").document(rec.rocket_id).set(doc)
 
@@ -329,58 +505,59 @@ class FirestoreDb:
         d = snap.to_dict()
         if d.get("org_id") != org_id:
             return None
-        return RocketRecord(
-            rocket_id=rocket_id,
-            name=d.get("name", ""),
-            created_at=d.get("created_at", datetime.now(timezone.utc)),
-            created_by=d.get("created_by", ""),
-            org_id=d.get("org_id", ""),
-            export_prefix=d.get("export_prefix", ""),
-            manifest=d.get("manifest", {}),
-            gcs_ref=d.get("gcs_ref", ""),
-            ork_filename=d.get("ork_filename"),
-            has_source_ork=d.get("has_source_ork", False),
-        )
+        return _rocket_from_doc(rocket_id, d)
 
     def list_rockets(
         self, org_id: str, limit: int = 20, before: datetime | None = None
     ) -> list[RocketRecord]:
-        """Query org_id's rockets reverse-chronologically with optional cursor.
+        """Query org_id's rockets reverse-chronologically with optional cursor."""
+        snaps = self._query("rockets", org_id, limit, before).stream()
+        return [_rocket_from_doc(s.id, s.to_dict()) for s in snaps]
 
-        Uses the ``"DESCENDING"`` direction string (accepted by all Firestore
-        SDK versions) instead of importing ``Query.DESCENDING`` at call time —
-        this keeps the method mockable without a live ``google`` package.
+    # ------------------------------------------------------------------
+    # Export operations
+    # ------------------------------------------------------------------
 
-        Filtered + ordered by ``org_id`` and ``created_at`` — requires the
-        composite index provisioned alongside the org_id backfill (issue #42).
+    def save_export(self, rec: ExportRecord, org_id: str) -> None:
+        """Write export metadata to Firestore collection ``exports``.
+
+        Raises ``ValueError`` if *rec.org_id* disagrees with the explicit
+        *org_id* argument — the two must always come from the same identity.
+
+        The ``manifest`` (the full ``parameters.json``) is intentionally NOT
+        persisted to Firestore. It can contain arrays nested directly inside
+        arrays (e.g. ``freeform_fins[].shape_points``), which Firestore Native
+        rejects with ``400 InvalidArgument: Property manifest contains an
+        invalid nested entity``. The manifest is already stored verbatim in
+        object storage at ``{export_prefix}parameters.json`` and is served from
+        there by the export-detail endpoint — so Firestore holds metadata only.
         """
-        q = (
-            self._db.collection("rockets")
-            .where("org_id", "==", org_id)
-            .order_by("created_at", direction="DESCENDING")
-            .limit(limit)
-        )
-        if before is not None:
-            q = q.start_after({"created_at": before})
-        snaps = q.stream()
-        result = []
-        for snap in snaps:
-            d = snap.to_dict()
-            result.append(
-                RocketRecord(
-                    rocket_id=snap.id,
-                    name=d.get("name", ""),
-                    created_at=d.get("created_at", datetime.now(timezone.utc)),
-                    created_by=d.get("created_by", ""),
-                    org_id=d.get("org_id", ""),
-                    export_prefix=d.get("export_prefix", ""),
-                    manifest=d.get("manifest", {}),
-                    gcs_ref=d.get("gcs_ref", ""),
-                    ork_filename=d.get("ork_filename"),
-                    has_source_ork=d.get("has_source_ork", False),
-                )
-            )
-        return result
+        _check_org("ExportRecord", rec.org_id, org_id)
+        doc = asdict(rec)
+        doc.pop("manifest", None)
+        doc["created_at"] = rec.created_at
+        self._db.collection("exports").document(rec.export_id).set(doc)
+
+    def get_export(self, export_id: str, org_id: str) -> ExportRecord | None:
+        """Fetch a single export document, or ``None`` if absent or owned by another org."""
+        snap = self._db.collection("exports").document(export_id).get()
+        if not snap.exists:
+            return None
+        d = snap.to_dict()
+        if d.get("org_id") != org_id:
+            return None
+        return _export_from_doc(export_id, d)
+
+    def list_exports(
+        self,
+        org_id: str,
+        limit: int = 20,
+        before: datetime | None = None,
+        rocket_id: str | None = None,
+    ) -> list[ExportRecord]:
+        """Query org_id's exports reverse-chronologically, optionally one rocket's."""
+        snaps = self._query("exports", org_id, limit, before, rocket_id).stream()
+        return [_export_from_doc(s.id, s.to_dict()) for s in snaps]
 
     # ------------------------------------------------------------------
     # Simulation operations
@@ -392,10 +569,7 @@ class FirestoreDb:
         Raises ``ValueError`` if *rec.org_id* disagrees with the explicit
         *org_id* argument — the two must always come from the same identity.
         """
-        if rec.org_id != org_id:
-            raise ValueError(
-                f"SimRecord.org_id ({rec.org_id!r}) does not match org_id ({org_id!r})."
-            )
+        _check_org("SimRecord", rec.org_id, org_id)
         doc = asdict(rec)
         doc["created_at"] = rec.created_at
         self._db.collection("simulations").document(rec.simulation_id).set(doc)
@@ -408,60 +582,15 @@ class FirestoreDb:
         d = snap.to_dict()
         if d.get("org_id") != org_id:
             return None
-        return SimRecord(
-            simulation_id=simulation_id,
-            rocket_id=d.get("rocket_id", ""),
-            scenario=d.get("scenario", {}),
-            created_at=d.get("created_at", datetime.now(timezone.utc)),
-            created_by=d.get("created_by", ""),
-            org_id=d.get("org_id", ""),
-            status=d.get("status", "done"),
-            scalars=d.get("scalars", {}),
-            warnings=d.get("warnings", []),
-            result_prefix=d.get("result_prefix", ""),
-            plot_names=d.get("plot_names", []),
-            has_series=d.get("has_series", False),
-            artifact_refs=d.get("artifact_refs", {}),
-        )
+        return _sim_from_doc(simulation_id, d)
 
     def list_simulations(
-        self, org_id: str, limit: int = 20, before: datetime | None = None
+        self,
+        org_id: str,
+        limit: int = 20,
+        before: datetime | None = None,
+        rocket_id: str | None = None,
     ) -> list[SimRecord]:
-        """Query org_id's simulations reverse-chronologically with optional cursor.
-
-        Uses ``"DESCENDING"`` direction string — same rationale as
-        :meth:`list_rockets` (mockable without live ``google`` package).
-
-        Filtered + ordered by ``org_id`` and ``created_at`` — requires the
-        composite index provisioned alongside the org_id backfill (issue #42).
-        """
-        q = (
-            self._db.collection("simulations")
-            .where("org_id", "==", org_id)
-            .order_by("created_at", direction="DESCENDING")
-            .limit(limit)
-        )
-        if before is not None:
-            q = q.start_after({"created_at": before})
-        snaps = q.stream()
-        result = []
-        for snap in snaps:
-            d = snap.to_dict()
-            result.append(
-                SimRecord(
-                    simulation_id=snap.id,
-                    rocket_id=d.get("rocket_id", ""),
-                    scenario=d.get("scenario", {}),
-                    created_at=d.get("created_at", datetime.now(timezone.utc)),
-                    created_by=d.get("created_by", ""),
-                    org_id=d.get("org_id", ""),
-                    status=d.get("status", "done"),
-                    scalars=d.get("scalars", {}),
-                    warnings=d.get("warnings", []),
-                    result_prefix=d.get("result_prefix", ""),
-                    plot_names=d.get("plot_names", []),
-                    has_series=d.get("has_series", False),
-                    artifact_refs=d.get("artifact_refs", {}),
-                )
-            )
-        return result
+        """Query org_id's simulations reverse-chronologically, optionally one rocket's."""
+        snaps = self._query("simulations", org_id, limit, before, rocket_id).stream()
+        return [_sim_from_doc(s.id, s.to_dict()) for s in snaps]

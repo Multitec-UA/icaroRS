@@ -59,6 +59,20 @@ describe("server-api — cookie forwarding", () => {
   });
 });
 
+describe("server-api — one rocket's runs (S9)", () => {
+  it("passes the rocket filter as rocket_id and omits it otherwise", async () => {
+    mockCookieJar("");
+    const fetchMock = mockFetchResolve({ ok: true, status: 200, body: [] });
+
+    const { getHistoryServer } = await import("./server-api");
+    await getHistoryServer(20, undefined, "r2");
+    await getHistoryServer(20, undefined, null);
+
+    expect(fetchMock.mock.calls[0][0]).toMatch(/\/api\/history\?limit=20&rocket_id=r2$/);
+    expect(fetchMock.mock.calls[1][0]).toMatch(/\/api\/history\?limit=20$/);
+  });
+});
+
 describe("server-api — response handling (reuses lib/api.ts's parseApiResponse)", () => {
   it("returns parsed data on success", async () => {
     mockCookieJar("");

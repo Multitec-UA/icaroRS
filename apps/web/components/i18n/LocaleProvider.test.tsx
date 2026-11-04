@@ -25,6 +25,7 @@ describe("LocaleProvider.setLocale (issue #52)", () => {
       forward: vi.fn(),
       refresh,
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     render(

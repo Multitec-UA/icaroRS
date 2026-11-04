@@ -30,7 +30,12 @@ class Settings(BaseSettings):
         Absent → /api/convert returns 503 (ConvertUnavailableError).
     elevation_url : str
         Base URL for the elevation DEM service.
-        Default: open-elevation public instance.
+        Default: open-elevation public instance. The service must speak the
+        open-elevation protocol (``?locations=lat,lon`` → ``results[0].elevation``).
+    elevation_fallback_url : str
+        Open-Meteo elevation endpoint queried when the primary service fails
+        (``?latitude=&longitude=`` → ``elevation[0]``). An empty string
+        disables the fallback.
     session_cookie_max_age_days : int
         Lifetime of the Identity Platform session cookie minted by
         ``POST /api/auth/session``. Firebase Auth caps this at 14 days.
@@ -57,6 +62,7 @@ class Settings(BaseSettings):
     results_dir: Path = Path(".icaro_runs")
     ork_jar: Path | None = None
     elevation_url: str = "https://api.open-elevation.com/api/v1/lookup"
+    elevation_fallback_url: str = "https://api.open-meteo.com/v1/elevation"
     session_cookie_max_age_days: int = 5
     session_cookie_secure: bool = True
     allow_forecast: bool = True

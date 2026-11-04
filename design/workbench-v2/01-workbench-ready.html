@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1440">
+<title>Workbench · ready to run</title>
+<style>
+:root,[data-theme="light"]{--bg:#f3f1f8;--surface:#fbfafd;--surface-2:#f0edf6;--border:#e2ddec;--divider:#ebe7f2;--ink:#2b2840;--ink-2:#4a4662;--muted:#6e6987;--axis:#c9c3da;--accent:#6b7fe0;--accent-ink:#4757b8;--accent-soft:#e3e7fb;--primary:#5b6cd6;--on-primary:#fbfafd;--chip:#ece8f4;--ok:#5fb38d;--ok-soft:#dff3ea;--ok-ink:#2d6a50;--warn:#e3a857;--warn-soft:#fcefd9;--warn-ink:#7a5420;--bad:#e07b86;--bad-soft:#fbe3e6;--bad-ink:#9e3a47;--peach:#ee9a72;--scrim:rgba(43,40,64,.28);--orb-a:rgba(107,127,224,.18);--orb-b:rgba(238,154,114,.14);--shadow:0 1px 2px rgba(43,40,64,.04),0 8px 24px -12px rgba(43,40,64,.14);--shadow-lg:0 12px 40px -16px rgba(43,40,64,.28)}
+[data-theme="dark"]{--bg:#1e1d2a;--surface:#262535;--surface-2:#2e2d3f;--border:#3a384d;--divider:#33324a;--ink:#e6e3f2;--ink-2:#c4c0d8;--muted:#9a96b2;--axis:#4b4961;--accent:#8e9cf2;--accent-ink:#aeb8f7;--accent-soft:#34385c;--primary:#8e9cf2;--on-primary:#1e1d2a;--chip:#34324a;--ok:#6fc79f;--ok-soft:#27402f;--ok-ink:#a9e3c6;--warn:#e8b86a;--warn-soft:#4a3a22;--warn-ink:#f2d39a;--bad:#e8909a;--bad-soft:#4a2a30;--bad-ink:#f3b6bd;--peach:#f2ae8b;--scrim:rgba(14,13,22,.55);--orb-a:rgba(142,156,242,.16);--orb-b:rgba(242,174,139,.1);--shadow:0 1px 2px rgba(0,0,0,.2),0 8px 24px -12px rgba(0,0,0,.5);--shadow-lg:0 16px 48px -16px rgba(0,0,0,.6)}
+:root{--ease-spring:cubic-bezier(.32,.72,0,1);--ease-out-soft:cubic-bezier(.16,1,.3,1);--sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+*{box-sizing:border-box}
+html{color-scheme:light}
+html[data-theme="dark"]{color-scheme:dark}
+body{margin:0;background:var(--bg);background-image:radial-gradient(600px 420px at 12% -6%,var(--orb-a),transparent 70%),radial-gradient(520px 380px at 96% 4%,var(--orb-b),transparent 70%);background-repeat:no-repeat;color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4,p{margin:0}
+a{color:var(--accent-ink);text-decoration:none;border-radius:6px}
+a:hover{color:var(--ink);text-decoration:underline}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mono{font-family:var(--mono)}
+.readout{font-family:var(--mono);letter-spacing:-.02em;font-weight:600}
+.muted{color:var(--muted)}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;height:36px;padding:0 14px;border-radius:9px;border:1px solid transparent;font:600 14px/1 var(--sans);cursor:pointer;white-space:nowrap;transition:background-color .3s var(--ease-spring),box-shadow .3s var(--ease-spring),transform .3s var(--ease-spring)}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:var(--primary);color:var(--on-primary)}
+.btn-primary:hover{box-shadow:var(--shadow)}
+.btn-ghost{background:var(--surface);color:var(--ink);border-color:var(--border);font-weight:500}
+.btn-ghost:hover{background:var(--surface-2)}
+.btn-chip{height:32px;border-radius:999px;background:var(--chip);color:var(--ink-2);font-weight:500;padding:0 12px;font-size:13px}
+.btn-chip:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+@media (pointer:coarse){.btn{min-height:44px}}
+kbd{font-family:var(--mono);font-size:11px;background:var(--chip);color:var(--ink-2);border-radius:5px;padding:2px 6px;font-weight:500}
+.btn-primary kbd{background:transparent;color:inherit;border:1px solid currentColor;opacity:.85}
+.pill{display:inline-flex;align-items:center;gap:7px;height:28px;padding:0 11px;border-radius:999px;font-size:13px;font-weight:500;white-space:nowrap}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill-neutral{background:var(--chip);color:var(--ink-2)}
+.pill-ok{background:var(--ok-soft);color:var(--ok-ink)}
+.pill-warn{background:var(--warn-soft);color:var(--warn-ink)}
+.pill-bad{background:var(--bad-soft);color:var(--bad-ink)}
+.chip{display:inline-flex;align-items:center;height:24px;padding:0 9px;border-radius:999px;background:var(--chip);color:var(--ink-2);font-size:12px;font-weight:500;white-space:nowrap}
+.chip-warn{background:var(--warn-soft);color:var(--warn-ink)}
+.chip-accent{background:var(--accent-soft);color:var(--accent-ink)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow)}
+.eyebrow{font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.field label,.field .label{font-size:13px;font-weight:500;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.field .hint{font-size:12px;color:var(--muted)}
+.input,.select{height:36px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink);font:14px var(--sans);padding:0 12px;width:100%;font-variant-numeric:tabular-nums}
+.input:disabled{background:var(--surface-2);color:var(--muted)}
+.select{appearance:none;padding-right:32px;background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);background-position:calc(100% - 17px) 16px,calc(100% - 12px) 16px;background-size:5px 5px;background-repeat:no-repeat}
+.unit{position:relative}.unit .input{padding-right:40px}.unit span{position:absolute;right:12px;top:9px;color:var(--muted);font-size:13px}
+.input.overridden{border-color:var(--accent);background:var(--accent-soft)}
+.badge{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--chip);color:var(--ink-2)}
+.badge-accent{background:var(--accent-soft);color:var(--accent-ink)}
+details>summary{list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+.tabs{display:inline-flex;gap:2px;background:var(--surface-2);padding:3px;border-radius:9px}
+.tabs button{height:28px;padding:0 10px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 13px var(--sans);cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.icon-btn{width:36px;height:36px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);display:grid;place-items:center;cursor:pointer;flex:none}
+.icon-btn:hover{background:var(--surface-2)}
+.theme-toggle{position:fixed;top:6px;right:6px;z-index:50;width:30px;height:30px;padding:0;display:grid;place-items:center;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--ink-2);box-shadow:var(--shadow-lg);cursor:pointer}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+
+.app{display:grid;grid-template-columns:232px 1fr;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;padding:18px 14px;border-right:1px solid var(--divider);background:var(--surface)}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 18px;font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand svg{flex:none}
+.nav a{display:flex;align-items:center;gap:10px;height:36px;padding:0 10px;border-radius:9px;color:var(--ink-2);font-weight:500}
+.nav a:hover{background:var(--surface-2);color:var(--ink);text-decoration:none}
+.nav a[aria-current="page"]{background:var(--accent-soft);color:var(--accent-ink)}
+.nav a .count{margin-left:auto;font-size:12px;color:var(--muted)}
+.side-foot{margin-top:auto;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--divider);padding-top:14px}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);background:var(--surface-2);border-radius:9px;padding:3px;gap:2px}
+.seg button{height:28px;border:0;border-radius:7px;background:transparent;color:var(--muted);font:500 12px var(--sans);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.account{display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:9px}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center;font-weight:600;font-size:12px;flex:none}
+.account b{display:block;font-size:13px}.account span{font-size:12px;color:var(--muted)}
+.main{min-width:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;height:64px;padding:0 48px 0 24px;border-bottom:1px solid var(--divider);background:var(--bg)}
+.ctx{display:inline-flex;align-items:center;gap:10px;height:36px;padding:0 12px 0 8px;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--ink);font:500 14px var(--sans);cursor:pointer}
+.ctx:hover{background:var(--surface-2)}
+.ctx[aria-expanded="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.ctx .rk{width:24px;height:24px;border-radius:7px;background:var(--accent-soft);color:var(--accent-ink);display:grid;place-items:center}
+.ctx .file{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.topbar .grow{flex:1}
+.stale{display:flex;align-items:center;gap:6px}
+.work{display:grid;grid-template-columns:404px 1fr;gap:24px;padding:24px;align-items:start}
+.inputs{display:flex;flex-direction:column;gap:16px}
+.section{padding:18px 18px 20px;display:flex;flex-direction:column;gap:14px}
+.section-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.section-head h2{font-size:15px;font-weight:600}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.map{border-radius:10px;overflow:hidden;border:1px solid var(--border);display:block}
+.results{display:flex;flex-direction:column;gap:16px;min-width:0}
+
+.rcard{padding:20px}
+.rcard-head{display:flex;align-items:flex-start;gap:14px}
+.rcard-head h3{font-size:20px;font-weight:650;letter-spacing:-.01em}
+.rcard-head .file{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.rcard-head .pill{margin-left:auto}
+.rprofile{margin:16px 0 4px;display:block;width:100%;height:auto}
+.rgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:12px;border-top:1px solid var(--divider)}
+.rgrid div{padding:12px 12px 12px 0;border-bottom:1px solid var(--divider)}
+.rgrid dt{font-size:12px;color:var(--muted)}
+.rgrid dd{margin:2px 0 0;font-weight:600;font-size:15px}
+.rgrid dd .mono{font-weight:600}
+.rgrid dd small{display:block;font-weight:400;color:var(--ink-2);font-size:12px}
+.stored{margin-top:16px;padding:12px 14px;border-radius:12px;background:var(--surface-2);display:flex;gap:24px;align-items:center;flex-wrap:wrap;font-size:13px;color:var(--ink-2)}
+.stored b{font-family:var(--mono);color:var(--ink);font-size:15px;letter-spacing:-.02em}
+.ready{display:flex;align-items:center;gap:12px;margin-top:16px;padding:14px 16px;border-radius:12px;background:var(--accent-soft);color:var(--accent-ink)}
+.ready p{font-size:13px}
+.ready .btn{margin-left:auto}
+</style>
+</head>
+<body>
+<button type="button" class="theme-toggle" id="theme-toggle" aria-pressed="false" aria-label="Review tool: show dark palette" title="Review tool: switch light/dark palette"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M8 1.8a6.2 6.2 0 0 1 0 12.4z" fill="currentColor"/></svg></button>
+<div class="app"><aside class="sidebar" aria-label="Primary">
+  <div class="brand"><svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><rect width="26" height="26" rx="8" fill="var(--primary)"/><path d="M13 5.5c2.6 2 3.7 4.8 3.7 8v3.7H9.3v-3.7c0-3.2 1.1-6 3.7-8Z" fill="var(--on-primary)"/><path d="M9.3 15.5 7 19h2.3M16.7 15.5 19 19h-2.3" stroke="var(--on-primary)" stroke-width="1.4" stroke-linejoin="round" fill="none"/></svg><span>icaro</span></div>
+  <nav class="nav" aria-label="Main">
+    <a href="#workbench" aria-current="page"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="1.8" y="2.5" width="12.4" height="11" rx="2" stroke="currentColor" stroke-width="1.4"/><path d="M6.4 2.5v11" stroke="currentColor" stroke-width="1.4"/></svg>Workbench</a>
+    <a href="#rockets"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5c2.2 1.6 3.2 4 3.2 6.8v3.2H4.8V8.3C4.8 5.5 5.8 3.1 8 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.8 9.5 3 12.2h1.8M11.2 9.5l1.8 2.7h-1.8M6.6 13.5h2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="6.4" r="1.2" fill="currentColor"/></svg>Rockets<span class="count">3</span></a>
+    <a href="#runs"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2.5 4h11M2.5 8h11M2.5 12h7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>Runs<span class="count">14</span></a>
+  </nav>
+  <div class="side-foot">
+    <div>
+      <p class="eyebrow" id="theme-label" style="margin:0 0 6px 2px">Theme</p>
+      <div class="seg" role="group" aria-labelledby="theme-label"><button type="button" aria-pressed="true">System</button><button type="button" aria-pressed="false">Light</button><button type="button" aria-pressed="false">Dark</button></div>
+    </div>
+    <div class="account"><span class="avatar" aria-hidden="true">LM</span><div><b>Lucía Martín</b><span>Unizar Rocketry</span></div></div>
+  </div>
+</aside>
+<div class="main">
+<header class="topbar">
+  <button type="button" class="ctx" aria-haspopup="dialog" aria-expanded="false" aria-controls="rocket-panel"><span class="rk"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5c2.2 1.6 3.2 4 3.2 6.8v3.2H4.8V8.3C4.8 5.5 5.8 3.1 8 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.8 9.5 3 12.2h1.8M11.2 9.5l1.8 2.7h-1.8M6.6 13.5h2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="6.4" r="1.2" fill="currentColor"/></svg></span><span>Icarus Mk II</span><span class="muted" aria-hidden="true">·</span><span class="file">icarus-mk2-v3.ork</span><svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true"><path d="m3.5 5.5 3.5 3.5 3.5-3.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+  <div class="stale" role="status"><span class="pill pill-neutral">No run yet</span></div>
+  <span class="grow"></span>
+  <button type="button" class="btn btn-primary">Run simulation <kbd>⌘↵</kbd></button>
+</header>
+<main class="work" id="main">
+<section class="inputs" aria-label="Scenario inputs">
+  <section class="card section" aria-labelledby="site-h">
+    <div class="section-head"><h2 id="site-h">Launch site</h2><span class="muted" style="font-size:12px">Drag the pin or type coordinates</span></div>
+    <svg class="map" viewBox="0 0 366 168" width="100%" role="img" aria-label="Map of the launch site near Teruel, pin at 40.3456° N, 1.1065° W">
+  <rect width="366" height="168" fill="var(--surface-2)"/>
+  <g fill="none" stroke="var(--axis)" stroke-width="1">
+    <path d="M-10 40 C 60 20, 120 60, 190 38 S 320 10, 376 44"/>
+    <path d="M-10 70 C 70 50, 130 92, 200 70 S 320 44, 376 78"/>
+    <path d="M-10 104 C 80 86, 140 124, 210 104 S 320 80, 376 112"/>
+    <path d="M-10 138 C 90 122, 150 156, 220 138 S 320 118, 376 146"/>
+  </g>
+  <path d="M0 140 L 128.1 87.36 L 226.92 100.8 L 366 36.96" fill="none" stroke="var(--border)" stroke-width="5" stroke-linecap="round"/>
+  <path d="M65.88 0 L 109.8 168" fill="none" stroke="var(--border)" stroke-width="3"/>
+  <circle cx="190.32" cy="84" r="34" fill="var(--accent-soft)" stroke="var(--accent)" stroke-dasharray="3 3"/>
+  <g transform="translate(190.32 84)"><path d="M0 0 C -8 -10 -10 -14 -10 -18 A 10 10 0 1 1 10 -18 C 10 -14 8 -10 0 0Z" fill="var(--primary)"/><circle cx="0" cy="-18" r="3.6" fill="var(--on-primary)"/></g>
+  <rect x="8" y="142" width="150" height="18" rx="5" fill="var(--surface)"/>
+  <text x="15" y="155" font-size="11" fill="var(--ink-2)" font-family="var(--sans)">Teruel · 40.3456° N, 1.1065° W</text>
+</svg>
+    <div class="row3">
+      <div class="field"><label for="lat">Latitude</label><input class="input" id="lat" value="40.34560"></div>
+      <div class="field"><label for="lon">Longitude</label><input class="input" id="lon" value="−1.10650"></div>
+      <div class="field"><label for="elev">Elevation</label><div class="unit"><input class="input" id="elev" value="915"><span>m</span></div></div>
+    </div>
+  </section>
+  <section class="card section" aria-labelledby="tw-h">
+    <div class="section-head"><h2 id="tw-h">Time &amp; weather</h2></div>
+    <div class="row2">
+      <div class="field"><label for="date">Launch date</label><input class="input" id="date" value="14 Nov 2026"></div>
+      <div class="field"><label for="time">Local time</label><input class="input" id="time" value="10:30 · Madrid"></div>
+    </div>
+    <div class="field"><label for="model">Weather model</label><select class="select" id="model"><option>Forecast (GFS)</option><option>Wyoming sounding</option><option>Standard atmosphere</option></select></div>
+    <div class="field"><label for="fallback">If the forecast is unavailable</label><select class="select" id="fallback"><option>Use the standard atmosphere</option><option>Fail the run</option></select><span class="hint">A fallback is always reported as a warning on the result.</span></div>
+  </section>
+  <section class="card section" aria-labelledby="rail-h">
+    <div class="section-head"><h2 id="rail-h">Launch rail</h2><span class="hint muted" style="font-size:12px">Defaults from icarus-mk2-v3.ork</span></div>
+    <div class="field"><span class="label"><label for="rlen">Rail length</label><span class="badge">From .ork</span></span><div class="unit"><input class="input" id="rlen" value="5.20"><span>m</span></div></div>
+    <div class="field"><span class="label"><label for="incl">Inclination</label><span class="badge badge-accent">Overridden</span><a href="#reset" style="font-size:13px;margin-left:auto">Reset to 85°</a></span><div class="unit"><input class="input overridden" id="incl" value="84" aria-describedby="incl-hint"><span>°</span></div><span class="hint" id="incl-hint">From horizontal: 90° = vertical.</span></div>
+    <div class="field"><span class="label"><label for="head">Heading</label><span class="badge">From .ork</span></span><div class="unit"><input class="input" id="head" value="90"><span>°</span></div><span class="hint">Compass bearing the rail leans toward: 90° = east.</span></div>
+  </section>
+</section>
+<section class="results" aria-label="Result">
+<article class="card rcard" aria-labelledby="rc-h">
+  <div class="rcard-head">
+    <div><p class="eyebrow">Rocket</p><h3 id="rc-h">Icarus Mk II</h3><p class="file">icarus-mk2-v3.ork</p></div>
+    <span class="pill pill-neutral">Ready to run</span>
+  </div>
+  <svg class="rprofile" viewBox="0 0 520 60" role="img" aria-label="Side profile of Icarus Mk II: ogive nose cone, body tube, four fins">
+  <path d="M20 30 C 60 12, 90 16, 120 16 L 450 16 L 450 44 L 120 44 C 90 44, 60 48, 20 30Z" fill="var(--surface-2)" stroke="var(--ink-2)" stroke-width="1.4"/>
+  <path d="M380 16 L 428 2 L 450 2 L 450 16 M380 44 L 428 58 L 450 58 L 450 44" fill="var(--accent-soft)" stroke="var(--ink-2)" stroke-width="1.4"/>
+  <rect x="450" y="22" width="24" height="16" rx="2" fill="var(--peach)"/>
+  <line x1="218.4" y1="16" x2="218.4" y2="44" stroke="var(--axis)" stroke-dasharray="3 3"/>
+  <circle cx="260" cy="30" r="5" fill="none" stroke="var(--accent)" stroke-width="2"/><path d="M255 30h10M260 25v10" stroke="var(--accent)" stroke-width="1.4"/>
+  <circle cx="312" cy="30" r="5" fill="var(--peach)"/>
+  <text x="260" y="58" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)">CG</text>
+  <text x="312" y="58" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--sans)">CP</text>
+</svg>
+  <dl class="rgrid"><div><dt>Dry mass</dt><dd><span class="mono">14.82 kg</span></dd></div><div><dt>Liftoff mass</dt><dd><span class="mono">18.36 kg</span><small>with motor</small></dd></div><div><dt>Diameter</dt><dd><span class="mono">102 mm</span></dd></div><div><dt>Motor</dt><dd>Cesaroni L1115<small class="mono">4 908 N·s total impulse</small></dd></div><div><dt>Parachutes</dt><dd>2<small>Drogue · Main</small></dd></div><div><dt>Rail defaults</dt><dd><span class="mono">5.2 m · 85° · 90°</span><small>length · inclination · heading</small></dd></div></dl>
+  <div class="stored"><span><span class="eyebrow">OpenRocket stored results</span><br><span style="font-size:12px">its own conditions, saved in the file</span></span><span>Apogee <b>1 790 m</b></span><span>Max speed <b>279 m/s</b></span><span>Flight time <b>142 s</b></span></div>
+  <div class="ready"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M8 1.5c2.2 1.6 3.2 4 3.2 6.8v3.2H4.8V8.3C4.8 5.5 5.8 3.1 8 1.5Z" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"/><path d="M4.8 9.5 3 12.2h1.8M11.2 9.5l1.8 2.7h-1.8M6.6 13.5h2.8" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><circle cx="8" cy="6.4" r="1.2" fill="currentColor"/></svg><p><b>Ready to run.</b> Review the scenario on the left, then run the simulation. Results appear here.</p><button type="button" class="btn btn-primary">Run simulation <kbd>⌘↵</kbd></button></div>
+</article>
+</section>
+</main></div></div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var btn=document.getElementById('theme-toggle');
+  function sync(){var t=root.getAttribute('data-theme');btn.setAttribute('aria-label','Review tool: show '+(t==='dark'?'light':'dark')+' palette');btn.setAttribute('aria-pressed',t==='dark'?'true':'false');}
+  btn.addEventListener('click',function(){root.setAttribute('data-theme',root.getAttribute('data-theme')==='dark'?'light':'dark');sync();});
+  sync();
+})();
+</script>
+</body>
+</html>

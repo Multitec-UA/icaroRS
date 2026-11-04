@@ -37,10 +37,6 @@ serializer.log
 .idea
 .vscode
 
-# Surplus OpenRocket jars — the API only uses OpenRocket-23.09.jar.
-packages/rocketserializer/OpenRocket-22.02.jar
-packages/rocketserializer/tests/OpenRocket-15.03.jar
-
 # Agent / SDD scratch
 .atl
 .agent

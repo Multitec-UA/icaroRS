@@ -14,17 +14,18 @@
 
 # Node runtime for every stage. Keep it on a patched release line: 22.23.4 is
 # the 22.x fix for the Oct 21, 2026 security release (CVE-2026-111497, Brotli
-# decoder OOB write); Node 20 is EOL and gets no fix.
+# decoder OOB write); Node 20 is EOL and gets no fix. Debian bookworm, the
+# base main chose for its own image fixes (0a713da).
 ARG NODE_VERSION=22.23.4
 
 # --- deps --------------------------------------------------------------------
-FROM node:${NODE_VERSION}-slim AS deps
+FROM node:${NODE_VERSION}-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
 # --- build -------------------------------------------------------------------
-FROM node:${NODE_VERSION}-slim AS build
+FROM node:${NODE_VERSION}-bookworm-slim AS build
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 # Next 16 evaluates `rewrites()` at BUILD time and bakes the resolved routes
@@ -49,16 +50,20 @@ COPY . .
 RUN npm run build
 
 # --- runtime -----------------------------------------------------------------
-FROM node:${NODE_VERSION}-slim AS runtime
+FROM node:${NODE_VERSION}-bookworm-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=8080 \
     HOSTNAME=0.0.0.0
 
-# Run as non-root.
+# Run as non-root. The server only needs `node`: drop the npm and corepack the
+# base image bundles, so their own dependencies (tar, pacote, sigstore...) are
+# not shipped as unpatched attack surface.
 RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 nextjs
+    && adduser --system --uid 1001 nextjs \
+    && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack \
+       /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 
 # Standalone bundle: server.js + minimal node_modules, then the static assets
 # and public/ it serves (these live outside the traced bundle by design).

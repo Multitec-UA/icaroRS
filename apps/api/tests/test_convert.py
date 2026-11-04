@@ -18,7 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
-from icaro_api.services.db import InMemoryDb, RocketRecord
+from icaro_api.services.db import ExportRecord, InMemoryDb, RocketRecord
 from icaro_api.services.storage import LocalFsStorage
 
 _TEST_SESSION_COOKIE = "test-session-token"
@@ -178,8 +178,8 @@ class TestConvertStorageAndDbSideEffects:
             f"Expected prefix 'orgs/test-org/exports/{export_id}/', got: {prefix!r}"
         )
 
-    def test_db_save_rocket_called(self, tmp_path):
-        """REQ-03.1: convert must call db.save_rocket with a RocketRecord."""
+    def test_db_save_rocket_and_export_called(self, tmp_path):
+        """REQ-03.1: convert saves the ExportRecord and, by default, a new RocketRecord."""
         storage = LocalFsStorage(tmp_path / "blobs")
         db = MagicMock(spec=InMemoryDb)
 
@@ -211,7 +211,13 @@ class TestConvertStorageAndDbSideEffects:
 
         assert resp.status_code == 200
         db.save_rocket.assert_called_once()
-        saved_rec = db.save_rocket.call_args[0][0]
-        assert isinstance(saved_rec, RocketRecord)
-        assert saved_rec.rocket_id == resp.json()["export_id"]
-        assert saved_rec.name == "NamedRocket"
+        saved_rocket = db.save_rocket.call_args[0][0]
+        assert isinstance(saved_rocket, RocketRecord)
+        assert saved_rocket.rocket_id == resp.json()["rocket_id"]
+        assert saved_rocket.name == "NamedRocket"
+        db.save_export.assert_called_once()
+        saved_export = db.save_export.call_args[0][0]
+        assert isinstance(saved_export, ExportRecord)
+        assert saved_export.export_id == resp.json()["export_id"]
+        assert saved_export.rocket_id == saved_rocket.rocket_id
+        assert saved_export.name == "NamedRocket"

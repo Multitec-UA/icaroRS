@@ -16,7 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
-from icaro_api.services.db import InMemoryDb, RocketRecord
+from icaro_api.services.db import ExportRecord, InMemoryDb, RocketRecord
 
 _TEST_SESSION_COOKIE = "test-session-token"
 _ORG = "test-org"  # matches _fake_verify_identity's org_id claim below
@@ -42,10 +42,21 @@ def _make_client(db: InMemoryDb | None = None) -> TestClient:
 
 
 def _seed_rocket(db: InMemoryDb, export_id: str) -> None:
-    """POST /api/simulate now resolves export_id to its RocketRecord (#45)."""
+    """POST /api/simulate now resolves export_id to its ExportRecord (#45)."""
     db.save_rocket(
         RocketRecord(
-            rocket_id=export_id,
+            rocket_id=f"rk-{export_id}",
+            name="TestRocket",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_by="test",
+            org_id=_ORG,
+        ),
+        org_id=_ORG,
+    )
+    db.save_export(
+        ExportRecord(
+            export_id=export_id,
+            rocket_id=f"rk-{export_id}",
             name="TestRocket",
             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             created_by="test",

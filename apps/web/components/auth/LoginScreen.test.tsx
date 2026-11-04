@@ -129,3 +129,12 @@ describe("LoginScreen — forgot password", () => {
     expect(await screen.findByText("Wrong email or password.")).toBeInTheDocument();
   });
 });
+
+describe("LoginScreen — tokens (S2)", () => {
+  it("draws the title on the ink token, never a white gradient", async () => {
+    await renderLogin();
+    const title = screen.getByRole("heading", { level: 1 });
+    expect(title.className).toContain("text-ink");
+    expect(title.className).not.toMatch(/\bwhite\b/);
+  });
+});

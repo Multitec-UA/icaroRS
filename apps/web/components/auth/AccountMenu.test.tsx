@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { usePathname } from "next/navigation";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { AppProviders } from "@/test/test-providers";
 
@@ -25,6 +26,9 @@ vi.mock("@/lib/firebase", () => ({
 const IDENTITY = { user_id: "u1", org_id: "multitec", email: "pilot@multitec.dev" };
 
 function renderSignedIn(identity: typeof IDENTITY | Omit<typeof IDENTITY, "email"> & { email: null } = IDENTITY) {
+  // The avatar reaches the DOM through AppNav, which no longer renders on "/"
+  // (the Workbench has its own sidebar), so these tests stand on another route.
+  vi.mocked(usePathname).mockReturnValue("/rockets");
   getIdentityMock.mockResolvedValue(identity);
   apiLogoutMock.mockResolvedValue(undefined);
   firebaseSignOutMock.mockResolvedValue(undefined);

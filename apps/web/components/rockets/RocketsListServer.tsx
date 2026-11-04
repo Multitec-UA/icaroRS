@@ -2,12 +2,11 @@
  * RocketsListServer — the server-rendered body of /rockets (issue #52).
  *
  * A Server Component: fetches GET /api/rockets directly (lib/server-api.ts,
- * forwarding the session cookie) instead of the client useRocketsQuery from
- * issue #48. Meant to sit inside a <Suspense> boundary in app/rockets/page.tsx
- * so the static header renders immediately and this streams in once the
- * fetch resolves.
+ * forwarding the session cookie). Meant to sit inside a <Suspense> boundary
+ * in app/rockets/page.tsx so the static header renders immediately and this
+ * streams in once the fetch resolves.
  *
- * Renders plain markup; each row's "Use this rocket" interactivity is the
+ * Renders the grid; each card's "Use this rocket" interactivity is the
  * <RocketCard> client island.
  */
 
@@ -33,7 +32,7 @@ export async function RocketsListServer({ t }: { t: TranslateFn }) {
   }
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
       {rockets.map((rocket, i) => (
         <RocketCard key={rocket.rocket_id} rocket={rocket} index={i} />
       ))}

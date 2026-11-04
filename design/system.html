@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<title>icaro design system</title>
+<meta name="viewport" content="width=1440" />
+<style>
+  :root{--bg:#f5f3f2;--surface:#fcfbfa;--surface-2:#f1eeec;--border:#e3dedb;--divider:#ece8e5;--ink:#24201f;--ink-2:#4a4442;--muted:#6c6562;--axis:#cdc6c2;--accent:#ae2418;--accent-ink:#4a4442;--accent-soft:#f1eeec;--primary:#2a2625;--on-primary:#fcfbfa;--brand:#ae2418;--on-brand:#fcfbfa;--chip:#ece7e3;--ok:#5fb38d;--ok-soft:#dff3ea;--ok-ink:#2d6a50;--warn:#e3a857;--warn-soft:#fcefd9;--warn-ink:#7a5420;--bad:#d9497a;--bad-soft:#fbe4ec;--bad-ink:#a3264f;--peach:#6c6562;--shadow:0 1px 2px rgba(36, 32, 31, 0.04), 0 8px 24px -12px rgba(36, 32, 31, 0.14);--shadow-lg:0 12px 40px -16px rgba(36, 32, 31, 0.28);--ease-spring:cubic-bezier(.32,.72,0,1)}
+  [data-theme="dark"]{--bg:#1c1a19;--surface:#252221;--surface-2:#2e2a29;--border:#3b3634;--divider:#332f2d;--ink:#ece7e4;--ink-2:#c9c2be;--muted:#a39b97;--axis:#4d4744;--accent:#e96d62;--accent-ink:#c9c2be;--accent-soft:#2e2a29;--primary:#e6e1de;--on-primary:#1c1a19;--brand:#ae2418;--on-brand:#fcfbfa;--chip:#36312f;--ok:#6fc79f;--ok-soft:#27402f;--ok-ink:#a9e3c6;--warn:#e8b86a;--warn-soft:#4a3a22;--warn-ink:#f2d39a;--bad:#f0789f;--bad-soft:#4a2433;--bad-ink:#f7b3c9;--peach:#a39b97;--shadow:0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);--shadow-lg:0 16px 48px -16px rgba(0, 0, 0, 0.6)}
+  *{box-sizing:border-box}
+  body{margin:0;width:1440px;background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased;padding:40px 48px}
+  h1{font-size:22px;margin:0 0 4px;font-weight:600}
+  h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:36px 0 12px;font-weight:600}
+  p{color:var(--ink-2);margin:0 0 8px;font-size:14px}
+  .row{display:flex;gap:12px;flex-wrap:wrap}
+  .sw{width:150px;border:1px solid var(--border);border-radius:9px;overflow:hidden;background:var(--surface)}
+  .sw i{display:block;height:54px}
+  .sw b{display:block;padding:8px 10px 2px;font-size:12px;font-weight:600}
+  .sw span{display:block;padding:0 10px 8px;font-size:11px;color:var(--muted);font-family:ui-monospace,monospace}
+  .themes{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;box-shadow:var(--shadow)}
+  .btn{display:inline-flex;height:36px;align-items:center;gap:8px;border-radius:9px;padding:0 14px;font-size:14px;font-weight:500;border:1px solid transparent;cursor:pointer;transition:all .3s var(--ease-spring)}
+  .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .primary{background:var(--primary);color:var(--on-primary)}
+  .ghost{background:var(--surface);border-color:var(--border);color:var(--ink)}
+  .chip{height:32px;border-radius:999px;background:var(--chip);color:var(--ink-2);font-size:13px;padding:0 12px}
+  .link{color:var(--accent-ink);font-size:13px;text-decoration:none}
+  .pill{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:500}
+  .pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+  .ok{background:var(--ok-soft);color:var(--ok-ink)} .warn{background:var(--warn-soft);color:var(--warn-ink)} .bad{background:var(--bad-soft);color:var(--bad-ink)}
+  .input{height:36px;border:1px solid var(--border);background:var(--surface);border-radius:9px;padding:0 10px;font-size:14px;color:var(--ink);width:220px}
+  .label{font-size:12px;color:var(--muted);display:block;margin-bottom:4px}
+  kbd{font-family:ui-monospace,monospace;font-size:11px;background:var(--chip);border-radius:5px;padding:2px 6px;color:var(--ink-2)}
+  .readout{font-family:ui-monospace,monospace;letter-spacing:-.02em;font-size:28px;font-weight:600}
+  .kpi{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;min-width:180px}
+  .kpi small{display:block;color:var(--muted);font-size:12px;margin-bottom:6px}
+  .type div{margin:6px 0}
+  .sp{display:flex;gap:10px;align-items:flex-end}
+  .sp i{display:block;background:var(--accent-soft);border:1px solid var(--accent)}
+  .rad{display:flex;gap:16px}.rad i{display:block;width:64px;height:64px;background:var(--surface-2);border:1px solid var(--border)}
+  .shadow{display:flex;gap:24px}.shadow i{display:block;width:140px;height:72px;background:var(--surface);border-radius:12px}
+  .hr{border-top:1px solid var(--divider);margin:20px 0}
+  table{border-collapse:collapse;font-size:13px}td,th{text-align:left;padding:6px 12px 6px 0;border-bottom:1px solid var(--divider)}th{color:var(--muted);font-weight:500;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>icaro design system</h1>
+  <p>Synced from <code>apps/web/app/globals.css</code> and <code>components/workbench/styles.ts</code>. Two soft palettes, one token set, no pure black or white.</p>
+</header>
+
+<h2>Palettes</h2>
+<div class="themes">
+  <section data-theme="light" class="card" aria-label="Light palette">
+    <p><strong>Light</strong> · warm greys, graphite actions, Multitec red for identity</p>
+    <div class="row">
+      <div class="sw"><i style="background:var(--bg)"></i><b>bg</b><span>#f5f3f2</span></div>
+      <div class="sw"><i style="background:var(--surface)"></i><b>surface</b><span>#fcfbfa</span></div>
+      <div class="sw"><i style="background:var(--surface-2)"></i><b>surface-2</b><span>#f1eeec</span></div>
+      <div class="sw"><i style="background:var(--border)"></i><b>border</b><span>#e3dedb</span></div>
+      <div class="sw"><i style="background:var(--ink)"></i><b>ink</b><span>#24201f</span></div>
+      <div class="sw"><i style="background:var(--muted)"></i><b>muted</b><span>#6c6562</span></div>
+      <div class="sw"><i style="background:var(--accent)"></i><b>accent</b><span>#ae2418</span></div>
+      <div class="sw"><i style="background:var(--primary)"></i><b>primary</b><span>#2a2625</span></div>
+      <div class="sw"><i style="background:var(--accent-soft)"></i><b>accent-soft</b><span>#f1eeec</span></div>
+      <div class="sw"><i style="background:var(--ok)"></i><b>ok</b><span>#5fb38d</span></div>
+      <div class="sw"><i style="background:var(--warn)"></i><b>warn</b><span>#e3a857</span></div>
+      <div class="sw"><i style="background:var(--bad)"></i><b>bad</b><span>#d9497a</span></div>
+      <div class="sw"><i style="background:var(--peach)"></i><b>peach</b><span>#6c6562</span></div>
+    </div>
+  </section>
+  <section data-theme="dark" class="card" aria-label="Dark palette">
+    <p><strong>Dark</strong> · warm graphite, never OLED black; brand marks in #e96d62</p>
+    <div class="row">
+      <div class="sw"><i style="background:var(--bg)"></i><b>bg</b><span>#f5f3f2</span></div>
+      <div class="sw"><i style="background:var(--surface)"></i><b>surface</b><span>#fcfbfa</span></div>
+      <div class="sw"><i style="background:var(--surface-2)"></i><b>surface-2</b><span>#f1eeec</span></div>
+      <div class="sw"><i style="background:var(--border)"></i><b>border</b><span>#e3dedb</span></div>
+      <div class="sw"><i style="background:var(--ink)"></i><b>ink</b><span>#24201f</span></div>
+      <div class="sw"><i style="background:var(--muted)"></i><b>muted</b><span>#6c6562</span></div>
+      <div class="sw"><i style="background:var(--accent)"></i><b>accent</b><span>#ae2418</span></div>
+      <div class="sw"><i style="background:var(--primary)"></i><b>primary</b><span>#2a2625</span></div>
+      <div class="sw"><i style="background:var(--accent-soft)"></i><b>accent-soft</b><span>#f1eeec</span></div>
+      <div class="sw"><i style="background:var(--ok)"></i><b>ok</b><span>#5fb38d</span></div>
+      <div class="sw"><i style="background:var(--warn)"></i><b>warn</b><span>#e3a857</span></div>
+      <div class="sw"><i style="background:var(--bad)"></i><b>bad</b><span>#d9497a</span></div>
+      <div class="sw"><i style="background:var(--peach)"></i><b>peach</b><span>#6c6562</span></div>
+    </div>
+  </section>
+</div>
+
+<h2>Typography</h2>
+<div class="card type">
+  <div style="font-size:22px;font-weight:600">Page title · 22/600 (Geist)</div>
+  <div style="font-size:16px;font-weight:600">Section title · 16/600</div>
+  <div style="font-size:14px">Body and controls · 14/400 (<code>text-sm</code>)</div>
+  <div style="font-size:13px;color:var(--ink-2)">Chips, links, file names · 13</div>
+  <div style="font-size:12px;color:var(--muted)">Labels, help · 12 muted</div>
+  <div class="readout">1 842 m <span style="font-size:14px;color:var(--muted);font-family:system-ui">readout · Geist Mono, tabular, −0.02em</span></div>
+  <div><kbd>⌘</kbd> <kbd>↵</kbd> keyboard hints · 11 mono</div>
+</div>
+
+<h2>Spacing · radius · shadow</h2>
+<div class="themes">
+  <div class="card">
+    <p>Spacing used by the Workbench controls</p>
+    <div class="sp"><i style="width:4px;height:4px"></i><i style="width:8px;height:8px"></i><i style="width:12px;height:12px"></i><i style="width:16px;height:16px"></i><i style="width:24px;height:24px"></i><i style="width:32px;height:32px"></i><i style="width:48px;height:48px"></i></div>
+    <p style="margin-top:8px;font-size:12px">4 · 8 · 12 · 14 (button padding) · 16 · 24 · 32 · 48</p>
+    <div class="hr"></div>
+    <p>Radius</p>
+    <div class="rad"><i style="border-radius:5px"></i><i style="border-radius:9px"></i><i style="border-radius:12px"></i><i style="border-radius:14px"></i><i style="border-radius:999px"></i></div>
+    <p style="margin-top:8px;font-size:12px">5 kbd · 9 controls · 12 KPI · 14 cards · full chips</p>
+  </div>
+  <div class="card">
+    <p>Shadows</p>
+    <div class="shadow"><i style="box-shadow:var(--shadow)"></i><i style="box-shadow:var(--shadow-lg)"></i></div>
+    <p style="margin-top:8px;font-size:12px">shadow-soft (hover lift) · shadow-soft-lg (panels, popovers)</p>
+    <div class="hr"></div>
+    <p>Motion</p>
+    <p style="font-size:12px">Only <code>--ease-spring</code> cubic-bezier(.32,.72,0,1) and <code>--ease-out-soft</code>; 300 ms on controls; everything collapses under <code>prefers-reduced-motion</code>.</p>
+  </div>
+</div>
+
+<h2>Components</h2>
+<div class="card">
+  <div class="row" style="align-items:center;gap:16px">
+    <button class="btn primary">Run simulation <kbd style="background:rgba(255,255,255,.18);color:inherit">⌘↵</kbd></button>
+    <button class="btn ghost">Cancel</button>
+    <button class="btn chip">Icarus Mk II</button>
+    <a class="link" href="#">All rockets</a>
+    <span class="pill ok">Up to date · run 7f3a</span>
+    <span class="pill warn">Results are from icarus-v1.ork</span>
+    <span class="pill bad">Conversion failed</span>
+  </div>
+  <div class="hr"></div>
+  <div class="row" style="gap:24px;align-items:flex-end">
+    <div><span class="label">Rail length (m)</span><input class="input" value="5.2" /></div>
+    <div><span class="label">Latitude</span><input class="input" value="39.4699" /></div>
+    <div class="kpi"><small>Apogee</small><div class="readout" style="font-size:24px">1 842 m</div></div>
+    <div class="kpi"><small>Max speed</small><div class="readout" style="font-size:24px">Mach 0.82</div></div>
+  </div>
+</div>
+
+<h2>Deviations recorded in source</h2>
+<div class="card">
+  <table>
+    <tr><th>Where</th><th>Deviation</th><th>Rule it breaks</th></tr>
+    <tr><td><code>components/ui.tsx:96, 120</code></td><td>Literal <code>cyan-400</code> glow and <code>bg-white/[0.02]</code> glass</td><td>Tokens only, no literal colours</td></tr>
+    <tr><td><code>components/ui.tsx:220</code></td><td>48px glass pill <code>Button</code> next to the 36px Workbench controls</td><td>One control system</td></tr>
+    <tr><td>Workbench pills, KPI cards, section headers</td><td>Composed inline per component</td><td>Shared primitives</td></tr>
+  </table>
+</div>
+</body>
+</html>

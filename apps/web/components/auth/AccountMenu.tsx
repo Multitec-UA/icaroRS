@@ -20,24 +20,26 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthGate";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { sendPasswordReset } from "@/lib/firebase";
 import { cn, focusRing } from "@/lib/styles";
+import { popoverClass } from "@/components/ui/classes";
 
 type ResetStatus = "idle" | "sending" | "sent" | "failed";
 
 function AvatarIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 32 32" aria-hidden className={className}>
-      <circle cx="16" cy="16" r="16" className="fill-white/[0.08]" />
-      <circle cx="16" cy="12.5" r="5" className="fill-white/55" />
-      <path d="M6.5 26.5a9.5 9.5 0 0 1 19 0" className="fill-white/55" />
+      <circle cx="16" cy="16" r="16" className="fill-chip" />
+      <circle cx="16" cy="12.5" r="5" className="fill-muted" />
+      <path d="M6.5 26.5a9.5 9.5 0 0 1 19 0" className="fill-muted" />
     </svg>
   );
 }
 
 const actionClassName = cn(
-  "w-full rounded-xl px-3 py-2 text-left text-sm transition-colors duration-300 ease-[var(--ease-spring)] hover:bg-white/[0.06] disabled:pointer-events-none disabled:opacity-40",
+  "w-full rounded-xl px-3 py-2 text-left text-sm transition-colors duration-300 ease-[var(--ease-spring)] hover:bg-surface-2 disabled:pointer-events-none disabled:opacity-40",
   focusRing,
 );
 
@@ -91,7 +93,7 @@ export function AccountMenu() {
         aria-controls={panelId}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex h-9 w-9 items-center justify-center rounded-full ring-1 ring-inset ring-white/15 transition-[box-shadow,transform] duration-300 ease-[var(--ease-spring)] hover:ring-white/30 active:scale-[0.96]",
+          "flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface transition-[border-color,transform] duration-300 ease-[var(--ease-spring)] hover:border-ink-2 active:scale-[0.96]",
           focusRing,
         )}
       >
@@ -101,54 +103,59 @@ export function AccountMenu() {
       {open && (
         <div
           id={panelId}
-          className="absolute right-0 top-11 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#0b0b0d]/95 p-2 ring-1 ring-inset ring-white/10 shadow-[0_12px_48px_rgba(0,0,0,0.6)] backdrop-blur-md"
+          className={cn("absolute right-0 top-11 z-40 w-72 max-w-[calc(100vw-2rem)] p-2", popoverClass)}
         >
           <div className="flex items-center gap-3 px-3 py-3">
             <AvatarIcon className="h-10 w-10 shrink-0" />
             <div className="flex min-w-0 flex-col gap-0.5">
               {identity.email && (
-                <span translate="no" className="truncate text-sm font-medium text-foreground">
+                <span translate="no" className="truncate text-sm font-medium text-ink">
                   {identity.email}
                 </span>
               )}
               <span className="flex min-w-0 items-baseline gap-1.5 text-xs">
                 <span className="text-muted">{t("account.organization")}</span>
-                <span translate="no" className="truncate font-medium text-foreground">
+                <span translate="no" className="truncate font-medium text-ink">
                   {identity.org_id}
                 </span>
               </span>
             </div>
           </div>
 
-          <div className="my-1 h-px bg-white/10" />
+          <div className="my-1 h-px bg-divider" />
 
           <div className="flex items-center justify-between px-3 py-2 text-sm">
             <span className="text-muted">{t("nav.language")}</span>
             <LanguageSwitch />
           </div>
 
-          <div className="my-1 h-px bg-white/10" />
+          <div className="flex items-center justify-between px-3 py-2 text-sm">
+            <span className="text-muted">{t("theme.label")}</span>
+            <ThemeToggle />
+          </div>
+
+          <div className="my-1 h-px bg-divider" />
 
           <button
             type="button"
             onClick={changePassword}
             disabled={!identity.email || resetStatus === "sending"}
-            className={cn(actionClassName, "text-foreground")}
+            className={cn(actionClassName, "text-ink")}
           >
             {resetStatus === "sending" ? t("account.changePasswordSending") : t("account.changePassword")}
           </button>
           {resetStatus === "sent" && identity.email && (
-            <p role="status" className="px-3 pb-2 text-xs text-emerald-400">
+            <p role="status" className="px-3 pb-2 text-xs text-ok-ink">
               {t("account.changePasswordSent", { email: identity.email })}
             </p>
           )}
           {resetStatus === "failed" && (
-            <p role="alert" className="px-3 pb-2 text-xs text-rose-400">
+            <p role="alert" className="px-3 pb-2 text-xs text-bad-ink">
               {t("account.changePasswordFailed")}
             </p>
           )}
 
-          <button type="button" onClick={logout} className={cn(actionClassName, "text-rose-300")}>
+          <button type="button" onClick={logout} className={cn(actionClassName, "text-bad-ink")}>
             {t("account.signOut")}
           </button>
         </div>

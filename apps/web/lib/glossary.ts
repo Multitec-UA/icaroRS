@@ -18,7 +18,6 @@ export const GLOSSARY_TERMS = [
   "stability_margin",
   "forecast",
   "standard_atmosphere",
-  "uncertainty",
 ] as const;
 
 export type GlossaryTerm = typeof GLOSSARY_TERMS[number];

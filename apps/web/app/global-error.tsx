@@ -54,7 +54,7 @@ export default function GlobalError({
 
   return (
     <html lang={locale}>
-      <body className="flex min-h-[100dvh] items-center justify-center bg-background px-4 text-foreground antialiased">
+      <body className="flex min-h-[100dvh] items-center justify-center bg-bg px-4 text-ink antialiased">
         <GlobalErrorContent
           title={t("errors.boundaryTitle")}
           message={t("errors.globalMessage")}

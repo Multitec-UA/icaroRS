@@ -1,12 +1,18 @@
 import "@testing-library/jest-dom/vitest";
 
 import { afterEach, vi } from "vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import type { ReactNode } from "react";
 
 afterEach(() => {
   cleanup();
 });
+
+// `waitFor`/`findBy*` default to 1000 ms. Under a loaded full run (46 files in
+// parallel) a mutation → router push occasionally takes longer than that and a
+// test that passes alone fails once; 4 s keeps real failures fast enough to
+// notice while removing that noise.
+configure({ asyncUtilTimeout: 4000 });
 
 // ---------------------------------------------------------------------------
 // next/navigation — App Router hooks have no meaning outside a real Next.js

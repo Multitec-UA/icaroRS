@@ -73,10 +73,15 @@ export function getRocketsServer(limit = 20, before?: string): Promise<RocketSum
   return serverRequest(`/api/rockets?${q}`);
 }
 
-/** GET /api/history?limit=&before= — server-side counterpart to getHistory. */
-export function getHistoryServer(limit = 20, before?: string): Promise<SimulationSummary[]> {
+/** GET /api/history?limit=&before=&rocket_id= — server-side counterpart to getHistory. */
+export function getHistoryServer(
+  limit = 20,
+  before?: string,
+  rocketId?: string | null,
+): Promise<SimulationSummary[]> {
   const q = new URLSearchParams({ limit: String(limit) });
   if (before) q.set("before", before);
+  if (rocketId) q.set("rocket_id", rocketId);
   return serverRequest(`/api/history?${q}`);
 }
 

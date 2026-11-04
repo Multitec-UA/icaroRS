@@ -1,29 +1,176 @@
 @import "tailwindcss";
 
 /*
- * icaro — "Ethereal Glass" dark theme (issue #10).
- * Deepest OLED black canvas, light-on-dark hierarchy, cyan/violet glow accents.
- * Dark is the ONLY theme: the whole UI is designed dark-first, so no `dark:`
- * variants are needed downstream — base styles already are the dark styles.
+ * icaro — two soft palettes, one token set.
+ *
+ * Multitec identity (design/multitec-brand/01-identity-graphite.html): warm
+ * greys, graphite actions, and the Multitec red #AE2418 only where it
+ * identifies (logo, active nav, chart series 1); its lighter
+ * #e96d62 carries it on dark surfaces. Errors use a distinct raspberry so red
+ * never reads as both brand and danger. Neither theme uses pure black or white.
+ * Components style against the tokens below (`bg-surface`, `text-ink`,
+ * `border-divider`, …) and never against a literal colour, so both themes
+ * stay in sync by construction.
+ *
+ * Theme selection: `data-theme="light|dark"` on <html> wins (set by the root
+ * layout from the `icaro-theme` cookie and by ThemeProvider on toggle);
+ * without it the OS preference decides via `prefers-color-scheme`.
+ *
+ * `.palette-light` pins a subtree to the light palette in either theme (the
+ * plot frames: matplotlib PNGs are drawn on white). Custom properties set on
+ * the element itself win over the ones it would inherit from <html>.
  */
 
-:root {
-  --background: #050505; /* deepest OLED black */
-  --foreground: #ededf2; /* near-white, never pure #fff */
-  --muted: #8b8f9c; /* secondary text on dark */
+:root,
+.palette-light {
+  /* --- light (default) --- */
+  --bg: #f5f3f2;
+  --surface: #fcfbfa;
+  --surface-2: #f1eeec;
+  --border: #e3dedb;
+  --divider: #ece8e5;
+  --ink: #24201f;
+  --ink-2: #4a4442;
+  --muted: #6c6562; /* 4.65:1 on --chip, the lowest light surface it sits on */
+  --axis: #cdc6c2;
+  /* Identity and data: the Multitec red for the active nav, chart series 1
+     and the rocket dot; never for focus or actions. */
+  --accent: #ae2418;
+  /* Links and selection stay graphite. */
+  --accent-ink: #4a4442;
+  --accent-soft: #f1eeec;
+  /* Graphite actions: --on-primary on --primary is 14.49:1. */
+  --primary: #2a2625;
+  --on-primary: #fcfbfa;
+  --chip: #ece7e3;
+  --ok: #5fb38d;
+  --ok-soft: #dff3ea;
+  --ok-ink: #2d6a50;
+  --warn: #e3a857;
+  --warn-soft: #fcefd9;
+  --warn-ink: #7a5420;
+  --bad: #d9497a;
+  --bad-soft: #fbe4ec;
+  --bad-ink: #a3264f;
+  --peach: #6c6562; /* chart series 2: graphite next to the red series 1 */
+  /* The Multitec mark (logo, favicon): the same red in both themes. */
+  --brand: #ae2418;
+  --on-brand: #fcfbfa;
+  --scrim: rgba(36, 32, 31, 0.28);
+  --shadow: 0 1px 2px rgba(36, 32, 31, 0.04), 0 8px 24px -12px rgba(36, 32, 31, 0.14);
+  --shadow-lg: 0 12px 40px -16px rgba(36, 32, 31, 0.28);
+  --orb-a: rgba(174, 36, 24, 0.05);
+  --orb-b: rgba(111, 104, 101, 0.06);
 
-  --accent-cyan: #22d3ee;
-  --accent-violet: #a78bfa;
+  color-scheme: light;
+}
 
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #1c1a19;
+    --surface: #252221;
+    --surface-2: #2e2a29;
+    --border: #3b3634;
+    --divider: #332f2d;
+    --ink: #ece7e4;
+    --ink-2: #c9c2be;
+    --muted: #a39b97;
+    --axis: #4d4744;
+    --accent: #e96d62;
+    --accent-ink: #c9c2be;
+    --accent-soft: #2e2a29;
+    --primary: #e6e1de;
+    --on-primary: #1c1a19;
+    --chip: #36312f;
+    --ok: #6fc79f;
+    --ok-soft: #27402f;
+    --ok-ink: #a9e3c6;
+    --warn: #e8b86a;
+    --warn-soft: #4a3a22;
+    --warn-ink: #f2d39a;
+    --bad: #f0789f;
+    --bad-soft: #4a2433;
+    --bad-ink: #f7b3c9;
+    --peach: #a39b97;
+    --brand: #ae2418;
+    --on-brand: #fcfbfa;
+    --scrim: rgba(12, 11, 10, 0.55);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
+    --orb-a: rgba(233, 109, 98, 0.06);
+    --orb-b: rgba(163, 155, 151, 0.05);
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #1c1a19;
+  --surface: #252221;
+  --surface-2: #2e2a29;
+  --border: #3b3634;
+  --divider: #332f2d;
+  --ink: #ece7e4;
+  --ink-2: #c9c2be;
+  --muted: #a39b97;
+  --axis: #4d4744;
+  --accent: #e96d62;
+  --accent-ink: #c9c2be;
+  --accent-soft: #2e2a29;
+  --primary: #e6e1de;
+  --on-primary: #1c1a19;
+  --chip: #36312f;
+  --ok: #6fc79f;
+  --ok-soft: #27402f;
+  --ok-ink: #a9e3c6;
+  --warn: #e8b86a;
+  --warn-soft: #4a3a22;
+  --warn-ink: #f2d39a;
+  --bad: #f0789f;
+  --bad-soft: #4a2433;
+  --bad-ink: #f7b3c9;
+  --peach: #a39b97;
+  --brand: #ae2418;
+  --on-brand: #fcfbfa;
+  --scrim: rgba(12, 11, 10, 0.55);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.2), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 16px 48px -16px rgba(0, 0, 0, 0.6);
+  --orb-a: rgba(233, 109, 98, 0.06);
+  --orb-b: rgba(163, 155, 151, 0.05);
   color-scheme: dark;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-divider: var(--divider);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
-  --color-accent-cyan: var(--accent-cyan);
-  --color-accent-violet: var(--accent-violet);
+  --color-axis: var(--axis);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-soft: var(--accent-soft);
+  --color-primary: var(--primary);
+  --color-on-primary: var(--on-primary);
+  --color-chip: var(--chip);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-ok-ink: var(--ok-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-warn-ink: var(--warn-ink);
+  --color-bad: var(--bad);
+  --color-bad-soft: var(--bad-soft);
+  --color-bad-ink: var(--bad-ink);
+  --color-peach: var(--peach);
+  --color-brand: var(--brand);
+  --color-on-brand: var(--on-brand);
+
+  --shadow-soft: var(--shadow);
+  --shadow-soft-lg: var(--shadow-lg);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
@@ -33,10 +180,10 @@
 }
 
 html {
-  background: var(--background);
+  background: var(--bg);
   /* Remove the 300ms double-tap-to-zoom delay without disabling pinch zoom. */
   touch-action: manipulation;
-  /* The glass surfaces draw their own press feedback; no grey tap flash. */
+  /* The surfaces draw their own press feedback; no grey tap flash. */
   -webkit-tap-highlight-color: transparent;
   /* The sticky AppNav is ~4.5rem tall: keep focused/anchored targets below it. */
   scroll-padding-top: 5rem;
@@ -51,10 +198,12 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /* Numbers line up in tables and KPI readouts everywhere. */
+  font-variant-numeric: tabular-nums;
   /* No accidental horizontal scroll from the ambient blobs. */
   overflow-x: hidden;
   /* Full-bleed layout: keep content clear of notches and home indicators. */
@@ -87,5 +236,66 @@ body {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/*
+ * Print (S7): the run report is the printout. The app sidebar (the shell's
+ * <aside> holding the primary <nav>) and the ambient orbs are hidden; every
+ * disclosure prints expanded (RunResults also opens them on `beforeprint`,
+ * `::details-content` covers browsers that print a closed <details> body);
+ * the WebGL replay is swapped for the `trajectory_3d` PNG through Tailwind's
+ * `print:` variant in RunResults.
+ */
+/*
+ * The run report's PDF is its own document (components/results/PrintableReport):
+ * A4 with print margins, the page number bottom right; the running footer text
+ * (per run and locale) is set by the document itself.
+ */
+@page {
+  size: A4;
+  margin: 16mm 16mm 18mm;
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-size: 8pt;
+    color: #555;
+  }
+  @bottom-left {
+    font-size: 8pt;
+    color: #555;
+  }
+}
+
+@media print {
+  /* The report's PDF: white paper, and the shell around the document (main
+     panels, paddings, rounded surfaces) steps aside so only the document prints. */
+  html:has([data-print-report]),
+  body:has([data-print-report]) {
+    background: #fff !important;
+    /* The page margins outside the root take the canvas colour of the colour
+       scheme: a dark theme would print them dark. */
+    color-scheme: light !important;
+  }
+  body:has([data-print-report]) :has([data-print-report]) {
+    background: transparent !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+  aside:has(> nav),
+  .orb-a,
+  .orb-b {
+    display: none !important;
+  }
+  details::details-content {
+    content-visibility: visible;
+    block-size: auto;
+  }
+  details > summary svg {
+    display: none;
   }
 }

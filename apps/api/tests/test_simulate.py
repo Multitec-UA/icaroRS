@@ -25,7 +25,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
-from icaro_api.services.db import InMemoryDb, RocketRecord, SimRecord
+from icaro_api.services.db import ExportRecord, InMemoryDb, RocketRecord, SimRecord
 from icaro_api.services.storage import LocalFsStorage
 
 _TEST_SESSION_COOKIE = "test-session-token"
@@ -39,12 +39,23 @@ def _fake_verify_identity(cookie: str) -> dict:
 
 
 def _seed_rocket(db: InMemoryDb, export_id: str) -> None:
-    """POST /api/simulate now resolves export_id to its RocketRecord (#45) —
+    """POST /api/simulate now resolves export_id to its ExportRecord (#45) —
     only needed against a real InMemoryDb (a MagicMock stub's get_rocket
     returns a truthy MagicMock by default, so it doesn't need seeding)."""
     db.save_rocket(
         RocketRecord(
-            rocket_id=export_id,
+            rocket_id=f"rk-{export_id}",
+            name="TestRocket",
+            created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+            created_by="test",
+            org_id=_ORG,
+        ),
+        org_id=_ORG,
+    )
+    db.save_export(
+        ExportRecord(
+            export_id=export_id,
+            rocket_id=f"rk-{export_id}",
             name="TestRocket",
             created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
             created_by="test",
@@ -52,6 +63,19 @@ def _seed_rocket(db: InMemoryDb, export_id: str) -> None:
             export_prefix=f"exports/{export_id}/",
         ),
         org_id=_ORG,
+    )
+
+
+def _export_record(export_id: str, rocket_id: str = "rk-test") -> ExportRecord:
+    """A real ExportRecord for MagicMock-backed dbs, so the router reads real ids."""
+    return ExportRecord(
+        export_id=export_id,
+        rocket_id=rocket_id,
+        name="TestRocket",
+        created_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        created_by="test",
+        org_id=_ORG,
+        export_prefix=f"exports/{export_id}/",
     )
 
 
@@ -494,11 +518,12 @@ class TestErrorSimulationRecord:
             f"Expected error message in warnings; got {saved_rec.warnings!r}"
         )
 
-    def test_db_save_error_has_correct_rocket_id(self, tmp_path):
-        """REQ-03.2: SimRecord.rocket_id must match the export_id even on failure."""
+    def test_db_save_error_has_correct_export_and_rocket_id(self, tmp_path):
+        """REQ-03.2: the error SimRecord names the export and its rocket even on failure."""
         error_msg = "Physics error"
         client, db, storage = self._client_with_failing_simulate(error_msg)
         export_id = "20260605T120000Z-rocketid1"
+        db.get_export.return_value = _export_record(export_id, rocket_id="rk-err")
 
         with patch(
             "icaro_api.routers.simulate.simulate_from_export",
@@ -512,7 +537,8 @@ class TestErrorSimulationRecord:
 
         db.save_simulation.assert_called_once()
         saved_rec = db.save_simulation.call_args[0][0]
-        assert saved_rec.rocket_id == export_id
+        assert saved_rec.export_id == export_id
+        assert saved_rec.rocket_id == "rk-err"
 
 
 class TestSimulateDbRecord:
@@ -535,6 +561,7 @@ class TestSimulateDbRecord:
         client = TestClient(app, raise_server_exceptions=True)
 
         export_id = "20260605T120000Z-rocketid"
+        db.get_export.return_value = _export_record(export_id, rocket_id="rk-done")
         sim_run_id = "fake-sim-002"
         fake_res = _fake_results(sim_run_id)
         fake_res["scalars"] = {"apogee_m": 4200.0}
@@ -555,6 +582,49 @@ class TestSimulateDbRecord:
         db.save_simulation.assert_called_once()
         saved_rec = db.save_simulation.call_args[0][0]
         assert isinstance(saved_rec, SimRecord)
-        assert saved_rec.rocket_id == export_id
+        assert saved_rec.export_id == export_id
+        assert saved_rec.rocket_id == "rk-done"
         assert saved_rec.status == "done"
         assert saved_rec.scalars.get("apogee_m") == 4200.0
+
+
+# ---------------------------------------------------------------------------
+# Rocket/Export split (S4): simulate resolves an *export*, stores both ids
+# ---------------------------------------------------------------------------
+
+
+class TestSimulateExportResolution:
+    def test_unknown_export_id_returns_404_with_export_wording(self):
+        db = InMemoryDb()
+        client = _make_client(storage=MagicMock(), db=db)
+
+        resp = client.post(
+            "/api/simulate",
+            json=_valid_body("missing-export"),
+            headers=_auth(),
+        )
+
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Export 'missing-export' not found."
+
+    def test_sim_record_stores_export_id_and_its_rocket_id(self, tmp_path):
+        db = InMemoryDb()
+        _seed_rocket(db, "exp-123")
+        storage = MagicMock()
+        client = _make_client(storage=storage, db=db)
+
+        with patch("icaro_api.routers.simulate.simulate_from_export", return_value=MagicMock()), patch(
+            "icaro_api.routers.simulate.serialize_flight", return_value=_fake_results("run-xyz")
+        ):
+            resp = client.post(
+                "/api/simulate",
+                json=_valid_body("exp-123"),
+                headers=_auth(),
+            )
+
+        assert resp.status_code == 200
+        saved = db.list_simulations(org_id=_ORG)
+        assert len(saved) == 1
+        rec = saved[0]
+        assert rec.export_id == "exp-123"
+        assert rec.rocket_id == "rk-exp-123"

@@ -131,6 +131,8 @@ jobs:
           uv run --no-sync pytest
           -m integration
           tests/test_firestore_emulator.py
+          tests/test_backfill_org_id_emulator.py
+          tests/test_migrate_rocket_exports_emulator.py
           -v
 
   # ---------------------------------------------------------------------------
@@ -174,3 +176,54 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # Web visual regression — Playwright screenshots of every screen, both
+  # themes, against a deterministic stub API (apps/web/e2e/). Runs in the same
+  # image as `npm run e2e:visual` locally, so pixels match the committed
+  # snapshots in apps/web/e2e/__screenshots__.
+  # ---------------------------------------------------------------------------
+  web-visual:
+    name: Web visual (apps/web, Playwright)
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --ipc=host
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The committed snapshots are Linux renders from this image (see the
+      # "Render snapshots on Linux" step below for how to re-baseline them).
+      - name: Visual regression (Playwright)
+        run: npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report
+            apps/web/test-results
+          retention-days: 14
+
+      # Fresh renders from this image, always: download the artifact to
+      # re-baseline the committed snapshots from CI's own platform (the
+      # authoring Mac cannot run the Playwright Docker image).
+      - name: Render snapshots on Linux
+        if: always()
+        run: npx playwright test --update-snapshots=all --reporter=line
+
+      - name: Upload Linux snapshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-visual-snapshots
+          path: apps/web/e2e/__screenshots__
+          retention-days: 7

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "01-identity-graphite.html",
+  "handoffs": {
+    "01-identity-graphite.html": {
+      "status": "implemented",
+      "queued": false,
+      "sentAt": "2026-11-03T11:42:51.395Z",
+      "startedAt": "2026-11-03T11:42:56.201Z",
+      "implementedAt": "2026-11-03T12:04:49.629Z",
+      "note": "Tokens mapped in globals.css (light + dark); brand mark, nav indicator, top rule, chart series 1 in Multitec red; actions, focus and selection in graphite; deltas neutral; raspberry errors; favicon red. 490 unit tests, lint, build and 32 e2e green; snapshots rebaselined.",
+      "previewUrl": "http://localhost:3000/"
+    }
+  }
+}

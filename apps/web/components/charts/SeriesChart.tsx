@@ -4,13 +4,19 @@
  * SeriesChart — interactive 2D flight chart (issue #11).
  *
  * One metric at a time (altitude / speed / Mach / acceleration) vs time, with
- * hover tooltip, zoom + pan (mouse wheel and a slider). ECharts, themed to the
- * dark "Ethereal Glass" look. Client-only; meant to be dynamically imported
+ * hover tooltip, zoom + pan (mouse wheel and a slider). ECharts, themed from
+ * the theme tokens. Client-only; meant to be dynamically imported
  * (ssr:false) so echarts never runs during SSR and stays code-split.
  *
  * The canvas itself is opaque to assistive tech, so the container carries an
  * accessible name that summarizes the selected series (metric + peak); the
  * metric toggles expose their state with `aria-pressed`.
+ *
+ * Two modes (S9): uncontrolled (default) owns the active metric and renders
+ * its own toggles; controlled (`metric` + `onMetricChange`, the Workbench's
+ * SeriesPanel) follows the parent's metric and leaves the toggles to it, so
+ * the chart never shows two sets. `palette` recolours the chart from the
+ * caller's colours; the defaults read the theme tokens (`useChartTokens`).
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -20,15 +26,41 @@ import type { FlightSeries } from "@/lib/api";
 import type { Locale, TranslateFn } from "@/lib/i18n";
 import { cn, focusRing } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { mergePalette, useChartTokens } from "./themeDefaults";
 
-type MetricKey = "altitude" | "speed" | "mach" | "acceleration";
+export type MetricKey = "altitude" | "speed" | "mach" | "acceleration";
 
-const METRICS: { key: MetricKey; labelKey: string; unit: string; color: string }[] = [
-  { key: "altitude", labelKey: "chart.altitude", unit: "m", color: "#22d3ee" },
-  { key: "speed", labelKey: "chart.speed", unit: "m/s", color: "#a78bfa" },
-  { key: "mach", labelKey: "chart.mach", unit: "", color: "#34d399" },
-  { key: "acceleration", labelKey: "chart.acceleration", unit: "m/s²", color: "#f472b6" },
+/** Chart colours; ECharts needs concrete strings, not CSS variables. */
+export type SeriesChartPalette = Partial<
+  Record<MetricKey | "ink" | "muted" | "divider" | "axis" | "surface" | "border", string>
+>;
+
+function tokenPalette(tokens: ReturnType<typeof useChartTokens>): Required<SeriesChartPalette> {
+  return {
+    altitude: tokens.accent,
+    speed: tokens.peach,
+    mach: tokens.ok,
+    acceleration: tokens.warn,
+    ink: tokens.ink,
+    muted: tokens.muted,
+    divider: tokens.divider,
+    axis: tokens.axis,
+    surface: tokens.surface,
+    border: tokens.border,
+  };
+}
+
+const METRICS: { key: MetricKey; labelKey: string; unit: string }[] = [
+  { key: "altitude", labelKey: "chart.altitude", unit: "m" },
+  { key: "speed", labelKey: "chart.speed", unit: "m/s" },
+  { key: "mach", labelKey: "chart.mach", unit: "" },
+  { key: "acceleration", labelKey: "chart.acceleration", unit: "m/s²" },
 ];
+
+/** `#rrggbb` + alpha byte; any other colour notation is returned untouched. */
+function withAlpha(color: string, alphaHex: string): string {
+  return /^#[0-9a-f]{6}$/i.test(color) ? `${color}${alphaHex}` : color;
+}
 
 function buildOption(
   series: FlightSeries,
@@ -37,25 +69,32 @@ function buildOption(
     t,
     format,
     reduceMotion,
-  }: { t: TranslateFn; format: Intl.NumberFormat; reduceMotion: boolean },
+    colors,
+  }: {
+    t: TranslateFn;
+    format: Intl.NumberFormat;
+    reduceMotion: boolean;
+    colors: Required<SeriesChartPalette>;
+  },
 ): echarts.EChartsCoreOption {
   const ys = (series[metric.key] ?? []) as number[];
   const data = series.t.map((t, i) => [t, ys[i]]);
   const label = t(metric.labelKey);
-  const axisColor = "rgba(255,255,255,0.15)";
-  const splitColor = "rgba(255,255,255,0.05)";
-  const muted = "#8b8f9c";
+  const lineColor = colors[metric.key];
+  const axisColor = colors.axis;
+  const splitColor = colors.divider;
+  const muted = colors.muted;
 
   return {
     backgroundColor: "transparent",
     grid: { left: 60, right: 24, top: 24, bottom: 72 },
     tooltip: {
       trigger: "axis",
-      backgroundColor: "rgba(11,11,14,0.95)",
-      borderColor: "rgba(255,255,255,0.12)",
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
       borderWidth: 1,
-      textStyle: { color: "#ededf2", fontSize: 12 },
-      axisPointer: { lineStyle: { color: "rgba(255,255,255,0.25)" } },
+      textStyle: { color: colors.ink, fontSize: 12 },
+      axisPointer: { lineStyle: { color: axisColor } },
       formatter: (params: unknown) => {
         const p = (params as { value: [number, number] }[])[0];
         const u = metric.unit ? ` ${metric.unit}` : "";
@@ -88,11 +127,11 @@ function buildOption(
         height: 20,
         bottom: 28,
         borderColor: "transparent",
-        backgroundColor: "rgba(255,255,255,0.04)",
-        fillerColor: "rgba(34,211,238,0.12)",
-        handleStyle: { color: metric.color, borderColor: metric.color },
-        moveHandleStyle: { color: metric.color },
-        dataBackground: { lineStyle: { color: muted }, areaStyle: { color: "rgba(255,255,255,0.04)" } },
+        backgroundColor: splitColor,
+        fillerColor: withAlpha(lineColor, "1f"),
+        handleStyle: { color: lineColor, borderColor: lineColor },
+        moveHandleStyle: { color: lineColor },
+        dataBackground: { lineStyle: { color: muted }, areaStyle: { color: splitColor } },
         textStyle: { color: muted },
       },
     ],
@@ -102,11 +141,11 @@ function buildOption(
         smooth: true,
         showSymbol: false,
         data,
-        lineStyle: { color: metric.color, width: 2 },
+        lineStyle: { color: lineColor, width: 2 },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: `${metric.color}55` },
-            { offset: 1, color: `${metric.color}00` },
+            { offset: 0, color: withAlpha(lineColor, "55") },
+            { offset: 1, color: withAlpha(lineColor, "00") },
           ]),
         },
       },
@@ -129,16 +168,38 @@ function makeNumberFormat(locale: Locale): Intl.NumberFormat {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
 }
 
-export function SeriesChart({ series }: { series: FlightSeries }) {
+export function SeriesChart({
+  series,
+  metric: controlledMetric,
+  onMetricChange,
+  palette: paletteOverrides,
+}: {
+  series: FlightSeries;
+  /** Controlled metric; with it the chart renders no toggles of its own. */
+  metric?: MetricKey;
+  onMetricChange?: (metric: MetricKey) => void;
+  palette?: SeriesChartPalette;
+}) {
   const t = useT();
   const { locale } = useLocale();
   const reduceMotion = useReducedMotion() === true;
   const format = useMemo(() => makeNumberFormat(locale), [locale]);
+  const tokens = useChartTokens();
+  const colors = useMemo(
+    () => mergePalette(tokenPalette(tokens), paletteOverrides),
+    [tokens, paletteOverrides],
+  );
 
   const available = METRICS.filter(
     (m) => Array.isArray(series[m.key]) && (series[m.key] as number[]).length > 0,
   );
-  const [active, setActive] = useState<MetricKey>(available[0]?.key ?? "altitude");
+  const [internalActive, setInternalActive] = useState<MetricKey>(available[0]?.key ?? "altitude");
+  const controlled = controlledMetric !== undefined;
+  const active = controlled ? controlledMetric : internalActive;
+  const setActive = (next: MetricKey) => {
+    if (!controlled) setInternalActive(next);
+    onMetricChange?.(next);
+  };
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
 
@@ -158,8 +219,8 @@ export function SeriesChart({ series }: { series: FlightSeries }) {
   useEffect(() => {
     const metric = METRICS.find((m) => m.key === active);
     if (!chartRef.current || !metric) return;
-    chartRef.current.setOption(buildOption(series, metric, { t, format, reduceMotion }), true);
-  }, [active, series, t, format, reduceMotion]);
+    chartRef.current.setOption(buildOption(series, metric, { t, format, reduceMotion, colors }), true);
+  }, [active, series, t, format, reduceMotion, colors]);
 
   if (available.length === 0) return null;
 
@@ -171,30 +232,28 @@ export function SeriesChart({ series }: { series: FlightSeries }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        {available.map((m) => (
-          <button
-            key={m.key}
-            type="button"
-            aria-pressed={active === m.key}
-            onClick={() => setActive(m.key)}
-            className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset transition-[background-color,box-shadow,color] duration-500 ease-[var(--ease-spring)]",
-              focusRing,
-              active === m.key
-                ? "text-foreground ring-white/25"
-                : "text-muted ring-white/10 hover:text-foreground hover:ring-white/20",
+      {!controlled && (
+        <div className="flex flex-wrap gap-2">
+          {available.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              aria-pressed={active === m.key}
+              onClick={() => setActive(m.key)}
+              className={cn(
+                "h-8 rounded-full border px-3.5 text-[13px] font-medium transition-[background-color,border-color,color] duration-300 ease-[var(--ease-spring)] pointer-coarse:min-h-11",
+                focusRing,
+                active === m.key
+                  ? // Selection is graphite, like every control: red is brand or error.
+                    "border-primary bg-primary text-on-primary"
+                  : "border-transparent bg-chip text-ink-2 hover:bg-accent-soft hover:text-ink",
             )}
-            style={
-              active === m.key
-                ? { boxShadow: `0 0 24px -10px ${m.color}`, background: `${m.color}1a` }
-                : undefined
-            }
           >
             {t(m.labelKey)}
           </button>
         ))}
       </div>
+      )}
       <div ref={containerRef} role="img" aria-label={chartName} className="h-[360px] w-full" />
     </div>
   );

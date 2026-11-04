@@ -19,29 +19,30 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 describe("ResultsActions (issue #52 — client island)", () => {
-  it("'Simulate again' is a real link to / that also sends the wizard to the basics step", async () => {
-    let capturedStep: string | undefined;
-    function StepProbe() {
-      const { step } = useWizard();
-      capturedStep = step;
-      return null;
-    }
-
+  it("'Open in Workbench' is a real link to the run's Workbench URL (S8)", async () => {
     render(
       <AppProviders>
-        <StepProbe />
-        <ResultsActions />
+        <ResultsActions runId="run-42" />
       </AppProviders>,
     );
 
     // A navigation is a link (Cmd/Ctrl-click, middle-click, "open in new tab"
-    // all keep working), not a button that pushes the router.
-    const link = await screen.findByRole("link", { name: "Simulate again" });
-    expect(link).toHaveAttribute("href", "/");
+    // all keep working); the Workbench loads the run from its URL.
+    const link = await screen.findByRole("link", { name: "Open in Workbench" });
+    expect(link).toHaveAttribute("href", "/?run=run-42");
+    expect(screen.queryByRole("link", { name: "Simulate again" })).toBeNull();
+  });
 
-    fireEvent.click(link);
-
-    expect(capturedStep).toBe("basics");
+  it("'Download PDF' prints the report, which the print rules turn into the PDF (S13)", async () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    render(
+      <AppProviders>
+        <ResultsActions runId="run-1" />
+      </AppProviders>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "Download PDF" }));
+    expect(print).toHaveBeenCalledTimes(1);
+    print.mockRestore();
   });
 
   it("'New rocket' resets the wizard and navigates to /", async () => {
@@ -53,6 +54,7 @@ describe("ResultsActions (issue #52 — client island)", () => {
       forward: vi.fn(),
       refresh: vi.fn(),
       prefetch: vi.fn(),
+      bfcacheId: "test",
     });
 
     let capturedExportId: string | null | undefined;
@@ -68,7 +70,7 @@ describe("ResultsActions (issue #52 — client island)", () => {
     render(
       <AppProviders>
         <ExportProbe />
-        <ResultsActions />
+        <ResultsActions runId="run-42" />
       </AppProviders>,
     );
 
@@ -105,7 +107,7 @@ describe("ResultsActions (issue #52 — client island)", () => {
     render(
       <AppProviders>
         <ExportProbe />
-        <ResultsActions />
+        <ResultsActions runId="run-42" />
       </AppProviders>,
     );
     await waitFor(() => expect(screen.getByTestId("export-id")).toHaveTextContent("export-1"));

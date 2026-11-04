@@ -11,3 +11,11 @@
 # are README stubs today; add them here when they become actual packages.
 [tool.uv.workspace]
 members = ["packages/*", "apps/cli", "apps/api"]
+
+# Lock only for Python 3.11+. Python 3.10 reaches end of life in October 2026,
+# and Pillow 13 (security fixes) needs 3.11, so a 3.10 fork kept Pillow 12.3.0
+# and cryptography 43.0.3 in this lockfile. Nothing uses that fork: the uv CI
+# job and the API image run 3.12; the 3.10 CI matrices install with pip.
+# Package metadata still says >=3.10, so pip installs on 3.10 keep working.
+[tool.uv]
+environments = ["python_full_version >= '3.11'"]

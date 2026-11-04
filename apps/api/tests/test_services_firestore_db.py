@@ -7,8 +7,9 @@ All tests mock ``google.cloud.firestore.Client`` — zero live GCP dependency.
 The approach bypasses __init__ and injects a mock _db client directly.
 
 Collections tested:
-  ``rockets``     — save_rocket, get_rocket, list_rockets
+  ``rockets``     — save_rocket, get_rocket, list_rockets (rocket = group of exports)
   ``simulations`` — save_simulation, list_simulations
+  ``exports``     — see test_services_firestore_db_exports.py
 
 org_id (issue #43): every method takes org_id as a required parameter. Reads
 are scoped with a ``.where("org_id", "==", org_id)`` clause (backed by the
@@ -46,11 +47,6 @@ def _make_rocket(rocket_id: str = "r1", dt: datetime | None = None, org_id: str 
         created_at=dt or _T1,
         created_by="ci",
         org_id=org_id,
-        export_prefix=f"exports/{rocket_id}/",
-        manifest={"name": "TestRocket", "version": "1"},
-        gcs_ref=f"exports/{rocket_id}/",
-        ork_filename="test.ork",
-        has_source_ork=False,
     )
 
 
@@ -121,35 +117,8 @@ class TestFirestoreDbSaveRocket:
 
         assert set_kwargs["name"] == "TestRocket"
         assert set_kwargs["created_at"] == rec.created_at
-        assert set_kwargs["gcs_ref"] == "exports/r-fields/"
         assert set_kwargs["org_id"] == _ORG
-
-    def test_set_excludes_manifest(self, fs, mock_db_client):
-        """Regression: the manifest must NOT be written to Firestore.
-
-        OpenRocket manifests can contain arrays nested directly inside arrays
-        (e.g. ``freeform_fins[].shape_points``), which Firestore Native rejects
-        with ``400 Property manifest contains an invalid nested entity``. The
-        manifest lives in object storage instead; Firestore stores metadata only.
-        """
-        rec = _make_rocket("r-nested")
-        rec.manifest = {
-            "name": "FreeformRocket",
-            "freeform_fins": [
-                {"shape_points": [[0.0, 0.0], [0.1, 0.05], [0.2, 0.0]]}
-            ],
-        }
-        fs.save_rocket(rec, org_id=_ORG)
-
-        set_kwargs = (
-            mock_db_client.collection.return_value.document.return_value
-        ).set.call_args[0][0]
-
-        assert "manifest" not in set_kwargs
-        # Metadata is still persisted (name is the record's name, not the
-        # manifest's — _make_rocket sets name="TestRocket").
-        assert set_kwargs["name"] == "TestRocket"
-        assert set_kwargs["export_prefix"] == "exports/r-nested/"
+        assert "export_prefix" not in set_kwargs
 
     def test_set_preserves_datetime_object(self, fs, mock_db_client):
         """created_at must remain a datetime object (Firestore serialises it natively)."""
@@ -186,11 +155,6 @@ class TestFirestoreDbGetRocket:
             "created_at": rec.created_at,
             "created_by": rec.created_by,
             "org_id": rec.org_id,
-            "export_prefix": rec.export_prefix,
-            "manifest": rec.manifest,
-            "gcs_ref": rec.gcs_ref,
-            "ork_filename": rec.ork_filename,
-            "has_source_ork": rec.has_source_ork,
         }
         (
             mock_db_client.collection.return_value
@@ -340,11 +304,6 @@ class TestFirestoreDbListRockets:
                 "created_at": _T1,
                 "created_by": "ci",
                 "org_id": _ORG,
-                "export_prefix": "exports/r-listed/",
-                "manifest": {},
-                "gcs_ref": "exports/r-listed/",
-                "ork_filename": None,
-                "has_source_ork": False,
             },
         )
         q = self._chained_query(mock_db_client)
