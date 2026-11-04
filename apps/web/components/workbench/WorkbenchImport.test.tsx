@@ -476,7 +476,7 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
     );
   });
 
-  it("shows a compact rocket card under each file, fetching the inactive file's manifest", async () => {
+  it("shows the compact rocket card only under the active file, fetching no other manifest", async () => {
     arm();
     armRocketApi();
     await renderShell();
@@ -484,12 +484,13 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
     getExportMock.mockClear();
 
     const { dialog } = await openPanel();
+    await within(dialog).findByRole("radio", { name: /icarus2\.ork/ });
 
-    // One card per file: the active one from the draft, the other fetched once.
-    await waitFor(() => expect(within(dialog).getAllByRole("group", { name: "Rocket Icarus-2" })).toHaveLength(2));
-    // The inactive file is fetched exactly once for its card.
-    expect(getExportMock.mock.calls.filter(([id]) => id === "ex-old")).toHaveLength(1);
-    expect(within(dialog).getAllByText("Rail defaults")).toHaveLength(2);
+    // One card, the active file's, from the draft: a long file list stays one line per file.
+    expect(within(dialog).getAllByRole("group", { name: "Rocket Icarus-2" })).toHaveLength(1);
+    expect(within(dialog).getAllByText("Rail defaults")).toHaveLength(1);
+    // No inactive file's manifest is fetched for a card any more.
+    expect(getExportMock.mock.calls.filter(([id]) => id === "ex-old")).toHaveLength(0);
   });
 
   it("shows how many runs each file has, counted from the rocket's history", async () => {

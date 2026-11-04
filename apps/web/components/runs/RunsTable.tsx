@@ -91,10 +91,12 @@ export function RunsTable({
   const baselineMetrics = useMemo(() => (baseline ? runMetrics(baseline.scalars) : null), [baseline]);
 
   return (
-    <div className={cn("overflow-x-auto", cardClass)}>
+    // Capped at about half the screen and scrolled on its own, header pinned:
+    // a rocket with many runs never buries the compare chart and "What changed".
+    <div className={cn("max-h-[55vh] overflow-x-auto overflow-y-auto overscroll-contain", cardClass)}>
       <table className="w-full min-w-[760px] border-collapse text-sm text-ink">
         <caption className="sr-only">{t("runs.tableCaption", { rocket: rocketName })}</caption>
-        <thead>
+        <thead className="sticky top-0 z-10 bg-surface shadow-[0_1px_0_var(--divider)]">
           <tr className="border-b border-divider">
             <th scope="col" className={HEAD_CELL}>
               {t("runs.colCompare")}
