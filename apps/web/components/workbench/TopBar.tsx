@@ -41,6 +41,7 @@ import { primaryButton } from "./styles";
 import type { RunSimulation } from "./useRunSimulation";
 import type { OrkImport } from "./useOrkImport";
 import type { WorkbenchUrl } from "./useWorkbenchUrl";
+import { fileLabel } from "@/lib/domain/exports";
 
 
 export function TopBar({
@@ -72,7 +73,7 @@ export function TopBar({
   const { phase } = importer;
   const converting = phase.kind === "converting";
   const hasExport = state.exportId !== null;
-  const file = state.exportFilename ?? state.exportId ?? "";
+  const file = fileLabel(state.exportFilename, state.exportRevision, state.exportId ?? "");
   const contextLabel =
     phase.kind === "converting"
       ? t("workbench.convertingContext", { filename: phase.file.name })

@@ -73,7 +73,7 @@ const RUNS_R2: SimulationSummary[] = [
     },
   }),
   run({ simulation_id: "run-c", created_at: "2026-10-22T12:00:00Z", status: "error", scalars: {} }),
-  run({ simulation_id: "run-d", created_at: "2026-10-21T12:00:00Z", export_id: "exp-2", ork_filename: "icarus2_v3.ork" }),
+  run({ simulation_id: "run-d", created_at: "2026-10-21T12:00:00Z", export_id: "exp-2", ork_filename: "icarus2_v3.ork", ork_revision: 2 }),
   run({ simulation_id: "run-e", created_at: "2026-10-20T12:00:00Z", export_id: "", ork_filename: null }),
 ];
 
@@ -227,7 +227,7 @@ describe("RunsView — overlay and what changed", () => {
     const changed = screen.getByRole("region", { name: "What changed" });
     expect(within(changed).getByText(/Weather Real forecast \(GFS\) → Standard atmosphere/)).toBeInTheDocument();
     expect(within(changed).getByText(/Launch .*11:00.* → .*3:00/)).toBeInTheDocument();
-    expect(within(changed).getByText("Different file: icarus2_v3.ork")).toBeInTheDocument();
+    expect(within(changed).getByText("Different file: icarus2_v3.ork v2")).toBeInTheDocument();
     // The canonical diff (S12a): the site's elevation counts too.
     expect(within(changed).getByText("Elevation 12 m → 40 m")).toBeInTheDocument();
     // The baseline itself is never compared with itself.
@@ -313,6 +313,14 @@ describe("RunsView — per-run actions (ported from the history list)", () => {
     expect(within(rowA).getByText("View report")).toBeInTheDocument();
     fireEvent.mouseEnter(workbench.parentElement as HTMLElement);
     expect(within(rowA).getByText("Open in Workbench")).toBeInTheDocument();
+  });
+
+  it("a repeated import shows its version next to the file name; a single import shows none", async () => {
+    const table = await renderRuns();
+    const rowD = table.getByRole("radio", { name: "Baseline: run run-d" }).closest("tr") as HTMLElement;
+    expect(within(rowD).getByText("v2")).toBeInTheDocument();
+    const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
+    expect(within(rowB).queryByText(/^v\d+$/)).toBeNull();
   });
 
   it("the launch cell names the site, never the scenario's default label", async () => {

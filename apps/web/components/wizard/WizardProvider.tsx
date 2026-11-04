@@ -62,6 +62,8 @@ interface WizardState {
   // filename of the export and the name of its rocket. Null when the caller
   // did not know them (older call sites pass only the ids).
   exportFilename: string | null;
+  // Which import of that file name in its rocket (`ork_revision`); null when imported once.
+  exportRevision: number | null;
   rocketName: string | null;
   // The active file's launch rail (`manifest.flight`), derived at setExport.
   railDefaults: RailDefaults | null;
@@ -105,6 +107,8 @@ export interface DisplayedRun {
 /** Optional display metadata recorded alongside an export (see `setExport`). */
 export interface ExportMeta {
   filename?: string | null;
+  /** The API's `ork_revision` of the file. */
+  revision?: number | null;
   rocketName?: string | null;
 }
 
@@ -115,6 +119,7 @@ type WizardAction =
       manifest: Record<string, unknown>;
       rocketId: string | null;
       exportFilename: string | null;
+      exportRevision: number | null;
       rocketName: string | null;
     }
   | { type: "SET_NAME"; name: string }
@@ -132,6 +137,7 @@ const INITIAL_STATE: WizardState = {
   rocketId: null,
   manifest: null,
   exportFilename: null,
+  exportRevision: null,
   rocketName: null,
   railDefaults: null,
   name: "my_scenario",
@@ -173,6 +179,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         rocketId: action.rocketId,
         manifest: action.manifest,
         exportFilename: action.exportFilename,
+        exportRevision: action.exportRevision,
         rocketName: action.rocketName,
         railDefaults: railDefaultsFromManifest(action.manifest),
         railOverrides:
@@ -325,6 +332,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
         manifest,
         rocketId: rocketId ?? null,
         exportFilename: meta?.filename ?? null,
+        exportRevision: meta?.revision ?? null,
         rocketName: meta?.rocketName ?? null,
       }),
     [],

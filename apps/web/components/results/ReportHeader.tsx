@@ -20,6 +20,7 @@ import { useT } from "@/components/i18n/LocaleProvider";
 import { textLink, toneClass } from "@/components/ui/classes";
 import { useRunFormatters } from "@/components/runs/useRunFormatters";
 import { ResultsActions } from "./ResultsActions";
+import { FileName } from "@/components/ui/FileName";
 
 const CRUMB = cn(textLink, "text-sm");
 
@@ -68,9 +69,11 @@ export function ReportHeader({ runId }: { runId: string }) {
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] text-ink sm:text-3xl">{title}</h1>
           {run && (
             <p className="flex flex-wrap items-center gap-x-2 text-sm text-muted">
-              <span translate="no" className="font-mono text-[13px] text-ink-2">
-                {run.ork_filename ?? run.export_id}
-              </span>
+              <FileName
+                name={run.ork_filename ?? run.export_id}
+                revision={run.ork_revision}
+                className="font-mono text-[13px] text-ink-2"
+              />
               <span aria-hidden>·</span>
               <span className="tabular-nums">{dateTime.format(new Date(run.created_at))}</span>
               <span aria-hidden>·</span>

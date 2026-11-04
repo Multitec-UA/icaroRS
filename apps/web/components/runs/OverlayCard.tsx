@@ -15,6 +15,7 @@ import { cn } from "@/lib/styles";
 import { OverlayChart, type OverlayLine } from "@/components/flight/OverlayChart";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { RUN_COLORS } from "./colors";
+import { fileLabel } from "@/lib/domain/exports";
 
 export interface OverlayEntry {
   run: SimulationSummary;
@@ -25,7 +26,7 @@ export interface OverlayEntry {
 }
 
 function labelOf(run: SimulationSummary): string {
-  return `${run.ork_filename ?? run.export_id} · ${shortRunId(run.simulation_id)}`;
+  return `${fileLabel(run.ork_filename, run.ork_revision, run.export_id)} · ${shortRunId(run.simulation_id)}`;
 }
 
 export function OverlayCard({ entries }: { entries: OverlayEntry[] }) {

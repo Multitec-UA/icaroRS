@@ -14,6 +14,7 @@ import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
 import { RocketSummaryCard } from "@/components/workbench/RocketSummaryCard";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { useReportExport } from "./useReportExport";
+import { fileLabel } from "@/lib/domain/exports";
 
 export function ReportRocketCard({ runId }: { runId: string }) {
   const t = useT();
@@ -29,5 +30,5 @@ export function ReportRocketCard({ runId }: { runId: string }) {
   }
   if (!summary) return null;
 
-  return <RocketSummaryCard summary={summary} name={run?.name} file={run?.ork_filename} compact />;
+  return <RocketSummaryCard summary={summary} name={run?.name} file={run?.ork_filename ? fileLabel(run.ork_filename, run.ork_revision) : run?.ork_filename} compact />;
 }

@@ -41,6 +41,7 @@ import { RUN_COLORS } from "./colors";
 import { MAX_OVERLAY } from "./colors";
 import { OpenInWorkbenchButton, ViewReportButton } from "./OpenInWorkbenchButton";
 import { useRunFormatters } from "./useRunFormatters";
+import { FileName } from "@/components/ui/FileName";
 
 const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
   apogee: "runs.colApogee",
@@ -166,8 +167,8 @@ export function RunsTable({
                 <th scope="row" className={cn(CELL, "text-left font-normal")}>
                   <span className="flex flex-col gap-0.5">
                     <span className="whitespace-nowrap tabular-nums text-ink">{dateTime.format(new Date(run.created_at))}</span>
-                    <span translate="no" title={run.ork_filename ?? undefined} className="block max-w-40 truncate text-xs text-ink-2">
-                      {run.ork_filename ?? (run.export_id || "—")}
+                    <span title={run.ork_filename ?? undefined} className="block max-w-48 text-xs text-ink-2">
+                      <FileName name={run.ork_filename ?? (run.export_id || "—")} revision={run.ork_revision} />
                     </span>
                     <span className="flex items-center gap-1.5 text-xs text-muted">
                       <span translate="no" title={run.simulation_id} className="font-mono">

@@ -580,6 +580,52 @@ describe("Workbench import — A3 rocket panel (S8)", () => {
     expect(await screen.findByText("Icarus-2 · icarus2_v5.ork")).toBeInTheDocument();
   });
 
+  it("tells repeated imports of one file apart: v1..vn in the panel and on the top bar", async () => {
+    arm();
+    armRocketApi();
+    const repeated = [
+      { ...exportOf("rk-1", "ex-3", "icarus2.ork", "2026-10-22T10:00:00Z"), ork_revision: 3 },
+      exportOf("rk-1", "ex-single", "icarus2_v4.ork", "2026-10-21T10:00:00Z"),
+      { ...exportOf("rk-1", "ex-2", "icarus2.ork", "2026-10-20T10:00:00Z"), ork_revision: 2 },
+      { ...exportOf("rk-1", "ex-1", "icarus2.ork", "2026-10-02T10:00:00Z"), ork_revision: 1 },
+    ];
+    getRocketMock.mockImplementation(async (rocketId: string) => {
+      if (rocketId === "rk-1") return { ...ROCKETS[0], exports: repeated };
+      return { ...ROCKETS[1], exports: RK2_EXPORTS };
+    });
+    getExportMock.mockImplementation(async (exportId: string) => {
+      const exp = repeated.find((e) => e.export_id === exportId);
+      if (!exp) throw new Error("unknown export");
+      return { ...exp, manifest: { name: "Icarus-2" } };
+    });
+    await renderShell();
+    await useRocket("Icarus-2");
+
+    // The newest export is the third import of icarus2.ork.
+    expect(await screen.findByText("Icarus-2 · icarus2.ork v3")).toBeInTheDocument();
+    const { dialog } = await openPanel();
+    // The panel lists the rocket's files once its detail arrives.
+    await within(dialog).findByRole("radio", { name: /icarus2_v4\.ork/ });
+    for (const n of [1, 2, 3]) {
+      expect(within(dialog).getByRole("radio", { name: new RegExp(`icarus2\\.ork v${n}(?!\\d)`) })).toBeInTheDocument();
+    }
+    // A file imported once carries no version.
+    expect(within(dialog).getByRole("radio", { name: /icarus2_v4\.ork/ })).not.toHaveAccessibleName(/\.ork v\d/);
+  });
+
+  it("a re-import shows its version on the top bar right after converting", async () => {
+    arm();
+    armRocketApi();
+    convertMock.mockResolvedValue({ export_id: "ex-z", rocket_id: "rk-1", manifest: { name: "Icarus-2" }, ork_revision: 2 });
+    await renderShell();
+    await useRocket("Icarus-2");
+
+    const { dialog } = await openPanel();
+    chooseFile(within(dialog).getByLabelText("OpenRocket .ork file to add to Icarus-2"), orkFile("icarus2.ork"));
+
+    expect(await screen.findByText("Icarus-2 · icarus2.ork v2")).toBeInTheDocument();
+  });
+
   it("an 'Other rockets' chip switches to that rocket's newest export", async () => {
     arm();
     armRocketApi();

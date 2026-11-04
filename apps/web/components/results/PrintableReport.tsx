@@ -41,6 +41,7 @@ import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { flightEvents, formatNumber, fractionDigitsFor, landingDistance } from "@/components/flight/flightMath";
 import { useRunFormatters } from "@/components/runs/useRunFormatters";
 import { cn } from "@/lib/styles";
+import { fileLabel } from "@/lib/domain/exports";
 
 type ReportResult = Pick<SimulateResult, "scalars" | "warnings" | "plot_urls">;
 
@@ -161,7 +162,7 @@ function PrintReport({
           <Meta label={t("printReport.metaRunId")} value={runId} mono />
           {run && <Meta label={t("printReport.metaSimulatedOn")} value={utc(run.created_at)} />}
           {run && <Meta label={t("printReport.metaAuthor")} value={run.created_by} />}
-          {run && <Meta label={t("printReport.metaFile")} value={run.ork_filename ?? run.export_id} mono />}
+          {run && <Meta label={t("printReport.metaFile")} value={fileLabel(run.ork_filename, run.ork_revision, run.export_id)} mono />}
           <Meta label={t("printReport.metaGeneratedOn")} value={utc(generatedAt)} />
         </dl>
       </header>

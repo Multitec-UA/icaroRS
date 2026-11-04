@@ -45,6 +45,8 @@ import { RocketSummaryCard } from "./RocketSummaryCard";
 import { CloseIcon, RocketIcon } from "./icons";
 import { chipButton, textLink } from "./styles";
 import type { OrkImport } from "./useOrkImport";
+import { fileLabel } from "@/lib/domain/exports";
+import { FileName } from "@/components/ui/FileName";
 
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -96,7 +98,7 @@ export function RocketPanel({
   );
   const rocketName = detail.data?.name ?? state.rocketName ?? "";
   const exports = detail.data?.exports ?? [];
-  const activeFile = state.exportFilename ?? state.exportId ?? "";
+  const activeFile = fileLabel(state.exportFilename, state.exportRevision, state.exportId ?? "");
   const others = (rockets.data ?? []).filter((rocket) => rocket.rocket_id !== rocketId);
 
   // Focus moves into the dialog as it opens (it is mounted only while open).
@@ -143,6 +145,7 @@ export function RocketPanel({
       onSuccess: (full) => {
         setExport(full.export_id, full.manifest, rocketId, {
           filename: full.ork_filename,
+          revision: full.ork_revision ?? null,
           rocketName,
         });
       },
@@ -154,6 +157,7 @@ export function RocketPanel({
       onSuccess: ({ rocket, export: exp }) => {
         setExport(exp.export_id, exp.manifest, rocket.rocket_id, {
           filename: exp.ork_filename,
+          revision: exp.ork_revision ?? null,
           rocketName: rocket.name,
         });
       },
@@ -256,9 +260,11 @@ export function RocketPanel({
                         className="h-4 w-4 shrink-0 accent-[var(--primary)]"
                       />
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="truncate font-mono text-[13px] text-ink">
-                          {exp.ork_filename ?? exp.export_id}
-                        </span>
+                        <FileName
+                          name={exp.ork_filename ?? exp.export_id}
+                          revision={exp.ork_revision}
+                          className="font-mono text-[13px] text-ink"
+                        />
                         <span className="truncate text-xs text-muted">
                           <span translate="no">{exp.created_by}</span>
                           {" · "}

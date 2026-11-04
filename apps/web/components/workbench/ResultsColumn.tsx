@@ -42,6 +42,7 @@ import { ImportStatusCard } from "./ImportStatusCard";
 import { RocketSummaryCard } from "./RocketSummaryCard";
 import type { OrkImport } from "./useOrkImport";
 import type { WorkbenchUrl } from "./useWorkbenchUrl";
+import { fileLabel } from "@/lib/domain/exports";
 
 export function ResultsColumn({
   id,
@@ -114,7 +115,11 @@ export function ResultsColumn({
           </ReplayProvider>
         </FadeSwap>
       ) : hasExport ? (
-        <RocketSummaryCard summary={summary} name={state.rocketName} file={state.exportFilename} />
+        <RocketSummaryCard
+          summary={summary}
+          name={state.rocketName}
+          file={state.exportFilename ? fileLabel(state.exportFilename, state.exportRevision) : state.exportFilename}
+        />
       ) : phase.kind !== "idle" ? (
         <div className="flex items-center gap-2.5 rounded-xl border border-dashed border-border bg-surface-2 px-4 py-3 text-sm text-ink-2">
           <InfoIcon className="shrink-0 text-muted" />

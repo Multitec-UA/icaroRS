@@ -7,6 +7,7 @@
  * the data.
  */
 
+import { fileLabel } from "./exports";
 import type { SimulationSummary } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
 import { canonicalScenario, scenarioDiff, type ChangeGroup } from "./scenario";
@@ -206,7 +207,8 @@ export interface RunChange {
 }
 
 /** The inputs that decide a run: its scenario and the file it simulated. */
-export type RunInputs = Pick<SimulationSummary, "scenario" | "ork_filename" | "export_id">;
+export type RunInputs = Pick<SimulationSummary, "scenario" | "ork_filename" | "export_id"> &
+  Partial<Pick<SimulationSummary, "ork_revision">>;
 
 function text(value: unknown): string | null {
   return value === null || value === undefined ? null : String(value);
@@ -252,7 +254,13 @@ export function whatChanged(baseline: RunInputs, run: RunInputs): RunChange[] {
     };
     switch (group) {
       case "file":
-        changes.push({ group, key: "file", from: baseline.ork_filename, to: run.ork_filename });
+        // Two imports of one file name differ by their version (v1 → v3).
+        changes.push({
+          group,
+          key: "file",
+          from: baseline.ork_filename ? fileLabel(baseline.ork_filename, baseline.ork_revision) : null,
+          to: run.ork_filename ? fileLabel(run.ork_filename, run.ork_revision) : null,
+        });
         break;
       case "site":
         push("site", coordinates(a), coordinates(b));

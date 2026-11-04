@@ -150,6 +150,7 @@ export function useWorkbenchUrl(): WorkbenchUrl {
           if (stale()) return;
           setExport(exp.export_id, exp.manifest, exp.rocket_id ?? null, {
             filename: exp.ork_filename ?? run.ork_filename,
+            revision: exp.ork_revision ?? run.ork_revision ?? null,
             // The run row names its rocket (history denormalizes it); the
             // export's own name is the file's design name, which differs for
             // a file attached to an existing rocket.
@@ -206,6 +207,7 @@ export function useWorkbenchUrl(): WorkbenchUrl {
           if (stale()) return;
           setExport(exp.export_id, exp.manifest, exp.rocket_id ?? null, {
             filename: exp.ork_filename,
+            revision: exp.ork_revision ?? null,
             rocketName,
           });
           setStatus({ kind: "idle" });

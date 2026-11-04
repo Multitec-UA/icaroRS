@@ -16,6 +16,7 @@ import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { formatQuantity } from "@/components/flight/flightMath";
 import { useRunFormatters } from "@/components/runs/useRunFormatters";
 import { ReportRocketCard } from "./ReportRocketCard";
+import { fileLabel } from "@/lib/domain/exports";
 
 const BLOCK = "rounded-md bg-chip motion-safe:animate-pulse";
 
@@ -31,7 +32,7 @@ export function ReportConfiguration({ runId }: { runId: string }) {
 
   const rows: { key: string; label: string; value: string; mono?: boolean }[] = facts && run
     ? [
-        { key: "file", label: t("report.configFile"), value: run.ork_filename ?? run.export_id, mono: true },
+        { key: "file", label: t("report.configFile"), value: fileLabel(run.ork_filename, run.ork_revision, run.export_id), mono: true },
         {
           key: "site",
           label: t("report.configSite"),
