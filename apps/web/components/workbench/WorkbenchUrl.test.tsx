@@ -39,6 +39,7 @@ const api = vi.hoisted(() => ({
   getRunSummary: vi.fn(),
   getExport: vi.fn(),
   getSeries: vi.fn(),
+  getRocket: vi.fn(),
 }));
 
 vi.mock("@/lib/api", async (importOriginal) => {
@@ -47,7 +48,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
     ...actual,
     getIdentity: vi.fn().mockResolvedValue({ user_id: "u1", org_id: "o1", email: "pilot@multitec.dev" }),
     getRockets: vi.fn().mockResolvedValue([]),
-    getRocket: vi.fn().mockRejectedValue(new actual.ApiError(404, "no")),
+    getRocket: (...args: unknown[]) => api.getRocket(...args),
     getHistory: vi.fn().mockResolvedValue([]),
     suggestAtmosphere: vi.fn().mockResolvedValue({ model: "standard_atmosphere", reason: "ok", needs_internet: false }),
     getElevation: vi.fn().mockResolvedValue({ elevation: 42, source: "dem" }),
@@ -84,14 +85,16 @@ const SUMMARY = {
   scalars: { apogee: 1812.6 },
   warnings: ["Stored warning."],
   result_prefix: "orgs/o1/results/run-4/",
-  plot_names: ["trajectory_3d", "altitude"],
+  // The API's shape: names carry ".png" (routers/simulate.py derives them from the plot URLs).
+  plot_names: ["trajectory_3d.png", "altitude.png"],
   has_series: true,
 };
 
 const EXPORT = {
   export_id: "exp-1",
   rocket_id: "rk-1",
-  name: "Icarus-2",
+  // The file's own design name: attached to rocket "Icarus-2", it keeps it.
+  name: "Icarus design v3",
   created_at: "2026-10-20T10:00:00Z",
   created_by: "pilot@multitec.dev",
   export_prefix: "orgs/o1/exports/exp-1/",
@@ -103,6 +106,12 @@ const EXPORT = {
 
 beforeEach(() => {
   nav.search = "";
+  api.getRocket.mockImplementation(async (id: string) => {
+    if (id === "rk-1") {
+      return { rocket_id: "rk-1", name: "Icarus-2", created_at: "2026-10-20T10:00:00Z", created_by: "pilot@multitec.dev", exports: [] };
+    }
+    throw new ApiError(404, `Rocket '${id}' not found.`);
+  });
   api.getRunSummary.mockImplementation(async (id: string) => {
     if (id === "run-4") return SUMMARY;
     throw new ApiError(404, `Run '${id}' not found.`);
@@ -212,6 +221,30 @@ describe("Workbench URL — resolving it on mount (S8)", () => {
 
     expect(await screen.findByText("Up to date · run run-4")).toBeInTheDocument();
     expect(screen.getByLabelText("Latitude")).toHaveValue(38.2655);
+  });
+
+  it("?run= opens the stored plots at their real URLs (names already carry .png)", async () => {
+    renderAt("?run=run-4");
+    expect(await screen.findByText("Up to date · run run-4")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Plots"));
+
+    const images = await screen.findAllByRole("img");
+    const sources = images.map((img) => img.getAttribute("src")).filter((src) => src?.includes("/plots/"));
+    expect(sources).toEqual(["/api/results/run-4/plots/trajectory_3d.png", "/api/results/run-4/plots/altitude.png"]);
+  });
+
+  it("names the rocket, never the file's design name, for a file attached to an existing rocket", async () => {
+    renderAt("?file=exp-1");
+    expect(await screen.findByText("Icarus-2 · icarus2.ork")).toBeInTheDocument();
+    expect(screen.queryByText(/Icarus design v3 ·/)).toBeNull();
+    expect(api.getRocket).toHaveBeenCalledWith("rk-1");
+  });
+
+  it("?file= falls back to the file's design name when the rocket cannot be read", async () => {
+    api.getRocket.mockRejectedValue(new ApiError(500, "boom"));
+    renderAt("?file=exp-1");
+    expect(await screen.findByText("Icarus design v3 · icarus2.ork")).toBeInTheDocument();
   });
 
   it("?file= loads the file only: the rocket card is ready to run and no run is fetched", async () => {

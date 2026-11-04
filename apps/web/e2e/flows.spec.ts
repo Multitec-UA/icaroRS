@@ -171,3 +171,21 @@ test("Download PDF prints a complete technical report: every section expanded, e
   await expect(page.locator("[data-print-report]")).toBeVisible();
   await expect(page.getByRole("region", { name: "Key results" })).toBeHidden();
 });
+
+test("a stored run opened from its URL loads every plot (stored names already carry .png)", async ({ page }) => {
+  await page.goto(`/?run=${FIXTURE_RUN_ID}`);
+  await expect(upToDate(page, FIXTURE_RUN_ID)).toBeVisible();
+  const broken: string[] = [];
+  page.on("response", (res) => {
+    if (res.url().includes("/plots/") && res.status() !== 200) broken.push(`${res.status()} ${res.url()}`);
+  });
+
+  await page.locator("summary", { hasText: "Plots (12)" }).click();
+
+  const plots = page.locator('img[src*="/plots/"]');
+  await expect(plots).toHaveCount(12);
+  await expect
+    .poll(() => plots.evaluateAll((imgs) => imgs.filter((img) => (img as HTMLImageElement).naturalWidth > 0).length))
+    .toBe(12);
+  expect(broken).toEqual([]);
+});

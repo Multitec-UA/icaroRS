@@ -114,10 +114,14 @@ export function useRocketsQuery() {
  * (the Workbench's rocket panel, S8/A3). `null` means "no rocket yet": the
  * query stays idle instead of asking for a rocket that does not exist.
  */
+/** GET /api/rockets/{rocketId} as query options, for `fetchQuery` outside a component. */
+export function rocketDetailQuery(rocketId: string) {
+  return { queryKey: queryKeys.rocket(rocketId), queryFn: () => getRocket(rocketId) };
+}
+
 export function useRocketDetailQuery(rocketId: string | null) {
   return useQuery<RocketDetail>({
-    queryKey: queryKeys.rocket(rocketId ?? "none"),
-    queryFn: () => getRocket(rocketId as string),
+    ...rocketDetailQuery(rocketId ?? "none"),
     enabled: rocketId !== null,
   });
 }

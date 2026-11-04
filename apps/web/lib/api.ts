@@ -488,7 +488,10 @@ export function getSeries(runId: string): Promise<FlightSeries> {
  * This helper exists for the rare case a caller needs to build one by hand.
  */
 export function plotUrl(runId: string, name: string): string {
-  return `/api/results/${encodeURIComponent(runId)}/plots/${encodeURIComponent(name)}.png`;
+  // Stored runs carry the file name ("altitude.png", routers/simulate.py);
+  // a bare stem is accepted too. Never ".png.png".
+  const stem = name.replace(/\.png$/i, "");
+  return `/api/results/${encodeURIComponent(runId)}/plots/${encodeURIComponent(stem)}.png`;
 }
 
 /** GET /api/rockets?limit=&before= — reverse-chronological list of saved rockets. */

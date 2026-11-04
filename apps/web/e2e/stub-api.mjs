@@ -327,7 +327,8 @@ const RUNS = [
     created_by: USER,
     status: /** @type {const} */ ("done"),
     result_prefix: `orgs/${ORG_ID}/results/${run.simulation_id}/`,
-    plot_names: PLOT_STEMS,
+    // The API's shape: file names with ".png" (routers/simulate.py derives them from the plot URLs).
+    plot_names: PLOT_STEMS.map((stem) => `${stem}.png`),
     has_series: true,
   };
 });

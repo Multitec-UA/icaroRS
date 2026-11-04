@@ -41,7 +41,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { ApiError, plotUrl } from "@/lib/api";
-import { exportDetailQuery, runSummaryQuery } from "@/lib/queries";
+import { exportDetailQuery, rocketDetailQuery, runSummaryQuery } from "@/lib/queries";
 import { draftFromScenario } from "@/lib/domain/scenario";
 import { clearDrafts, loadDraft, saveDraft } from "@/lib/draft-storage";
 import { useWizardDraft, useWizardNav } from "@/components/wizard/WizardProvider";
@@ -150,7 +150,10 @@ export function useWorkbenchUrl(): WorkbenchUrl {
           if (stale()) return;
           setExport(exp.export_id, exp.manifest, exp.rocket_id ?? null, {
             filename: exp.ork_filename ?? run.ork_filename,
-            rocketName: exp.name ?? run.name,
+            // The run row names its rocket (history denormalizes it); the
+            // export's own name is the file's design name, which differs for
+            // a file attached to an existing rocket.
+            rocketName: run.name || exp.name,
           });
           const fromRun = draftFromScenario(run.scenario);
           const stored = loadDraft(exp.export_id);
@@ -192,10 +195,18 @@ export function useWorkbenchUrl(): WorkbenchUrl {
       void (async () => {
         try {
           const exp = await fetchExport(fileParam);
+          // The rocket's name, not the file's design name; when the rocket
+          // cannot be read the file's name is still a sensible label.
+          const rocketName = exp.rocket_id
+            ? await queryClient
+                .fetchQuery(rocketDetailQuery(exp.rocket_id))
+                .then((rocket) => rocket.name || exp.name)
+                .catch(() => exp.name)
+            : exp.name;
           if (stale()) return;
           setExport(exp.export_id, exp.manifest, exp.rocket_id ?? null, {
             filename: exp.ork_filename,
-            rocketName: exp.name,
+            rocketName,
           });
           setStatus({ kind: "idle" });
         } catch (err) {
