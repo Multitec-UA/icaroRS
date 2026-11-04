@@ -3,11 +3,11 @@
 /**
  * RocketPanel — the dialog behind the top bar's rocket context button
  * (S8/A3): the active rocket's files (GET /api/rockets/{id}, newest first)
- * as a radio list where the checked one feeds the Workbench, each with a
- * compact RocketSummaryCard of what that file says (S3: the active file's
- * manifest from the draft, the others' from GET /api/exports/{id}, cached
- * for the session since exports never change), a "Compare two
- * files" link, a drop zone that adds a `.ork` to THIS rocket (destination
+ * as a radio list where the checked one feeds the Workbench. Only the active
+ * file shows the compact RocketSummaryCard of what it says (S3, from the
+ * draft's manifest); the others stay one line each, so a rocket with many
+ * files keeps a short list that scrolls on its own and never buries the
+ * import actions below it. Then a "Compare two files" link, a drop zone that adds a `.ork` to THIS rocket (destination
  * known, no card), the org's other rockets as chips, and "+ New rocket from
  * .ork" which goes through the destination card with "New rocket" preselected.
  *
@@ -27,7 +27,6 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, type KeyboardEvent, type RefObject } from "react";
 import {
   useExportDetailMutation,
-  useExportDetailQuery,
   useHistoryQuery,
   useRocketDetailQuery,
   useRocketLatestExportMutation,
@@ -238,7 +237,13 @@ export function RocketPanel({
               </p>
             )}
 
-            <div role="radiogroup" aria-label={t("workbench.panelActiveFile")} className="flex flex-col gap-1">
+            {/* Capped and scrolled on its own: a rocket with many files must never push
+                the import drop zone and "New rocket" out of the panel. */}
+            <div
+              role="radiogroup"
+              aria-label={t("workbench.panelActiveFile")}
+              className="-mx-1 flex max-h-72 flex-col gap-1 overflow-y-auto overscroll-contain px-1"
+            >
               {exports.map((exp) => {
                 const active = exp.export_id === state.exportId;
                 const loading = loadExport.isPending && loadExport.variables === exp.export_id;
@@ -281,11 +286,7 @@ export function RocketPanel({
                       </span>
                       {loading && <Spinner decorative className="h-3.5 w-3.5 text-accent-ink" />}
                     </label>
-                    <FileSummary
-                      exportId={exp.export_id}
-                      manifest={active ? state.manifest : null}
-                      name={rocketName}
-                    />
+                    {active && <FileSummary manifest={state.manifest} name={rocketName} />}
                   </div>
                 );
               })}
@@ -373,18 +374,8 @@ export function RocketPanel({
  * The compact card of one file. The active file reads the draft's manifest;
  * any other file fetches its own export once (immutable, cached).
  */
-function FileSummary({
-  exportId,
-  manifest,
-  name,
-}: {
-  exportId: string;
-  manifest: Record<string, unknown> | null;
-  name: string;
-}) {
-  const detail = useExportDetailQuery(exportId, { enabled: manifest === null });
-  const source = manifest ?? detail.data?.manifest ?? null;
-  const summary = useMemo(() => (source ? rocketSummaryFromManifest(source) : null), [source]);
+function FileSummary({ manifest, name }: { manifest: Record<string, unknown> | null; name: string }) {
+  const summary = useMemo(() => (manifest ? rocketSummaryFromManifest(manifest) : null), [manifest]);
   if (!summary) return null;
   return (
     <div className="pl-10 pr-3">

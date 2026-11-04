@@ -189,3 +189,55 @@ test("a stored run opened from its URL loads every plot (stored names already ca
     .toBe(12);
   expect(broken).toEqual([]);
 });
+
+/**
+ * Production-sized data (one rocket with 18 files and 35 runs, 2026-11-04):
+ * the import entry points and the compare area must stay in view, never be
+ * buried under a long list.
+ */
+async function withProductionSizedData(page: Page) {
+  await page.route("**/api/rockets/*", async (route) => {
+    if (route.request().method() !== "GET") return route.fallback();
+    const res = await route.fetch();
+    const rocket = await res.json();
+    const [first] = rocket.exports;
+    const exports = Array.from({ length: 18 }, (_, i) => ({
+      ...first,
+      export_id: i === 0 ? first.export_id : `${first.export_id}-copy-${i}`,
+      ork_filename: `MT1-v1.${i % 6}.0.ork`,
+      created_at: new Date(Date.UTC(2026, 5, 30 - i)).toISOString(),
+    }));
+    await route.fulfill({ response: res, json: { ...rocket, exports } });
+  });
+  await page.route("**/api/history?*", async (route) => {
+    const res = await route.fetch();
+    const runs = await res.json();
+    if (!Array.isArray(runs) || runs.length === 0) return route.fulfill({ response: res });
+    const many = Array.from({ length: 35 }, (_, i) => ({
+      ...runs[i % runs.length],
+      simulation_id: i < runs.length ? runs[i].simulation_id : `${runs[i % runs.length].simulation_id}-copy-${i}`,
+      created_at: new Date(Date.UTC(2026, 9, 30, 12, 0) - i * 3_600_000).toISOString(),
+    }));
+    await route.fulfill({ response: res, json: many });
+  });
+}
+
+test("with many files, the rocket panel keeps 'add a file' and 'new rocket' in view", async ({ page }) => {
+  await withProductionSizedData(page);
+  await page.goto(`/?file=${ICARUS_V3}`);
+  await page.getByRole("button", { name: /Icarus Mk II · / }).click();
+  const dialog = page.getByRole("dialog", { name: "Rocket Icarus Mk II" });
+  await expect(dialog.getByRole("radio")).toHaveCount(18);
+
+  await expect(dialog.getByText("Drop a .ork to add it to Icarus Mk II")).toBeInViewport();
+  await expect(dialog.getByText("+ New rocket from .ork")).toBeInViewport();
+});
+
+test("with many runs, the compare chart and what changed stay in view on /runs", async ({ page }) => {
+  await withProductionSizedData(page);
+  await page.goto("/runs");
+  await expect(page.getByRole("table").getByRole("row")).toHaveCount(36);
+
+  await expect(page.getByRole("heading", { name: "Altitude", exact: true })).toBeInViewport();
+  await expect(page.getByRole("heading", { name: "What changed" })).toBeInViewport();
+});
