@@ -116,9 +116,12 @@ export function useWorkbenchUrl(): WorkbenchUrl {
   // from the first paint when it names something the draft does not hold
   // yet, so the writer below never "corrects" a URL that is about to be read.
   const [status, setStatus] = useState<WorkbenchUrlStatus>(() => statusFor(runParam, fileParam, state));
-  const [seenUrl, setSeenUrl] = useState(current);
-  if (seenUrl !== current) {
-    setSeenUrl(current);
+  // Compared against the base URL only: `mc=` never changes what the file/run
+  // reader resolves, and that reader does not re-run for it, so an `mc`-only
+  // change must not reset the status to loading.
+  const [seenUrl, setSeenUrl] = useState(currentBase);
+  if (seenUrl !== currentBase) {
+    setSeenUrl(currentBase);
     setStatus(statusFor(runParam, fileParam, state));
   }
   // A file imported or picked while the URL explained a 404 replaces it.

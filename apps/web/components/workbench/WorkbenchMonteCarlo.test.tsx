@@ -165,4 +165,21 @@ describe("Workbench — Monte Carlo dispersion (S12)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Close dispersion" }));
     expect(nav.replace).toHaveBeenCalledWith("/?file=exp-1", { scroll: false });
   });
+
+  it("closing the dispersion on a missing file keeps the 404 card (only mc= changed)", async () => {
+    // Regression: a URL change that only drops `mc=` must not reset the
+    // file/run status to loading, because the URL reader never re-runs for it.
+    api.getMonteCarlo.mockResolvedValue(MC_DONE);
+    nav.search = "?file=gone&mc=mc-1";
+    const view = render(<AppProviders><WorkbenchShell /></AppProviders>);
+    expect(await screen.findByText("This file is no longer available")).toBeInTheDocument();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Close dispersion" }));
+    expect(nav.replace).toHaveBeenCalledWith("/?file=gone", expect.anything());
+    nav.search = "?file=gone";
+    view.rerender(<AppProviders><WorkbenchShell /></AppProviders>);
+
+    expect(await screen.findByText("This file is no longer available")).toBeInTheDocument();
+    expect(screen.queryByText("Opening…")).not.toBeInTheDocument();
+  });
 });
