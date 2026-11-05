@@ -20,8 +20,15 @@ import {
   getExport,
   getRocket,
   getSeries,
+  getMonteCarlo,
+  listMonteCarlo,
   renameRocket,
   simulate,
+  submitMonteCarlo,
+  type MonteCarloRequest,
+  type MonteCarloRun,
+  type MonteCarloSubmitted,
+  type MonteCarloSummary,
   type ConvertResponse,
   type ExportDetail,
   type ExportSummary,
@@ -31,6 +38,7 @@ import {
   type RocketSummary,
   type FlightSeries,
 } from "./api";
+import { isMonteCarloActive, monteCarloPollInterval } from "./domain/montecarlo";
 
 export const queryKeys = {
   /** Prefix of every history list; invalidating it refreshes all of them. */
@@ -46,6 +54,10 @@ export const queryKeys = {
   series: (runId: string) => ["results", runId, "series"] as const,
   /** One export with its manifest. Exports are immutable once converted. */
   export: (exportId: string) => ["exports", exportId] as const,
+  /** Prefix of every Monte Carlo query; invalidating it refreshes lists and runs. */
+  monteCarlo: ["montecarlo"] as const,
+  monteCarloRun: (runId: string) => ["montecarlo", "run", runId] as const,
+  monteCarloList: (rocketId: string | null) => ["montecarlo", "list", rocketId ?? "all"] as const,
 };
 
 /**
@@ -245,5 +257,61 @@ export function useRocketLatestExportMutation() {
       const { rocket, newest } = await newestExport(rocketId);
       return { rocket, export: await getExport(newest.export_id) };
     },
+  });
+}
+
+/**
+ * GET /api/montecarlo/{runId} (S12): polled every ~2 s while the run is
+ * `queued` or `running`, never again once it is `done` or `error`, nor after
+ * a failed poll (fetches already retry transient failures). `null` keeps it idle.
+ */
+export function useMonteCarloQuery(runId: string | null) {
+  return useQuery<MonteCarloRun>({
+    queryKey: queryKeys.monteCarloRun(runId ?? "none"),
+    queryFn: () => getMonteCarlo(runId as string),
+    enabled: runId !== null,
+    refetchInterval: (query) =>
+      query.state.status === "error" ? false : monteCarloPollInterval(query.state.data?.status),
+  });
+}
+
+/**
+ * GET /api/montecarlo?rocket_id= — one rocket's Monte Carlo runs on /runs,
+ * newest first. Polled like a single run while any of them is still active,
+ * so statuses move without a reload.
+ */
+export function useMonteCarloListQuery(rocketId: string | null, options?: { enabled?: boolean }) {
+  return useQuery<MonteCarloSummary[]>({
+    queryKey: queryKeys.monteCarloList(rocketId),
+    queryFn: () => listMonteCarlo(rocketId),
+    enabled: options?.enabled ?? true,
+    refetchInterval: (query) =>
+      query.state.status !== "error" && query.state.data?.some((run) => isMonteCarloActive(run.status))
+        ? monteCarloPollInterval("running")
+        : false,
+  });
+}
+
+/** POST /api/montecarlo — queue a dispersion run; the lists refresh on success. */
+export function useSubmitMonteCarloMutation() {
+  const queryClient = useQueryClient();
+  return useMutation<MonteCarloSubmitted, unknown, MonteCarloRequest>({
+    mutationFn: (body) => submitMonteCarlo(body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.monteCarlo }),
+  });
+}
+
+/**
+ * Several finished Monte Carlo runs at once (the /runs dispersion table's
+ * median apogee): same key and fetch as useMonteCarloQuery, so a run already
+ * opened costs no new request. Results come back in the order of `runIds`.
+ */
+export function useMonteCarloRunQueries(runIds: string[]) {
+  return useQueries({
+    queries: runIds.map((runId) => ({
+      queryKey: queryKeys.monteCarloRun(runId),
+      queryFn: () => getMonteCarlo(runId),
+      staleTime: Infinity,
+    })),
   });
 }

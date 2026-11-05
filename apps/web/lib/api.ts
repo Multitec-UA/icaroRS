@@ -470,6 +470,52 @@ export function simulate(
   });
 }
 
+// ---------------------------------------------------------------------------
+// Monte Carlo dispersion (S9): a queued background job, polled for progress.
+// ---------------------------------------------------------------------------
+
+export type MonteCarloRequest = components["schemas"]["MonteCarloRequest"];
+export type MonteCarloSubmitted = components["schemas"]["MonteCarloSubmitted"];
+/** One run as listed (no result). */
+export type MonteCarloSummary = components["schemas"]["MonteCarloSummary"];
+/** One run with its result once `done`. */
+export type MonteCarloRun = components["schemas"]["MonteCarloRun"];
+export type MonteCarloRunResult = components["schemas"]["MonteCarloResultModel"];
+export type MonteCarloStatus = MonteCarloSummary["status"];
+
+/** Runs listed per rocket on /runs. */
+const MONTE_CARLO_PAGE = 50;
+
+/**
+ * POST /api/montecarlo — queue a run (202). Not retried: a retry after a lost
+ * response would queue a second run.
+ */
+export function submitMonteCarlo(body: MonteCarloRequest): Promise<MonteCarloSubmitted> {
+  return request<MonteCarloSubmitted>(
+    "/api/montecarlo",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { retryable: false },
+  );
+}
+
+/** GET /api/montecarlo/{runId} — status, progress and, once done, the result. */
+export function getMonteCarlo(runId: string): Promise<MonteCarloRun> {
+  return request<MonteCarloRun>(`/api/montecarlo/${encodeURIComponent(runId)}`);
+}
+
+/** GET /api/montecarlo — the org's runs (or one rocket's), newest first, without results. */
+export function listMonteCarlo(rocketId?: string | null): Promise<MonteCarloSummary[]> {
+  const q = new URLSearchParams();
+  if (rocketId) q.set("rocket_id", rocketId);
+  q.set("limit", String(MONTE_CARLO_PAGE));
+  return request<MonteCarloSummary[]>(`/api/montecarlo?${q}`);
+}
+
+/** The landing/apogee ellipses as KML (404 until the run is done). */
+export function monteCarloKmlUrl(runId: string): string {
+  return `/api/montecarlo/${encodeURIComponent(runId)}/kml`;
+}
+
 export function getResult(runId: string): Promise<ResultEnvelope> {
   return request<ResultEnvelope>(`/api/results/${encodeURIComponent(runId)}`);
 }

@@ -4,9 +4,13 @@ import {
   createSession,
   getElevation,
   getIdentity,
+  getMonteCarlo,
+  listMonteCarlo,
   logout,
+  monteCarloKmlUrl,
   plotUrl,
   simulate,
+  submitMonteCarlo,
 } from "./api";
 
 interface MockResponseInit {
@@ -300,5 +304,56 @@ describe("plotUrl", () => {
   });
   it("still accepts a bare stem", () => {
     expect(plotUrl("run-4", "altitude")).toBe("/api/results/run-4/plots/altitude.png");
+  });
+});
+
+describe("Monte Carlo endpoints (S9)", () => {
+  it("POSTs the export, scenario and flight count to /api/montecarlo", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ run_id: "mc-1", status: "queued", queue_position: 0 }), {
+        status: 202,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const submitted = await submitMonteCarlo({ export_id: "exp-1", scenario: { name: "s" }, n: 100 });
+
+    expect(submitted).toEqual({ run_id: "mc-1", status: "queued", queue_position: 0 });
+    const [path, init] = fetchMock.mock.calls[0];
+    expect(path).toBe("/api/montecarlo");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({ export_id: "exp-1", scenario: { name: "s" }, n: 100 });
+  });
+
+  it("does not retry a submit (it is not idempotent)", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = submitMonteCarlo({ export_id: "exp-1", scenario: null, n: 10 }).catch((e) => e);
+    await vi.runAllTimersAsync();
+    const err: ApiError = await pending;
+
+    expect(err.code).toBe("network");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("GETs one run by id, encoded", async () => {
+    const fetchMock = mockFetchResolve({ ok: true, status: 200, json: jsonOf({ run_id: "mc 1" }) });
+    await getMonteCarlo("mc 1");
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/montecarlo/mc%201");
+  });
+
+  it("lists the runs, optionally of one rocket", async () => {
+    const fetchMock = mockFetchResolve({ ok: true, status: 200, json: jsonOf([]) });
+    await listMonteCarlo("r1");
+    await listMonteCarlo();
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/montecarlo?rocket_id=r1&limit=50");
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/montecarlo?limit=50");
+  });
+
+  it("builds the KML download URL", () => {
+    expect(monteCarloKmlUrl("mc/1")).toBe("/api/montecarlo/mc%2F1/kml");
   });
 });

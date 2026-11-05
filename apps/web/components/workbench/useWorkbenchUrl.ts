@@ -35,6 +35,12 @@
  * When `?run=` resolves, a stored draft of the same export and run replaces
  * the run's own scenario, so the pill reads "Changed since run {id}" again
  * with the same chips. A stored draft of another run is left alone.
+ *
+ * Monte Carlo (S12): the dispersion run on screen rides along as `&mc={id}`
+ * (`?mc={id}` alone when nothing else is loaded), independent of `run` and
+ * `file`, so a reload resumes polling it or shows its result. The writer
+ * above keeps it on every rewrite; `setMonteCarloId` pushes a new one (back
+ * returns to the URL before the launch) and replaces it with none on dismiss.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -56,6 +62,10 @@ export interface WorkbenchUrl {
   status: WorkbenchUrlStatus;
   /** Reset the draft and clear the URL (the 404 card's action). */
   startFresh: () => void;
+  /** The Monte Carlo run on screen (`mc` in the URL), or null. */
+  monteCarloId: string | null;
+  /** Put a Monte Carlo run on screen (pushes the URL) or take it off (`null`, replaces). */
+  setMonteCarloId: (runId: string | null) => void;
 }
 
 /** The query string the draft should have: `?run=`, `?file=` or none. */
@@ -63,6 +73,13 @@ export function workbenchSearch(state: { exportId: string | null; displayedRun: 
   if (state.displayedRun) return `?run=${encodeURIComponent(state.displayedRun.runId)}`;
   if (state.exportId) return `?file=${encodeURIComponent(state.exportId)}`;
   return "";
+}
+
+/** `search` (as from `workbenchSearch`) with the Monte Carlo run appended, when there is one. */
+export function withMonteCarlo(search: string, monteCarloId: string | null): string {
+  if (!monteCarloId) return search;
+  const mc = `mc=${encodeURIComponent(monteCarloId)}`;
+  return search ? `${search}&${mc}` : `?${mc}`;
 }
 
 class Missing extends Error {}
@@ -87,11 +104,13 @@ export function useWorkbenchUrl(): WorkbenchUrl {
   const { reset } = useWizardNav();
   const runParam = params.get("run");
   const fileParam = runParam ? null : params.get("file");
-  const current = runParam
+  const monteCarloId = params.get("mc") || null;
+  const currentBase = runParam
     ? `?run=${encodeURIComponent(runParam)}`
     : fileParam
       ? `?file=${encodeURIComponent(fileParam)}`
       : "";
+  const current = withMonteCarlo(currentBase, monteCarloId);
 
   // What the URL needs, decided during render (never in an effect): loading
   // from the first paint when it names something the draft does not hold
@@ -228,16 +247,19 @@ export function useWorkbenchUrl(): WorkbenchUrl {
   const settled = status.kind === "idle";
   const lastRun = useRef<string | null>(state.displayedRun?.runId ?? runParam);
   useEffect(() => {
+    // The Monte Carlo run on screen (`mc=`) rides along on every rewrite.
+    const wanted = withMonteCarlo(desired, monteCarloId);
     // While the URL is being resolved, or explains a 404, it stays as it is.
-    if (!settled || desired === current) return;
+    if (!settled || wanted === current) return;
     const runId = state.displayedRun?.runId ?? null;
     const newRun = runId !== null && runId !== runParam && runId !== lastRun.current;
     lastRun.current = runId;
-    const href = `${pathname}${desired}`;
+    const href = `${pathname}${wanted}`;
     if (newRun) router.push(href, { scroll: false });
     else router.replace(href, { scroll: false });
-    // `current` and `runParam` describe the URL this effect may replace; the
-    // effect itself only needs to run when the wanted URL changes.
+    // `current`, `runParam` and `monteCarloId` describe the URL this effect
+    // may replace; the effect itself only needs to run when the wanted URL
+    // changes (a new `mc=` is written by `setMonteCarloId` itself).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [desired, settled]);
 
@@ -260,5 +282,23 @@ export function useWorkbenchUrl(): WorkbenchUrl {
     router.replace(pathname, { scroll: false });
   }, [pathname, reset, router]);
 
-  return { status, startFresh };
+  // What `setMonteCarloId` builds on, read when it is called (like `latest`).
+  const urlNow = useRef({ settled, currentBase });
+  useEffect(() => {
+    urlNow.current = { settled, currentBase };
+  });
+  const setMonteCarloId = useCallback(
+    (runId: string | null) => {
+      // While the URL resolves it still names what is loading; once settled
+      // the draft decides, exactly as the writer above would.
+      const now = urlNow.current;
+      const base = now.settled ? workbenchSearch(latest.current) : now.currentBase;
+      const href = `${pathname}${withMonteCarlo(base, runId)}`;
+      if (runId) router.push(href, { scroll: false });
+      else router.replace(href, { scroll: false });
+    },
+    [pathname, router],
+  );
+
+  return { status, startFresh, monteCarloId, setMonteCarloId };
 }

@@ -1,6 +1,49 @@
 {
   "components": {
     "schemas": {
+      "ApogeeStatsModel": {
+        "properties": {
+          "max": {
+            "title": "Max",
+            "type": "number"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          },
+          "p5": {
+            "title": "P5",
+            "type": "number"
+          },
+          "p50": {
+            "title": "P50",
+            "type": "number"
+          },
+          "p95": {
+            "title": "P95",
+            "type": "number"
+          },
+          "std": {
+            "title": "Std",
+            "type": "number"
+          }
+        },
+        "required": [
+          "mean",
+          "std",
+          "min",
+          "max",
+          "p5",
+          "p50",
+          "p95"
+        ],
+        "title": "ApogeeStatsModel",
+        "type": "object"
+      },
       "Atmosphere": {
         "description": "Atmosphere model selection and fallback policy.\n\nParameters\n----------\nmodel : str\n    One of ``forecast``, ``wyoming_sounding``, ``standard_atmosphere``,\n    ``reanalysis``. Validated at load time (REQ-SCN-03).\nfile : str or None\n    For ``forecast``: GFS ensemble name (default ``\"GFS\"``).\n    For ``reanalysis``: path to a local ERA5-compatible .nc file (required\n    when model is ``reanalysis``, REQ-SCN-04).\nstation : str or None\n    Wyoming sounding station id. Required when model is\n    ``wyoming_sounding`` (REQ-SCN-05).\nfallback : str\n    Atmosphere model to use when the primary fetch fails.  Defaults to\n    ``\"standard_atmosphere\"`` (REQ-SCN-06).",
         "properties": {
@@ -462,6 +505,24 @@
         "title": "IdentityResponse",
         "type": "object"
       },
+      "LatLon": {
+        "properties": {
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "LatLon",
+        "type": "object"
+      },
       "LaunchDate": {
         "description": "UTC launch date and hour.\n\nRequired for real-atmosphere models (forecast, wyoming_sounding).\n\nParameters\n----------\nyear, month, day, hour : int\n    UTC date and hour of the simulated launch.",
         "properties": {
@@ -489,6 +550,438 @@
           "hour"
         ],
         "title": "LaunchDate",
+        "type": "object"
+      },
+      "MonteCarloFiles": {
+        "description": "Blob names under the run's storage prefix (``kml`` only with >= 3 flights).",
+        "properties": {
+          "errors": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          },
+          "kml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kml"
+          },
+          "outputs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outputs"
+          }
+        },
+        "title": "MonteCarloFiles",
+        "type": "object"
+      },
+      "MonteCarloProgress": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "MonteCarloProgress",
+        "type": "object"
+      },
+      "MonteCarloRequest": {
+        "description": "Body of POST /api/montecarlo.",
+        "properties": {
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          }
+        },
+        "required": [
+          "export_id",
+          "n"
+        ],
+        "title": "MonteCarloRequest",
+        "type": "object"
+      },
+      "MonteCarloResultModel": {
+        "description": "``icaro.MonteCarloResult.to_dict()``; ellipses are [lat, lon] polygons.",
+        "properties": {
+          "apogee_agl": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Apogee Agl",
+            "type": "array"
+          },
+          "apogee_ellipses": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Apogee Ellipses",
+            "type": "array"
+          },
+          "apogee_stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApogeeStatsModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ellipse_sigmas": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ellipse Sigmas",
+            "type": "array"
+          },
+          "files": {
+            "$ref": "#/components/schemas/MonteCarloFiles"
+          },
+          "impact_x": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Impact X",
+            "type": "array"
+          },
+          "impact_y": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Impact Y",
+            "type": "array"
+          },
+          "landing_ellipses": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Landing Ellipses",
+            "type": "array"
+          },
+          "n_failed": {
+            "title": "N Failed",
+            "type": "integer"
+          },
+          "n_requested": {
+            "title": "N Requested",
+            "type": "integer"
+          },
+          "n_succeeded": {
+            "title": "N Succeeded",
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/LatLon"
+          }
+        },
+        "required": [
+          "n_requested",
+          "n_succeeded",
+          "n_failed",
+          "apogee_agl",
+          "apogee_stats",
+          "impact_x",
+          "impact_y",
+          "ellipse_sigmas",
+          "landing_ellipses",
+          "apogee_ellipses",
+          "origin",
+          "files"
+        ],
+        "title": "MonteCarloResultModel",
+        "type": "object"
+      },
+      "MonteCarloRun": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/MonteCarloProgress"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonteCarloResultModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "rocket_id",
+          "export_id",
+          "created_at",
+          "created_by",
+          "n",
+          "status",
+          "progress",
+          "queue_position",
+          "error",
+          "finished_at",
+          "result"
+        ],
+        "title": "MonteCarloRun",
+        "type": "object"
+      },
+      "MonteCarloSubmitted": {
+        "properties": {
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "queue_position"
+        ],
+        "title": "MonteCarloSubmitted",
+        "type": "object"
+      },
+      "MonteCarloSummary": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/MonteCarloProgress"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "rocket_id",
+          "export_id",
+          "created_at",
+          "created_by",
+          "n",
+          "status",
+          "progress",
+          "queue_position",
+          "error",
+          "finished_at"
+        ],
+        "title": "MonteCarloSummary",
         "type": "object"
       },
       "Rail": {
@@ -1405,6 +1898,196 @@
         "summary": "Get History Item",
         "tags": [
           "history"
+        ]
+      }
+    },
+    "/api/montecarlo": {
+      "get": {
+        "description": "The org's Monte Carlo runs, newest first (without results).",
+        "operationId": "list_montecarlo_api_montecarlo_get",
+        "parameters": [
+          {
+            "description": "Only this rocket's runs.",
+            "in": "query",
+            "name": "rocket_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this rocket's runs.",
+              "title": "Rocket Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MonteCarloSummary"
+                  },
+                  "title": "Response List Montecarlo Api Montecarlo Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Montecarlo",
+        "tags": [
+          "montecarlo"
+        ]
+      },
+      "post": {
+        "description": "Queue a Monte Carlo run; one runs at a time per instance, the rest wait (FIFO).",
+        "operationId": "submit_montecarlo_api_montecarlo_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonteCarloRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonteCarloSubmitted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Montecarlo",
+        "tags": [
+          "montecarlo"
+        ]
+      }
+    },
+    "/api/montecarlo/{run_id}": {
+      "get": {
+        "description": "Status, progress and (once done) the summary result of one run.",
+        "operationId": "get_montecarlo_api_montecarlo__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonteCarloRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Montecarlo",
+        "tags": [
+          "montecarlo"
+        ]
+      }
+    },
+    "/api/montecarlo/{run_id}/kml": {
+      "get": {
+        "description": "The landing/apogee ellipses as KML; 404 until done or when not produced.",
+        "operationId": "get_montecarlo_kml_api_montecarlo__run_id__kml_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.google-earth.kml+xml": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Montecarlo Kml",
+        "tags": [
+          "montecarlo"
         ]
       }
     },

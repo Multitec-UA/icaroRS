@@ -237,6 +237,70 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/montecarlo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Montecarlo
+         * @description The org's Monte Carlo runs, newest first (without results).
+         */
+        get: operations["list_montecarlo_api_montecarlo_get"];
+        put?: never;
+        /**
+         * Submit Montecarlo
+         * @description Queue a Monte Carlo run; one runs at a time per instance, the rest wait (FIFO).
+         */
+        post: operations["submit_montecarlo_api_montecarlo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/montecarlo/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Montecarlo
+         * @description Status, progress and (once done) the summary result of one run.
+         */
+        get: operations["get_montecarlo_api_montecarlo__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/montecarlo/{run_id}/kml": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Montecarlo Kml
+         * @description The landing/apogee ellipses as KML; 404 until done or when not produced.
+         */
+        get: operations["get_montecarlo_kml_api_montecarlo__run_id__kml_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/results/{run_id}": {
         parameters: {
             query?: never;
@@ -466,6 +530,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApogeeStatsModel */
+        ApogeeStatsModel: {
+            /** Max */
+            max: number;
+            /** Mean */
+            mean: number;
+            /** Min */
+            min: number;
+            /** P5 */
+            p5: number;
+            /** P50 */
+            p50: number;
+            /** P95 */
+            p95: number;
+            /** Std */
+            std: number;
+        };
         /**
          * Atmosphere
          * @description Atmosphere model selection and fallback policy.
@@ -674,6 +755,13 @@ export interface components {
             /** User Id */
             user_id: string;
         };
+        /** LatLon */
+        LatLon: {
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
+        };
         /**
          * LaunchDate
          * @description UTC launch date and hour.
@@ -694,6 +782,141 @@ export interface components {
             month: number;
             /** Year */
             year: number;
+        };
+        /**
+         * MonteCarloFiles
+         * @description Blob names under the run's storage prefix (``kml`` only with >= 3 flights).
+         */
+        MonteCarloFiles: {
+            /** Errors */
+            errors?: string | null;
+            /** Inputs */
+            inputs?: string | null;
+            /** Kml */
+            kml?: string | null;
+            /** Outputs */
+            outputs?: string | null;
+        };
+        /** MonteCarloProgress */
+        MonteCarloProgress: {
+            /** Done */
+            done: number;
+            /** Total */
+            total: number;
+        };
+        /**
+         * MonteCarloRequest
+         * @description Body of POST /api/montecarlo.
+         */
+        MonteCarloRequest: {
+            /** Export Id */
+            export_id: string;
+            /** N */
+            n: number;
+            /** Scenario */
+            scenario?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * MonteCarloResultModel
+         * @description ``icaro.MonteCarloResult.to_dict()``; ellipses are [lat, lon] polygons.
+         */
+        MonteCarloResultModel: {
+            /** Apogee Agl */
+            apogee_agl: number[];
+            /** Apogee Ellipses */
+            apogee_ellipses: number[][][];
+            apogee_stats: components["schemas"]["ApogeeStatsModel"] | null;
+            /** Ellipse Sigmas */
+            ellipse_sigmas: number[];
+            files: components["schemas"]["MonteCarloFiles"];
+            /** Impact X */
+            impact_x: number[];
+            /** Impact Y */
+            impact_y: number[];
+            /** Landing Ellipses */
+            landing_ellipses: number[][][];
+            /** N Failed */
+            n_failed: number;
+            /** N Requested */
+            n_requested: number;
+            /** N Succeeded */
+            n_succeeded: number;
+            origin: components["schemas"]["LatLon"];
+        };
+        /** MonteCarloRun */
+        MonteCarloRun: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Error */
+            error: string | null;
+            /** Export Id */
+            export_id: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** N */
+            n: number;
+            progress: components["schemas"]["MonteCarloProgress"];
+            /** Queue Position */
+            queue_position: number | null;
+            result: components["schemas"]["MonteCarloResultModel"] | null;
+            /** Rocket Id */
+            rocket_id: string;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error";
+        };
+        /** MonteCarloSubmitted */
+        MonteCarloSubmitted: {
+            /** Queue Position */
+            queue_position: number | null;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error";
+        };
+        /** MonteCarloSummary */
+        MonteCarloSummary: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Error */
+            error: string | null;
+            /** Export Id */
+            export_id: string;
+            /** Finished At */
+            finished_at: string | null;
+            /** N */
+            n: number;
+            progress: components["schemas"]["MonteCarloProgress"];
+            /** Queue Position */
+            queue_position: number | null;
+            /** Rocket Id */
+            rocket_id: string;
+            /** Run Id */
+            run_id: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "queued" | "running" | "done" | "error";
         };
         /**
          * Rail
@@ -1208,6 +1431,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimulationSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_montecarlo_api_montecarlo_get: {
+        parameters: {
+            query?: {
+                /** @description Only this rocket's runs. */
+                rocket_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonteCarloSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_montecarlo_api_montecarlo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonteCarloRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonteCarloSubmitted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_montecarlo_api_montecarlo__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonteCarloRun"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_montecarlo_kml_api_montecarlo__run_id__kml_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/vnd.google-earth.kml+xml": unknown;
                 };
             };
             /** @description Validation Error */

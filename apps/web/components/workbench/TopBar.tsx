@@ -23,6 +23,10 @@
  * the Workbench URL resolves (S8) it reads "Opening…". While the panel is
  * open the header sits above a scrim.
  *
+ * "Dispersion" (S12) sits left of Run whenever a file is loaded and not
+ * converting: its panel queues a Monte Carlo run (MonteCarloLauncher). It
+ * has its own state; Run never waits on it.
+ *
  * Below `md` (S10) the row never wraps: the context label truncates, the
  * pill collapses to its dot (full text, with the changed groups, in its
  * `title` / accessible name), the change chips and the ⌘↵ hint are hidden.
@@ -37,6 +41,8 @@ import { useT } from "@/components/i18n/LocaleProvider";
 import { cn, focusRing } from "@/lib/styles";
 import { ChevronDownIcon, PlayIcon } from "./icons";
 import { RocketPanel } from "./RocketPanel";
+import { MonteCarloLauncher } from "./MonteCarloLauncher";
+import type { MonteCarloControl } from "./useMonteCarlo";
 import { primaryButton } from "./styles";
 import type { RunSimulation } from "./useRunSimulation";
 import type { OrkImport } from "./useOrkImport";
@@ -48,10 +54,12 @@ export function TopBar({
   simulation,
   importer,
   url,
+  monteCarlo,
 }: {
   simulation: RunSimulation;
   importer: OrkImport;
   url: WorkbenchUrl;
+  monteCarlo: MonteCarloControl;
 }) {
   const t = useT();
   const { state } = useWizardDraft();
@@ -184,6 +192,15 @@ export function TopBar({
       </div>
 
       <div className="min-w-0 flex-1" />
+
+      {canOpen && (
+        <MonteCarloLauncher
+          disabledReason={monteCarlo.disabledReason}
+          submitting={monteCarlo.submitting}
+          error={monteCarlo.submitError}
+          onLaunch={monteCarlo.launch}
+        />
+      )}
 
       <div className="flex shrink-0 flex-col items-end gap-1">
         <button
