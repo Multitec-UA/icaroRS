@@ -44,6 +44,10 @@ interactive API docs.
 | `GET` | `/api/results/{run_id}` | Result envelope `{run_id, status, result}` |
 | `GET` | `/api/results/{run_id}/series` | Resampled flight time-series `{t, altitude, speed, mach, acceleration, path3d}` for interactive charts (404 for runs predating the feature) |
 | `GET` | `/api/results/{run_id}/plots/{name}.png` | A rendered plot PNG |
+| `POST` | `/api/montecarlo` | `{export_id, scenario?, n}` (10 ≤ `n` ≤ 500) → `202 {run_id, status, queue_position}`; queues a Monte Carlo dispersion run |
+| `GET` | `/api/montecarlo?rocket_id=&limit=` | The org's Monte Carlo runs, newest first (status + progress, no result) |
+| `GET` | `/api/montecarlo/{run_id}` | `{status, progress: {done, total}, queue_position, result, error, …}`; `result` (apogee distribution, impact points, landing/apogee ellipses as `[lat, lon]` polygons) once `done` |
+| `GET` | `/api/montecarlo/{run_id}/kml` | The ellipses as KML (`404` until done, or with < 3 successful flights) |
 
 ## Auth
 
@@ -62,6 +66,8 @@ its dev proxy.
 | `ICARO_BASIC_USER` | `icaro` | Basic-auth username |
 | `ICARO_BASIC_PASS` | `changeme` | Basic-auth password |
 | `ICARO_ALLOW_FORECAST` | `false` | Allow real GFS forecast fetches (else suggest standard atmosphere) |
+| `ICARO_MONTECARLO_MIN_N` | `10` | Smallest `n` accepted by `POST /api/montecarlo` |
+| `ICARO_MONTECARLO_MAX_N` | `500` | Largest `n` accepted by `POST /api/montecarlo` (the CLI has no limit) |
 
 ## Design notes
 
@@ -76,6 +82,21 @@ its dev proxy.
   protect matplotlib/global state; `run_id` is always returned for forward-compat
   with an async upgrade.
 - `matplotlib.use("Agg")` is set in `main.py` before any pyplot import.
+- **Monte Carlo runs are background jobs.** A run takes minutes, so
+  `POST /api/montecarlo` records a `queued` run in the Firestore collection
+  `montecarlo_runs` and returns `202`. One worker thread per process
+  (`services/montecarlo_jobs.py`) runs the jobs one at a time, in order, each
+  in its own subprocess (`services/montecarlo_worker.py` →
+  `icaro.run_monte_carlo`); progress comes from the line counts of the NDJSON
+  output files. The run files are uploaded to
+  `orgs/{org}/montecarlo/{run_id}/`. The queue is in memory: on startup, runs
+  left `queued`/`running` by a previous process are marked `error`
+  (`interrupted by an API restart`). The record stores the result as a JSON
+  string (`result_json`) because Firestore rejects the nested ellipse arrays.
+  Listing needs the composite indexes `(org_id, created_at DESC)` and
+  `(org_id, rocket_id, created_at DESC)` on `montecarlo_runs`
+  (`firestore.indexes.json`). Cloud Run must run with `--no-cpu-throttling`
+  (see `DEPLOY.md`).
 
 ## Ops scripts
 

@@ -128,3 +128,40 @@ class TestGetDbSingleton:
             "get_db() call — singleton not working"
         )
         assert result.name == "Test Rocket"
+
+
+def test_get_job_queue_is_a_single_instance_under_concurrent_first_calls(
+    tmp_path, monkeypatch
+):
+    """Concurrent first calls must not create several queues (each one would
+    own a worker thread, breaking the one-job-at-a-time rule)."""
+    import threading
+    import time
+
+    from icaro_api import runs
+    from icaro_api.config import Settings
+    from icaro_api.services import montecarlo_jobs
+
+    monkeypatch.setattr(runs, "_job_queue", None)
+    real_init = montecarlo_jobs.MonteCarloJobQueue.__init__
+
+    def slow_init(self, *args, **kwargs):
+        time.sleep(0.05)
+        real_init(self, *args, autostart=False, **kwargs)
+
+    monkeypatch.setattr(montecarlo_jobs.MonteCarloJobQueue, "__init__", slow_init)
+    settings = Settings(results_dir=tmp_path)
+    barrier = threading.Barrier(4)
+    seen: list[object] = []
+
+    def call():
+        barrier.wait()
+        seen.append(runs.get_job_queue(settings))
+
+    threads = [threading.Thread(target=call) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert len({id(q) for q in seen}) == 1
