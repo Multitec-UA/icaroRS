@@ -67,6 +67,13 @@ class ApogeeStatsModel(BaseModel):
     p95: float
 
 
+class DispersionModel(BaseModel):
+    """One entry of the uncertainty budget that was dispersed."""
+
+    std: float
+    kind: Literal["relative", "absolute"]
+
+
 class LatLon(BaseModel):
     latitude: float
     longitude: float
@@ -96,6 +103,9 @@ class MonteCarloResultModel(BaseModel):
     apogee_ellipses: list[list[list[float]]]
     origin: LatLon
     files: MonteCarloFiles
+    # The budget actually dispersed (key → std/kind), so the UI can explain
+    # what varied. Empty for runs stored before it was recorded.
+    uncertainty: dict[str, DispersionModel] = {}
 
 
 class MonteCarloSummary(BaseModel):
