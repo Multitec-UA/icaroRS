@@ -679,14 +679,16 @@ class StochasticRocket(StochasticModel):
         )
         return surface, position_rnd
 
-    def _create_rail_buttons(self, component_stochastic_rail_buttons):
+    def _create_rail_buttons(self, component_stochastic_rail_buttons, csys=1):
         stochastic_rail_buttons = component_stochastic_rail_buttons.component
         rail_buttons = stochastic_rail_buttons.create_object()
         lower_button_position_rnd = self._randomize_position(
             component_stochastic_rail_buttons.position
         )
+        # the upper button is towards the nose: +distance for tail_to_nose
+        # (csys=1), -distance for nose_to_tail (csys=-1)
         upper_button_position_rnd = (
-            rail_buttons.buttons_distance + lower_button_position_rnd
+            lower_button_position_rnd + csys * rail_buttons.buttons_distance
         )
         self.last_rnd_dict["rail_buttons"].append(stochastic_rail_buttons.last_rnd_dict)
         self.last_rnd_dict["rail_buttons"][-1]["lower_button_position"] = (
@@ -786,7 +788,7 @@ class StochasticRocket(StochasticModel):
                 rail_buttons,
                 lower_button_position_rnd,
                 upper_button_position_rnd,
-            ) = self._create_rail_buttons(component_rail_buttons)
+            ) = self._create_rail_buttons(component_rail_buttons, rocket._csys)
             rocket.set_rail_buttons(
                 upper_button_position=upper_button_position_rnd,
                 lower_button_position=lower_button_position_rnd,
