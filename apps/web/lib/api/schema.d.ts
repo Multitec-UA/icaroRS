@@ -652,6 +652,19 @@ export interface components {
             std: number;
         };
         /**
+         * DispersionModel
+         * @description One entry of the uncertainty budget that was dispersed.
+         */
+        DispersionModel: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "relative" | "absolute";
+            /** Std */
+            std: number;
+        };
+        /**
          * ElevationLookupResult
          * @description Response body for GET /api/elevation.
          */
@@ -844,6 +857,13 @@ export interface components {
             /** N Succeeded */
             n_succeeded: number;
             origin: components["schemas"]["LatLon"];
+            /**
+             * Uncertainty
+             * @default {}
+             */
+            uncertainty: {
+                [key: string]: components["schemas"]["DispersionModel"];
+            };
         };
         /** MonteCarloRun */
         MonteCarloRun: {

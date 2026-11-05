@@ -322,7 +322,11 @@
     "rail_departure": "The moment the rocket leaves the launch rail. A faster, more stable departure means a straighter, safer flight.",
     "stability_margin": "How stable the rocket is, measured in calibers (body diameters). Roughly 1–2 cal is a healthy, controllable flight.",
     "forecast": "Real weather forecast (GFS) for your launch date and place. Available for dates within about 16 days from now.",
-    "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate."
+    "standard_atmosphere": "A textbook average atmosphere. Used when no real forecast is available — good for a quick, repeatable estimate.",
+    "mc_counts": "Attempted is how many flights were simulated. Succeeded are the ones that finished and are used in the results. Failed are the ones the simulator could not complete; they are left out.",
+    "mc_apogee_stats": "Mean ± std is the average apogee and how much the flights typically differ from it (one standard deviation). P5, Median and P95 bracket the flights: 5 % were lower than P5, half were lower than the median and 5 % were higher than P95, so 90 % of the flights reached between P5 and P95.",
+    "mc_histogram": "Each bar counts the flights whose apogee fell in that range of heights. A tall, narrow shape means the flights agree; a wide, flat one means the apogee is hard to predict.",
+    "mc_ellipses": "Each ellipse is an area where the rocket lands: about 39 % of landings fall inside 1σ, 86 % inside 2σ and 99 % inside 3σ (the outer one). The marker is the launch site. The ellipses come from the simulated spread of the inputs, not from a real wind forecast unless the scenario used one."
   },
 
   "workbench": {
@@ -531,7 +535,7 @@
   "montecarlo": {
     "launch": "Dispersion",
     "panelLabel": "Monte Carlo dispersion",
-    "panelHint": "Varies the launch inputs within the scenario's uncertainty and flies the rocket many times.",
+    "panelHint": "Runs {count} simulations with small random changes to mass, thrust, wind, angle and rail length to see how much the flight can vary. More flights = smoother result, longer wait.",
     "flights": "Flights",
     "flightsSlider": "Flights slider",
     "flightsHint": "{min}–{max} flights · ≈ {minutes} min",
@@ -574,7 +578,42 @@
     "launchSite": "Launch site",
     "sigma": "{sigma}σ",
     "noEllipse": "Too few successful flights for a landing ellipse.",
-    "downloadKml": "Download KML"
+    "downloadKml": "Download KML",
+    "contextBudget": "We simulated {count} flights, each time slightly changing the {list}. This shows how much a real flight can differ from the single simulation.",
+    "contextDefault": "We simulated {count} flights with the default uncertainty budget. This shows how much a real flight can differ from the single simulation.",
+    "budget": {
+      "mass": "mass ({amount})",
+      "thrust": "thrust ({amount})",
+      "wind_factor": "wind ({amount})",
+      "inclination": "launch angle ({amount})",
+      "heading": "heading ({amount})",
+      "angles": "launch angle and heading ({amount})",
+      "rail_length": "rail length ({amount})"
+    },
+    "readApogee": "9 out of 10 flights reached between {p5} and {p95} (median {p50}).",
+    "readLanding": "The most likely landing point is about {distance} to the {direction} of the launch site.",
+    "readLandingEllipse": "The most likely landing point is about {distance} to the {direction} of the launch site; {coverage} % of landings fall inside the outer ellipse.",
+    "readFailed": {
+      "one": "1 flight could not be simulated and is not counted.",
+      "other": "{count} flights could not be simulated and are not counted."
+    },
+    "readNone": "No flight could be simulated, so there is nothing to read yet.",
+    "direction": {
+      "N": "north",
+      "NE": "northeast",
+      "E": "east",
+      "SE": "southeast",
+      "S": "south",
+      "SW": "southwest",
+      "W": "west",
+      "NW": "northwest"
+    },
+    "explainerTitle": "How to read these results",
+    "explainerWhat": "A Monte Carlo run repeats the same simulation many times. Each time, the inputs you cannot know exactly (the ones listed above) change a little at random.",
+    "explainerWhy": "That is why the result is a spread, not a single number: it shows the range a real flight is likely to fall in.",
+    "explainerAltitude": "Use the apogee range to check your target altitude and to choose a launch window with suitable conditions.",
+    "explainerSafety": "Use the outer ellipse to choose the launch site and size the safety area: almost every landing falls inside it.",
+    "explainerMeasure": "If the spread is too wide, find the input that matters most and measure it better (for example, weigh the rocket or check the motor data)."
   },
 
   "theme": {

@@ -18,6 +18,11 @@ export const GLOSSARY_TERMS = [
   "stability_margin",
   "forecast",
   "standard_atmosphere",
+  // Monte Carlo dispersion results (S15)
+  "mc_counts",
+  "mc_apogee_stats",
+  "mc_histogram",
+  "mc_ellipses",
 ] as const;
 
 export type GlossaryTerm = typeof GLOSSARY_TERMS[number];

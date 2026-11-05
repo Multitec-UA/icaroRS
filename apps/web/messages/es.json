@@ -322,7 +322,11 @@
     "rail_departure": "El momento en que el cohete deja el riel de lanzamiento. Una salida más rápida y estable implica un vuelo más recto y seguro.",
     "stability_margin": "Qué tan estable es el cohete, medido en calibres (diámetros del cuerpo). Aproximadamente 1–2 cal representa un vuelo saludable y controlable.",
     "forecast": "Pronóstico meteorológico real (GFS) para la fecha y el lugar de lanzamiento. Disponible para fechas dentro de aproximadamente 16 días desde ahora.",
-    "standard_atmosphere": "Una atmósfera promedio teórica. Se usa cuando no hay pronóstico real disponible — útil para una estimación rápida y reproducible."
+    "standard_atmosphere": "Una atmósfera promedio teórica. Se usa cuando no hay pronóstico real disponible — útil para una estimación rápida y reproducible.",
+    "mc_counts": "Intentados son los vuelos que se simularon. Exitosos son los que terminaron y se usan en los resultados. Fallidos son los que el simulador no pudo completar; no se tienen en cuenta.",
+    "mc_apogee_stats": "Media ± desv. es el apogeo medio y cuánto se alejan de él los vuelos habitualmente (una desviación típica). P5, mediana y P95 acotan los vuelos: un 5 % quedó por debajo de P5, la mitad por debajo de la mediana y un 5 % por encima de P95, así que el 90 % de los vuelos llegó a una altura entre P5 y P95.",
+    "mc_histogram": "Cada barra cuenta los vuelos cuyo apogeo cayó en ese rango de alturas. Una forma alta y estrecha indica que los vuelos coinciden; una ancha y plana, que el apogeo es difícil de predecir.",
+    "mc_ellipses": "Cada elipse es una zona donde aterriza el cohete: cerca del 39 % de los aterrizajes cae dentro de 1σ, el 86 % dentro de 2σ y el 99 % dentro de 3σ (la exterior). El marcador es el punto de lanzamiento. Las elipses salen de la variación simulada de los datos de entrada, no de un pronóstico de viento real salvo que el escenario lo haya usado."
   },
 
   "workbench": {
@@ -531,7 +535,7 @@
   "montecarlo": {
     "launch": "Dispersión",
     "panelLabel": "Dispersión Monte Carlo",
-    "panelHint": "Varía las condiciones de lanzamiento dentro de la incertidumbre del escenario y vuela el cohete muchas veces.",
+    "panelHint": "Ejecuta {count} simulaciones con pequeños cambios aleatorios en la masa, el empuje, el viento, el ángulo y la longitud del raíl para ver cuánto puede variar el vuelo. Más vuelos = resultado más fino, más espera.",
     "flights": "Vuelos",
     "flightsSlider": "Control deslizante de vuelos",
     "flightsHint": "{min}–{max} vuelos · ≈ {minutes} min",
@@ -574,7 +578,42 @@
     "launchSite": "Sitio de lanzamiento",
     "sigma": "{sigma}σ",
     "noEllipse": "Pocos vuelos completados para una elipse de aterrizaje.",
-    "downloadKml": "Descargar KML"
+    "downloadKml": "Descargar KML",
+    "contextBudget": "Simulamos {count} vuelos cambiando ligeramente en cada uno {list}. Así se ve cuánto puede diferir un vuelo real de la simulación única.",
+    "contextDefault": "Simulamos {count} vuelos con el margen de incertidumbre por defecto. Así se ve cuánto puede diferir un vuelo real de la simulación única.",
+    "budget": {
+      "mass": "la masa ({amount})",
+      "thrust": "el empuje ({amount})",
+      "wind_factor": "el viento ({amount})",
+      "inclination": "el ángulo de lanzamiento ({amount})",
+      "heading": "el rumbo ({amount})",
+      "angles": "el ángulo de lanzamiento y el rumbo ({amount})",
+      "rail_length": "la longitud del raíl ({amount})"
+    },
+    "readApogee": "9 de cada 10 vuelos llegaron a una altura entre {p5} y {p95} (mediana {p50}).",
+    "readLanding": "El aterrizaje más probable queda a unos {distance} al {direction} del punto de lanzamiento.",
+    "readLandingEllipse": "El aterrizaje más probable queda a unos {distance} al {direction} del punto de lanzamiento; el {coverage} % de los aterrizajes cae dentro de la elipse exterior.",
+    "readFailed": {
+      "one": "1 vuelo no se pudo simular y no se tiene en cuenta.",
+      "other": "{count} vuelos no se pudieron simular y no se tienen en cuenta."
+    },
+    "readNone": "No se pudo simular ningún vuelo, así que todavía no hay nada que leer.",
+    "direction": {
+      "N": "norte",
+      "NE": "noreste",
+      "E": "este",
+      "SE": "sureste",
+      "S": "sur",
+      "SW": "suroeste",
+      "W": "oeste",
+      "NW": "noroeste"
+    },
+    "explainerTitle": "Cómo leer estos resultados",
+    "explainerWhat": "Un análisis de Monte Carlo repite la misma simulación muchas veces. En cada una, los datos de entrada que no se conocen con exactitud (los indicados arriba) cambian un poco al azar.",
+    "explainerWhy": "Por eso el resultado es una dispersión y no un único número: muestra el rango en el que probablemente caerá un vuelo real.",
+    "explainerAltitude": "El rango de apogeo sirve para comprobar la altura objetivo y elegir una ventana de lanzamiento con condiciones adecuadas.",
+    "explainerSafety": "La elipse exterior sirve para elegir el lugar de lanzamiento y dimensionar la zona de seguridad: casi todos los aterrizajes caen dentro.",
+    "explainerMeasure": "Si la dispersión es demasiado amplia, conviene localizar el dato de entrada que más influye y medirlo mejor (por ejemplo, pesar el cohete o revisar los datos del motor)."
   },
 
   "theme": {

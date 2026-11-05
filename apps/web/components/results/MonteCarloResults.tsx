@@ -6,17 +6,88 @@
  * P5 / median / P95), the apogee histogram as plain SVG bars (bins from
  * lib/domain/montecarlo), the landing ellipses on a map with a 1σ/2σ/3σ
  * legend, and the KML download.
+ *
+ * S15 explains it for first-year students: a context line built from the
+ * budget the run dispersed, an automatic reading of this run's numbers, an
+ * InfoTip on every block and a collapsed "How to read these results".
  */
 
 import type { MonteCarloRunResult } from "@/lib/api";
 import { monteCarloKmlUrl } from "@/lib/api";
-import { apogeeHistogram, ellipseLayers, flightCounts, type HistogramBin } from "@/lib/domain/montecarlo";
+import {
+  apogeeHistogram,
+  budgetItems,
+  ellipseCoverage,
+  ellipseLayers,
+  flightCounts,
+  landingSummary,
+  type BudgetItem,
+  type EllipseLayer,
+  type HistogramBin,
+} from "@/lib/domain/montecarlo";
+import type { Locale } from "@/lib/i18n";
+import { plural } from "@/lib/i18n";
+import { InfoTip } from "@/components/InfoTip";
 import { formatQuantity, formatNumber } from "@/components/flight/flightMath";
 import { buttonClass } from "@/components/ui";
 import { LandingEllipseMap } from "@/components/map/LandingEllipseMap";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { MonteCarloExplainer } from "./MonteCarloExplainer";
 
-const SUBTITLE = "text-xs font-medium uppercase tracking-[0.06em] text-muted";
+const SUBTITLE = "flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.06em] text-muted";
+
+/** "±5 %", "±2°", "±0.02 m": a budget amount with its unit. */
+function budgetAmount(item: BudgetItem, locale: Locale): string {
+  const value = formatNumber(item.amount, locale, 2);
+  if (!item.unit) return `±${value}`;
+  return item.unit === "°" ? `±${value}°` : `±${value} ${item.unit}`;
+}
+
+/** What the run varied, from the budget it actually dispersed (S15). */
+function ContextLine({ result }: { result: MonteCarloRunResult }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const items = budgetItems(result.uncertainty);
+  const count = result.n_requested;
+  const text =
+    items.length > 0
+      ? t("montecarlo.contextBudget", {
+          count,
+          list: new Intl.ListFormat(locale, { type: "conjunction" }).format(
+            items.map((item) => t(`montecarlo.budget.${item.key}`, { amount: budgetAmount(item, locale) })),
+          ),
+        })
+      : t("montecarlo.contextDefault", { count });
+  return <p className="text-sm leading-relaxed text-ink-2">{text}</p>;
+}
+
+/** This run in words (S15): apogee range, most likely landing point, failed flights. */
+function Reading({ result, layers }: { result: MonteCarloRunResult; layers: EllipseLayer[] }) {
+  const t = useT();
+  const { locale } = useLocale();
+  const stats = result.apogee_stats;
+  if (!stats) return <p className="text-sm text-ink">{t("montecarlo.readNone")}</p>;
+  const m = (value: number) => formatQuantity(value, "m", locale);
+  const landing = landingSummary(result.impact_x, result.impact_y);
+  const outer = layers[layers.length - 1];
+  const sentences = [t("montecarlo.readApogee", { p5: m(stats.p5), p95: m(stats.p95), p50: m(stats.p50) })];
+  if (landing) {
+    const vars = { distance: m(landing.distance), direction: t(`montecarlo.direction.${landing.direction}`) };
+    sentences.push(
+      outer
+        ? t("montecarlo.readLandingEllipse", { ...vars, coverage: Math.round(ellipseCoverage(outer.sigma) * 100) })
+        : t("montecarlo.readLanding", vars),
+    );
+  }
+  if (result.n_failed > 0) sentences.push(plural(locale, result.n_failed, "montecarlo.readFailed"));
+  return (
+    <div className="flex flex-col gap-1 text-sm leading-relaxed text-ink">
+      {sentences.map((sentence) => (
+        <p key={sentence}>{sentence}</p>
+      ))}
+    </div>
+  );
+}
 
 export function MonteCarloResults({ runId, result }: { runId: string; result: MonteCarloRunResult }) {
   const t = useT();
@@ -28,23 +99,38 @@ export function MonteCarloResults({ runId, result }: { runId: string; result: Mo
 
   return (
     <div className="flex flex-col gap-5">
-      <ul aria-label={t("montecarlo.countsLabel")} className="grid grid-cols-3 gap-2">
-        {(
-          [
-            ["montecarlo.countAttempted", counts.attempted],
-            ["montecarlo.countSucceeded", counts.succeeded],
-            ["montecarlo.countFailed", counts.failed],
-          ] as const
-        ).map(([key, value]) => (
-          <li key={key} className="flex flex-col gap-0.5 rounded-xl bg-surface-2 px-3 py-2">
-            <span className="text-xs text-muted">{t(key)}</span>
-            <span className="text-lg font-semibold tabular-nums text-ink">{value}</span>
-          </li>
-        ))}
-      </ul>
+      <div className="flex flex-col gap-3">
+        <ContextLine result={result} />
+        <Reading result={result} layers={layers} />
+        <MonteCarloExplainer />
+      </div>
 
       <div className="flex flex-col gap-2">
-        <h3 className={SUBTITLE}>{t("montecarlo.apogeeTitle")}</h3>
+        <h3 className={SUBTITLE}>
+          {t("montecarlo.countsLabel")}
+          <InfoTip term="mc_counts" />
+        </h3>
+        <ul aria-label={t("montecarlo.countsLabel")} className="grid grid-cols-3 gap-2">
+          {(
+            [
+              ["montecarlo.countAttempted", counts.attempted],
+              ["montecarlo.countSucceeded", counts.succeeded],
+              ["montecarlo.countFailed", counts.failed],
+            ] as const
+          ).map(([key, value]) => (
+            <li key={key} className="flex flex-col gap-0.5 rounded-xl bg-surface-2 px-3 py-2">
+              <span className="text-xs text-muted">{t(key)}</span>
+              <span className="text-lg font-semibold tabular-nums text-ink">{value}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex flex-col gap-2">
+        <h3 className={SUBTITLE}>
+          {t("montecarlo.apogeeTitle")}
+          <InfoTip term="mc_apogee_stats" />
+        </h3>
         {stats ? (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-4">
             <div className="flex flex-col">
@@ -71,13 +157,19 @@ export function MonteCarloResults({ runId, result }: { runId: string; result: Mo
 
       {result.apogee_agl.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h3 className={SUBTITLE}>{t("montecarlo.histogramTitle")}</h3>
+          <h3 className={SUBTITLE}>
+            {t("montecarlo.histogramTitle")}
+            <InfoTip term="mc_histogram" />
+          </h3>
           <ApogeeHistogram values={result.apogee_agl} />
         </div>
       )}
 
       <div className="flex flex-col gap-2">
-        <h3 className={SUBTITLE}>{t("montecarlo.mapTitle")}</h3>
+        <h3 className={SUBTITLE}>
+          {t("montecarlo.mapTitle")}
+          <InfoTip term="mc_ellipses" />
+        </h3>
         {layers.length > 0 ? (
           <>
             <LandingEllipseMap origin={result.origin} layers={layers} />

@@ -20,8 +20,8 @@ export const MC_DONE: MonteCarloRun = {
     n_failed: 3,
     apogee_agl: [700, 750, 780, 790, 800, 810, 820, 860],
     apogee_stats: { mean: 793.3, std: 45.9, min: 700, max: 860, p5: 720, p50: 795, p95: 850 },
-    impact_x: [],
-    impact_y: [],
+    impact_x: [110, 130],
+    impact_y: [0, 10],
     ellipse_sigmas: [1, 2, 3],
     landing_ellipses: [
       [[38.1, -0.6], [38.1, -0.5], [38.2, -0.5]],
@@ -30,6 +30,14 @@ export const MC_DONE: MonteCarloRun = {
     ],
     apogee_ellipses: [],
     origin: { latitude: 38.2655, longitude: -0.6981 },
+    uncertainty: {
+      mass: { std: 0.05, kind: "relative" },
+      inclination: { std: 2, kind: "absolute" },
+      heading: { std: 2, kind: "absolute" },
+      wind_factor: { std: 0.1, kind: "relative" },
+      thrust: { std: 0.03, kind: "relative" },
+      rail_length: { std: 0.05, kind: "relative" },
+    },
     files: { inputs: "mc.inputs.txt", outputs: "mc.outputs.txt", errors: "mc.errors.txt", kml: "mc.kml" },
   },
 };

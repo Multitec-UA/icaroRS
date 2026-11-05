@@ -110,3 +110,99 @@ export function ellipseLayers(
 export function flightCounts(result: Pick<MonteCarloRunResult, "n_requested" | "n_succeeded" | "n_failed">) {
   return { attempted: result.n_requested, succeeded: result.n_succeeded, failed: result.n_failed };
 }
+
+// ---------------------------------------------------------------------------
+// Explaining a finished run (S15)
+// ---------------------------------------------------------------------------
+
+export type UncertaintyBudget = MonteCarloRunResult["uncertainty"];
+
+/** A dispersed input as shown to the reader: `angles` = inclination and heading with the same std. */
+export interface BudgetItem {
+  key: "mass" | "thrust" | "wind_factor" | "inclination" | "heading" | "angles" | "rail_length";
+  amount: number;
+  unit: string;
+}
+
+const BUDGET_ORDER = ["mass", "thrust", "wind_factor", "inclination", "heading", "rail_length"] as const;
+/** The unit of an `absolute` std, per input (a `relative` one is a fraction, shown as %). */
+const ABSOLUTE_UNITS: Record<(typeof BUDGET_ORDER)[number], string> = {
+  mass: "kg",
+  thrust: "N",
+  wind_factor: "",
+  inclination: "°",
+  heading: "°",
+  rail_length: "m",
+};
+
+/** At most two decimals, and none when they are noise (0.03 × 100 = 3.0000000000000004). */
+function tidy(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+/**
+ * The budget the run actually dispersed, in reading order and display units:
+ * relative stds as percentages, absolute ones in the input's unit. Missing or
+ * unknown keys are left out; an empty budget (runs stored before S15) has no
+ * items. Inclination and heading with the same amount read as one `angles` item.
+ */
+export function budgetItems(uncertainty: UncertaintyBudget | null | undefined): BudgetItem[] {
+  if (!uncertainty) return [];
+  const items: BudgetItem[] = [];
+  for (const key of BUDGET_ORDER) {
+    const entry = uncertainty[key];
+    if (!entry || !Number.isFinite(entry.std)) continue;
+    items.push(
+      entry.kind === "relative"
+        ? { key, amount: tidy(entry.std * 100), unit: "%" }
+        : { key, amount: tidy(entry.std), unit: ABSOLUTE_UNITS[key] },
+    );
+  }
+  const inclination = items.findIndex((item) => item.key === "inclination");
+  const heading = items[inclination + 1];
+  if (
+    inclination >= 0 &&
+    heading?.key === "heading" &&
+    heading.amount === items[inclination].amount &&
+    heading.unit === items[inclination].unit
+  ) {
+    items.splice(inclination, 2, { key: "angles", amount: heading.amount, unit: heading.unit });
+  }
+  return items;
+}
+
+export const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
+export type CompassPoint = (typeof COMPASS_POINTS)[number];
+
+/**
+ * The mean impact point as a distance and an 8-point compass direction from
+ * the launch site (`impact_x` east, `impact_y` north, metres). Distances are
+ * whole metres, rounded to 10 m from 100 m up ("about 120 m"). Null without
+ * a finite impact.
+ */
+export function landingSummary(
+  impactX: readonly number[],
+  impactY: readonly number[],
+): { distance: number; direction: CompassPoint } | null {
+  let sumX = 0;
+  let sumY = 0;
+  let count = 0;
+  for (let i = 0; i < Math.min(impactX.length, impactY.length); i++) {
+    if (!Number.isFinite(impactX[i]) || !Number.isFinite(impactY[i])) continue;
+    sumX += impactX[i];
+    sumY += impactY[i];
+    count += 1;
+  }
+  if (count === 0) return null;
+  const x = sumX / count;
+  const y = sumY / count;
+  const raw = Math.hypot(x, y);
+  const distance = raw >= 100 ? Math.round(raw / 10) * 10 : Math.round(raw);
+  const bearing = ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
+  return { distance, direction: COMPASS_POINTS[Math.round(bearing / 45) % 8] };
+}
+
+/** Share of landings inside the kσ ellipse of a 2-D normal: 1 − e^(−k²/2) (39 %, 86 %, 99 %). */
+export function ellipseCoverage(sigma: number): number {
+  return 1 - Math.exp(-(sigma * sigma) / 2);
+}

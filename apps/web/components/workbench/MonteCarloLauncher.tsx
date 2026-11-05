@@ -2,8 +2,8 @@
 
 /**
  * MonteCarloLauncher — "Dispersion" beside the Run button (S12): a small
- * panel with the number of flights (number field + slider, 10..500, default
- * 100), an "≈ N min" estimate (~0.4 s per flight) and "Run dispersion".
+ * panel saying what a dispersion run does (S15), the number of flights
+ * (number field + slider, 10..500, default 100), an "≈ N min" estimate (~0.4 s per flight) and "Run dispersion".
  *
  * The count is clamped on blur and again on submit, so whatever is typed
  * the API receives a count it accepts. A launch the parent reports as queued
@@ -91,7 +91,7 @@ export function MonteCarloLauncher({
           noValidate
           className={cn(popoverClass, "absolute right-0 top-full z-30 mt-2 flex w-72 flex-col gap-3 p-4")}
         >
-          <p className="text-xs text-muted">{t("montecarlo.panelHint")}</p>
+          <p className="text-xs text-muted">{t("montecarlo.panelHint", { count: flights })}</p>
           <div className="flex flex-col gap-1.5">
             <label htmlFor={fieldId} className="text-xs font-medium text-ink-2">
               {t("montecarlo.flights")}

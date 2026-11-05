@@ -202,6 +202,29 @@
         "title": "Dispersion",
         "type": "object"
       },
+      "DispersionModel": {
+        "description": "One entry of the uncertainty budget that was dispersed.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "relative",
+              "absolute"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "std": {
+            "title": "Std",
+            "type": "number"
+          }
+        },
+        "required": [
+          "std",
+          "kind"
+        ],
+        "title": "DispersionModel",
+        "type": "object"
+      },
       "ElevationLookupResult": {
         "description": "Response body for GET /api/elevation.",
         "properties": {
@@ -736,6 +759,14 @@
           },
           "origin": {
             "$ref": "#/components/schemas/LatLon"
+          },
+          "uncertainty": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DispersionModel"
+            },
+            "default": {},
+            "title": "Uncertainty",
+            "type": "object"
           }
         },
         "required": [
