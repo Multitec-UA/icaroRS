@@ -128,7 +128,10 @@ def _std(uncertainty: dict[str, Dispersion], key: str, nominal: float) -> float 
 
 
 def _resolve_uncertainty(scenario: "Scenario | None") -> dict[str, Dispersion]:
-    if scenario is None or scenario.uncertainty is None:
+    # None (API path, no block) and {} (the web always sends an empty block)
+    # both mean "the default budget": an empty budget would make every
+    # sampled flight identical, which is never what a Monte Carlo asks for.
+    if scenario is None or not scenario.uncertainty:
         return dict(DEFAULT_UNCERTAINTY)
     unknown = sorted(set(scenario.uncertainty) - set(ALLOWED_UNCERTAINTY_KEYS))
     if unknown:
