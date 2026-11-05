@@ -1,3 +1,7 @@
+import json
+import warnings
+from unittest.mock import patch
+
 import matplotlib as plt
 import numpy as np
 import pytest
@@ -185,3 +189,95 @@ def test_estimate_confidence_interval_raises_type_error_for_invalid_statistic():
 
     with pytest.raises(TypeError):
         mc.estimate_confidence_interval("apogee", statistic="not_a_function")
+
+
+class _FlakyFlight:
+    """Stand-in for ``Flight`` whose calls fail on the given (1-based) attempts."""
+
+    def __init__(self, failing_attempts):
+        self.failing_attempts = set(failing_attempts)
+        self.calls = 0
+
+    def __call__(self, **_kwargs):
+        self.calls += 1
+        if self.calls in self.failing_attempts:
+            raise ValueError(f"diverged on attempt {self.calls}")
+        return object()
+
+
+def _read_ndjson(path):
+    with open(path, encoding="utf-8") as file:
+        return [json.loads(line) for line in file.read().splitlines()]
+
+
+def _run_with_flaky_flight(monte_carlo, failing_attempts, n, **kwargs):
+    flaky = _FlakyFlight(failing_attempts)
+    with (
+        patch("rocketpy.simulation.monte_carlo.Flight", flaky),
+        patch.object(
+            MonteCarlo,
+            "_MonteCarlo__evaluate_flight_outputs",
+            lambda self, flight, idx: json.dumps({"index": idx, "apogee": 1.0})
+            + "\n",
+        ),
+    ):
+        monte_carlo.simulate(number_of_simulations=n, **kwargs)
+    return flaky
+
+
+@pytest.fixture
+def tmp_monte_carlo(stochastic_environment, stochastic_calisto, stochastic_flight, tmp_path):
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        return MonteCarlo(
+            filename=tmp_path / "mc",
+            environment=stochastic_environment,
+            rocket=stochastic_calisto,
+            flight=stochastic_flight,
+        )
+
+
+def test_skip_failed_simulations_continues_and_logs_failed_inputs(tmp_monte_carlo):
+    """A failing flight is logged with its inputs and the run keeps going."""
+    flaky = _run_with_flaky_flight(
+        tmp_monte_carlo, failing_attempts=[2], n=4, skip_failed_simulations=True
+    )
+
+    assert flaky.calls == 4
+    outputs = _read_ndjson(tmp_monte_carlo.output_file)
+    inputs = _read_ndjson(tmp_monte_carlo.input_file)
+    errors = _read_ndjson(tmp_monte_carlo.error_file)
+    assert len(outputs) == 3
+    assert len(inputs) == 3
+    assert len(errors) == 1
+    assert errors[0]["index"] == 2
+    assert errors[0]["error"] == "ValueError: diverged on attempt 2"
+    # the failed flight's sampled inputs are kept, not an empty line
+    assert set(inputs[0]) - {"index"} <= set(errors[0])
+    assert len(set(errors[0]) - {"index", "error"}) > 0
+
+
+def test_failed_simulation_still_aborts_by_default_and_logs_its_inputs(
+    tmp_monte_carlo,
+):
+    """Default behaviour is unchanged: the first failure aborts the run, and
+    the error file now holds the failed flight's inputs instead of an empty line."""
+    with pytest.raises(ValueError, match="diverged on attempt 2"):
+        _run_with_flaky_flight(tmp_monte_carlo, failing_attempts=[2], n=4)
+
+    outputs = _read_ndjson(tmp_monte_carlo._output_file)
+    errors = _read_ndjson(tmp_monte_carlo._error_file)
+    assert len(outputs) == 1
+    assert len(errors) == 1
+    assert errors[0]["index"] == 2
+    assert len(set(errors[0]) - {"index"}) > 0
+
+
+def test_successful_run_leaves_error_file_empty(tmp_monte_carlo):
+    """Without failures the flag changes nothing."""
+    _run_with_flaky_flight(
+        tmp_monte_carlo, failing_attempts=[], n=3, skip_failed_simulations=True
+    )
+
+    assert len(_read_ndjson(tmp_monte_carlo.output_file)) == 3
+    assert _read_ndjson(tmp_monte_carlo.error_file) == []

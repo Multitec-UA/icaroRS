@@ -169,6 +169,7 @@ class MonteCarlo:
         append=False,
         parallel=False,
         n_workers=None,
+        skip_failed_simulations=False,
         **kwargs,
     ):  # pylint: disable=too-many-statements
         """
@@ -188,6 +189,12 @@ class MonteCarlo:
             number of workers will be equal to the number of CPUs available.
             A minimum of 2 workers is required for parallel mode.
             Default is None.
+        skip_failed_simulations : bool, optional
+            If True, a simulation that raises is logged to the ``errors`` file
+            (its sampled inputs plus an ``error`` key with the exception) and
+            the run continues with the next one. Failed simulations count
+            towards ``number_of_simulations``. If False, the first failure
+            aborts the run. Default is False.
         kwargs : dict
             Custom arguments for simulation export of the ``inputs`` file. Options
             are:
@@ -219,6 +226,7 @@ class MonteCarlo:
         running the simulation again with `append=False`.
         """
         self._export_config = kwargs
+        self._skip_failed_simulations = skip_failed_simulations
         self.number_of_simulations = number_of_simulations
         self._initial_sim_idx = self.num_of_loaded_sims if append else 0
 
@@ -284,9 +292,24 @@ class MonteCarlo:
                 sim_monitor.increment()
                 inputs_json, outputs_json = "", ""
 
-                flight = self.__run_single_simulation()
-                inputs_json = self.__evaluate_flight_inputs(sim_monitor.count)
-                outputs_json = self.__evaluate_flight_outputs(flight, sim_monitor.count)
+                try:
+                    flight_kwargs = self.__sample_flight_inputs()
+                    inputs_json = self.__evaluate_flight_inputs(sim_monitor.count)
+                    flight = Flight(**flight_kwargs)
+                    outputs_json = self.__evaluate_flight_outputs(
+                        flight, sim_monitor.count
+                    )
+                except Exception as error:  # pylint: disable=broad-except
+                    if not self._skip_failed_simulations:
+                        raise
+                    with open(self._error_file, "a", encoding="utf-8") as f:
+                        f.write(
+                            self.__failed_inputs_json(
+                                inputs_json, sim_monitor.count, error
+                            )
+                        )
+                    sim_monitor.print_update_status()
+                    continue
 
                 with open(self.input_file, "a", encoding="utf-8") as f:
                     f.write(inputs_json)
@@ -410,9 +433,25 @@ class MonteCarlo:
                 sim_idx = sim_monitor.increment() - 1
                 inputs_json, outputs_json = "", ""
 
-                flight = self.__run_single_simulation()
-                inputs_json = self.__evaluate_flight_inputs(sim_idx)
-                outputs_json = self.__evaluate_flight_outputs(flight, sim_idx)
+                try:
+                    flight_kwargs = self.__sample_flight_inputs()
+                    inputs_json = self.__evaluate_flight_inputs(sim_idx)
+                    flight = Flight(**flight_kwargs)
+                    outputs_json = self.__evaluate_flight_outputs(flight, sim_idx)
+                except Exception as error:  # pylint: disable=broad-except
+                    if not self._skip_failed_simulations:
+                        raise
+                    # manager lock proxies do not support ``with``
+                    mutex.acquire()
+                    try:
+                        with open(self.error_file, "a", encoding="utf-8") as f:
+                            f.write(
+                                self.__failed_inputs_json(inputs_json, sim_idx, error)
+                            )
+                        sim_monitor.print_update_status()
+                    finally:
+                        mutex.release()
+                    continue
 
                 try:
                     mutex.acquire()
@@ -445,15 +484,18 @@ class MonteCarlo:
             error_event.set()
             mutex.release()
 
-    def __run_single_simulation(self):
-        """Runs a single simulation and returns the inputs and outputs.
+    def __sample_flight_inputs(self):
+        """Samples the stochastic models for one simulation.
+
+        Sampling fills each model's ``last_rnd_dict``, so the inputs can be
+        serialized before the flight runs (and logged if it fails).
 
         Returns
         -------
-        Flight
-            The flight object of the simulation.
+        dict
+            Keyword arguments for ``Flight``.
         """
-        return Flight(
+        return dict(
             rocket=self.rocket.create_object(),
             environment=self.environment.create_object(),
             rail_length=self.flight._randomize_rail_length(),
@@ -463,6 +505,15 @@ class MonteCarlo:
             terminate_on_apogee=self.flight.terminate_on_apogee,
             time_overshoot=self.flight.time_overshoot,
         )
+
+    @staticmethod
+    def __failed_inputs_json(inputs_json, sim_idx, error):
+        """The ``errors`` file line of a skipped simulation: its sampled
+        inputs (or just its index when sampling itself failed) plus the error.
+        """
+        record = json.loads(inputs_json) if inputs_json else {"index": sim_idx}
+        record["error"] = f"{type(error).__name__}: {error}"
+        return json.dumps(record) + "\n"
 
     def estimate_confidence_interval(
         self,

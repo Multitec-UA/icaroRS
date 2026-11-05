@@ -236,3 +236,48 @@ def test_monte_carlo_callback(monte_carlo_calisto):
             monte_carlo_calisto.simulate(number_of_simulations=10, append=False)
     finally:
         _post_test_file_cleanup()
+
+
+def _failing_collector(flight):
+    raise RuntimeError("collector failed")
+
+
+@pytest.mark.slow
+@pytest.mark.parametrize("parallel", [False, True])
+def test_monte_carlo_skip_failed_simulations(
+    stochastic_environment, stochastic_calisto, stochastic_flight, tmp_path, parallel
+):
+    """With ``skip_failed_simulations`` every failure is logged with its
+    inputs and the run reaches ``number_of_simulations`` attempts, in serial
+    and parallel mode."""
+    import json  # pylint: disable=import-outside-toplevel
+
+    from rocketpy.simulation import MonteCarlo  # pylint: disable=import-outside-toplevel
+
+    monte_carlo = MonteCarlo(
+        filename=tmp_path / "mc_skip",
+        environment=stochastic_environment,
+        rocket=stochastic_calisto,
+        flight=stochastic_flight,
+        data_collector={"always_fails": _failing_collector},
+    )
+    monte_carlo.simulate(
+        number_of_simulations=2,
+        parallel=parallel,
+        n_workers=2 if parallel else None,
+        skip_failed_simulations=True,
+    )
+
+    with open(monte_carlo.error_file, encoding="utf-8") as file:
+        errors = [json.loads(line) for line in file.read().splitlines()]
+    with open(monte_carlo.output_file, encoding="utf-8") as file:
+        assert file.read() == ""
+    assert len(errors) == 2
+    assert all(
+        e["error"].startswith(
+            "ValueError: An error was encountered running 'data_collector' "
+            "callback always_fails"
+        )
+        for e in errors
+    )
+    assert all("heading" in e for e in errors)
