@@ -26,8 +26,9 @@ Quotes from issue #2 (rewritten 2026-11-05) are verbatim.
 
 ## Tasks
 
-- [ ] T1 — S7 — route: inline — rocketpy `MonteCarlo.simulate(skip_failed_simulations=...)`, serial + parallel, inputs serialized before the flight so `.errors.txt` holds them.
-- [ ] T2 — S1–S6, S13, S14 — route: inline — `packages/icaro/icaro/montecarlo.py` + tests + README.
+- [x] T1 — S7 — route: inline — rocketpy `MonteCarlo.simulate(skip_failed_simulations=...)`, serial + parallel, inputs serialized before the flight so `.errors.txt` holds them — commit 08cb038 (RED: 3 unit tests, unknown kwarg + empty errors line; GREEN: unit 15/15; slow integration 26/26 incl. new serial+parallel test, which caught a manager-lock `with` bug in parallel mode; Risk: none — opt-in flag, default path unchanged except the errors line now holds the failed inputs)
+- [x] T2 — S1–S6, S13, S14 — route: delegated writer (trigger: long-session context backstop, parent at ~150k tokens) — `packages/icaro/icaro/montecarlo.py` + tests + README — commit 7bb61d0 (writer: RED ModuleNotFoundError → GREEN; real 5-flight run exposed 3 issues, each pinned by a test: stochastic surface wrapping, Vector positions, 32 MB inputs file → `include_function_data=False`; parent spot check: icaro 91 passed / 1 skipped; Risk: none)
+- [x] T2a — S4 — route: inline (found in T2 review) — rocketpy logged `upper_button_position` on the wrong side for `nose_to_tail` rockets (`stochastic_rocket.py` `_create_rail_buttons`); physics unaffected (`Rocket.set_rail_buttons` uses `abs(upper - lower)`) — commit b14f0ee (RED 1.318 vs −0.082 → GREEN; stochastic + MC unit 34/34)
 - [ ] T3 — S8 — route: inline — `icaro mc` CLI + tests + README.
 - [ ] T4 — S9, S10 — route: inline — API job model (queue, subprocess runner, endpoints, record status) + tests. Risk: items 3 and 4.
 - [ ] T5 — S11 — route: inline — `DEPLOY.md`. Risk: item 5.
@@ -38,3 +39,6 @@ Quotes from issue #2 (rewritten 2026-11-05) are verbatim.
 - L1 (2026-11-05, user): "vamos a abordar la #2"
 - L2 (2026-11-05, user decisions): execution "Subproceso en la misma instancia (recomendado)"; limits "Un job a la vez, n ≤ 500 (recomendado)".
 - L3 (2026-11-05, exploration): Cloud Run `--timeout 300`, one instance, `--concurrency 8`, 2 CPU, no `--no-cpu-throttling` (`DEPLOY.md:266-274`); no background mechanism exists; RocketPy `MonteCarlo` aborts the whole run on the first failed iteration and writes an empty line to `.errors.txt` (`monte_carlo.py:288-309`); no progress hook — icaro counts NDJSON lines instead.
+- L4 (2026-11-05): T1 committed 08cb038. T2 delegated to a bounded writer (context backstop).
+- L5 (2026-11-05): T2 review. Writer claimed the rail-button flaw changed the effective rail length; checked `rocket.py:1842`: only the logged upper position was wrong. Fixed in b14f0ee. S14 validated: `StochasticSolidMotor(total_impulse=std)` reshapes thrust; 5 samples 226.9–241.5 N·s around 235.01. Observed `.inputs.txt` keys recorded for #3 in the T2 handoff (top-level `mass`, `inclination`, `heading`, `rail_length`, `wind_velocity_x_factor`, `wind_velocity_y_factor`; `motors[0].total_impulse`). Open: `motors[0].thrust_source` holds an absolute path (matters for T4 storage); RocketPy prints to stdout during nominal build and runs (matters for T3).
+- L6 (2026-11-05): slice PR1 = 08cb038..7bb61d0, ~1,370 authored lines, over the ~400 heuristic because T2 is one behaviour with ~500 lines of tests; not split artificially. RDD assess (base main, committed-only): risk medium, review_due false (`under_budget`) — no native review. Chain: tracker `feat/monte-carlo-dispersion` = 712c1cf (this document); PR1 branch `feat/mc-1-domain` → tracker.
