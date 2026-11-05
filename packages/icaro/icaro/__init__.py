@@ -16,8 +16,10 @@ Phase B (convert):
     convert_ork           — convert a .ork file to an export directory
     ConvertUnavailableError — raised when [convert] extra / Java is missing
 
-Phase C (Monte Carlo) — forward stub, implemented in Phase C:
-    run_monte_carlo
+Phase C (Monte Carlo, issue #2):
+    run_monte_carlo       — stochastic dispersion run → MonteCarloResult
+    build_stochastic      — RocketPy stochastic models from export + budget
+    MonteCarloResult      — apogee distribution, impacts, ellipses, files
 
 Phase D (Sensitivity) — forward stub, implemented in Phase D:
     run_sensitivity
@@ -34,6 +36,7 @@ trigger those imports — they only fire when ``convert_ork`` is called.
 
 from .convert import ConvertUnavailableError, convert_ork
 from .discovery import choose_atmosphere_model_for_date, gfs_window_check
+from .montecarlo import MonteCarloResult, build_stochastic, run_monte_carlo
 from .scenario import Scenario, load_scenario
 from .series import extract_flight_series
 from .simulation import simulate_from_export
@@ -51,8 +54,10 @@ __all__ = [
     "choose_atmosphere_model_for_date",
     # Issue #11 — interactive charts data layer
     "extract_flight_series",
-    # Phase C — added when montecarlo.py is implemented
-    # "run_monte_carlo",
+    # Phase C — Monte Carlo dispersion (issue #2)
+    "run_monte_carlo",
+    "build_stochastic",
+    "MonteCarloResult",
     # Phase D — added when sensitivity.py is implemented
     # "run_sensitivity",
     # Phase E — added when comparison.py is implemented
