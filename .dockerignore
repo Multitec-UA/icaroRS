@@ -37,7 +37,7 @@ serializer.log
 .idea
 .vscode
 
-# Agent / SDD scratch
+# Agent scratch
 .atl
 .agent
 databank

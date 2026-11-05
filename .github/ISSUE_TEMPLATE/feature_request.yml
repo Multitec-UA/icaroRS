@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Thanks for the proposal. Describe the problem first, then the solution.
-        Large changes may be turned into an SDD change (explore → propose → spec → design → tasks) before implementation.
+        Large changes are tracked with ODD: a feature document (`odd/tasks/<feature>.md`) is created when implementation starts.
 
   - type: checkboxes
     id: preflight
