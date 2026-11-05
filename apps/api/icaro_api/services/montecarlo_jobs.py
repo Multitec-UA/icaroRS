@@ -29,6 +29,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -49,10 +50,15 @@ WORKER_MODULE = "icaro_api.services.montecarlo_worker"
 OUTPUT_NAME = "montecarlo"
 STDERR_TAIL_BYTES = 2048
 INTERRUPTED_ERROR = "interrupted by an API restart"
+DEFAULT_TIMEOUT_S = 1800.0  # n=500 serial takes ~4 min on a laptop; generous
 
 
 class ProcessLike(Protocol):
     def poll(self) -> int | None: ...
+
+    def kill(self) -> None: ...
+
+    def wait(self, timeout: float | None = None) -> int | None: ...
 
 
 Launcher = Callable[[list[str], BinaryIO], ProcessLike]
@@ -128,10 +134,12 @@ class MonteCarloJobQueue:
         clock: Callable[[], datetime] = _utcnow,
         poll_interval: float = 1.0,
         autostart: bool = True,
+        timeout_s: float = DEFAULT_TIMEOUT_S,
     ) -> None:
         import time
 
         self._results_dir = Path(results_dir)
+        self._timeout_s = timeout_s
         self._launcher = launcher
         self._sleep = sleep if sleep is not None else time.sleep
         self._clock = clock
@@ -222,6 +230,14 @@ class MonteCarloJobQueue:
         rec = job.record
         run_dir = self._results_dir / rec.run_id
         run_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self._execute_in(job, run_dir)
+        finally:
+            # results_dir is a RAM-backed tmpfs on Cloud Run: keep nothing local.
+            shutil.rmtree(run_dir, ignore_errors=True)
+
+    def _execute_in(self, job: MonteCarloJob, run_dir: Path) -> None:
+        rec = job.record
         prefix = run_dir / OUTPUT_NAME
         counted = (Path(f"{prefix}.outputs.txt"), Path(f"{prefix}.errors.txt"))
 
@@ -245,17 +261,34 @@ class MonteCarloJobQueue:
 
             with open(stderr_path, "wb") as stderr_file:
                 proc = self._launcher(argv, stderr_file)
+                started = self._clock()
                 done = 0
-                while True:
-                    rc = proc.poll()
-                    now_done = min(sum(_count_lines(p) for p in counted), rec.n)
-                    if now_done != done:
-                        done = now_done
-                        self._save(job, progress_done=done)
-                    if rc is not None:
-                        break
-                    self._sleep(self._poll_interval)
+                timed_out = False
+                try:
+                    while True:
+                        rc = proc.poll()
+                        now_done = min(sum(_count_lines(p) for p in counted), rec.n)
+                        if now_done != done:
+                            done = now_done
+                            self._save(job, progress_done=done)
+                        if rc is not None:
+                            break
+                        if (self._clock() - started).total_seconds() > self._timeout_s:
+                            timed_out = True
+                            break
+                        self._sleep(self._poll_interval)
+                finally:
+                    # Never leave the worker running: a failed progress save or
+                    # a timeout must not orphan a CPU-bound subprocess.
+                    if proc.poll() is None:
+                        proc.kill()
+                        proc.wait(timeout=10)
 
+            if timed_out:
+                self._save(job, status="error",
+                           error=f"Monte Carlo worker timed out after {self._timeout_s:.0f} s.",
+                           finished_at=self._clock())
+                return
             if rc != 0:
                 tail = _tail(stderr_path)
                 self._save(job, status="error",

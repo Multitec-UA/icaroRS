@@ -91,7 +91,11 @@ its dev proxy.
   output files. The run files are uploaded to
   `orgs/{org}/montecarlo/{run_id}/`. The queue is in memory: on startup, runs
   left `queued`/`running` by a previous process are marked `error`
-  (`interrupted by an API restart`). The record stores the result as a JSON
+  (`interrupted by an API restart`). A worker is killed after 30 minutes
+  (`error`: `timed out`), or as soon as the queue can no longer record its
+  progress, so no orphan keeps burning CPU; the local run directory under
+  `ICARO_RESULTS_DIR` (tmpfs on Cloud Run) is removed once the run is uploaded
+  or has failed. The record stores the result as a JSON
   string (`result_json`) because Firestore rejects the nested ellipse arrays.
   Listing needs the composite indexes `(org_id, created_at DESC)` and
   `(org_id, rocket_id, created_at DESC)` on `montecarlo_runs`

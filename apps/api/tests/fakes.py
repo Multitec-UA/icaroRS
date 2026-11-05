@@ -243,6 +243,14 @@ class FakeMonteCarloProcess:
         )
         self._json = _json
         self.returncode = None
+        self.killed = False
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+
+    def wait(self, timeout=None):
+        return self.returncode
 
     def poll(self):
         if self.returncode is not None:

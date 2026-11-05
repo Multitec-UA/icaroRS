@@ -7,7 +7,7 @@ and the clock is fixed: no Monte Carlo, no real process, no wall-clock wait.
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from icaro_api.services.db import InMemoryDb
@@ -29,6 +29,7 @@ class _Launcher:
     def __init__(self, **per_run):
         self.launched: list[str] = []
         self.argvs: list[list[str]] = []
+        self.processes: list[FakeMonteCarloProcess] = []
         self._per_run = per_run  # run_id -> FakeMonteCarloProcess kwargs or Exception
 
     def __call__(self, argv, stderr_file):
@@ -39,7 +40,9 @@ class _Launcher:
         spec = self._per_run.get(run_id, {})
         if isinstance(spec, Exception):
             raise spec
-        return FakeMonteCarloProcess(argv, stderr_file, **spec)
+        proc = FakeMonteCarloProcess(argv, stderr_file, **spec)
+        self.processes.append(proc)
+        return proc
 
 
 def _setup(tmp_path, launcher, *, autostart=False):
@@ -205,3 +208,69 @@ def test_recovery_marks_unfinished_runs_as_error():
         assert rec.error == "interrupted by an API restart"
         assert rec.finished_at == _NOW
     assert db.get_montecarlo("d", org_id=_ORG).status == "done"
+
+
+def test_local_run_dir_is_removed_after_done_and_after_error(tmp_path):
+    """results_dir is a RAM-backed tmpfs on Cloud Run: nothing may be left
+    behind once the run is uploaded or has failed."""
+    launcher = _Launcher(b={"lines": 1, "returncode": 1, "stderr": b"boom"})
+    db, storage, queue = _setup(tmp_path, launcher)
+    queue.submit(_job(db, storage, "a"))
+    queue.submit(_job(db, storage, "b"))
+
+    queue.process_next()
+    queue.process_next()
+
+    assert db.get_montecarlo("a", org_id=_ORG).status == "done"
+    assert db.get_montecarlo("b", org_id=_ORG).status == "error"
+    assert not (tmp_path / "runs" / "a").exists()
+    assert not (tmp_path / "runs" / "b").exists()
+    # the uploaded copy is intact
+    assert storage.open_blob(f"orgs/{_ORG}/montecarlo/a/montecarlo.kml") == b"<kml/>"
+
+
+def test_subprocess_is_killed_when_a_progress_save_fails(tmp_path):
+    launcher = _Launcher(a={"lines": 3})
+    db, storage, queue = _setup(tmp_path, launcher)
+    job = _job(db, storage, "a")
+    real_save = db.save_montecarlo
+    calls = {"n": 0}
+
+    def flaky_save(rec, org_id):
+        calls["n"] += 1
+        if calls["n"] == 3:  # the first progress update after "running"
+            raise RuntimeError("firestore down")
+        real_save(rec, org_id=org_id)
+
+    db.save_montecarlo = flaky_save
+    queue.submit(job)
+
+    queue.process_next()
+
+    proc = launcher.processes[0]
+    assert proc.killed is True
+    assert db.get_montecarlo("a", org_id=_ORG).status == "error"
+
+
+def test_worker_is_killed_after_the_timeout(tmp_path):
+    launcher = _Launcher(a={"lines": 10_000})
+    db = InMemoryDb()
+    storage = LocalFsStorage(tmp_path / "blobs")
+    (tmp_path / "blobs" / "exports" / "exp-1").mkdir(parents=True)
+    (tmp_path / "blobs" / "exports" / "exp-1" / "parameters.json").write_text("{}")
+    ticks = iter(range(0, 10_000))
+    clock = lambda: datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc) + timedelta(
+        seconds=next(ticks) * 10
+    )
+    queue = MonteCarloJobQueue(
+        tmp_path / "runs", launcher=launcher, sleep=lambda s: None, clock=clock,
+        autostart=False, timeout_s=60,
+    )
+    queue.submit(_job(db, storage, "a", n=10_000))
+
+    queue.process_next()
+
+    rec = db.get_montecarlo("a", org_id=_ORG)
+    assert launcher.processes[0].killed is True
+    assert rec.status == "error"
+    assert "timed out after 60 s" in rec.error
