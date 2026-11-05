@@ -1,0 +1,40 @@
+# monte-carlo-dispersion — Monte Carlo dispersion and landing ellipse (issue #2)
+
+Objective: run many stochastic flights within the scenario's uncertainty budget and deliver a landing ellipse and an apogee distribution, in `packages/icaro`, the CLI, the API (job model) and the web workbench.
+Branch `feat/monte-carlo-dispersion` (from `main` b01b7d2). Delivery: `feature-branch-chain` (user, 2026-11-05): draft tracker PR `feat/monte-carlo-dispersion` → `main`; child PRs chained in order. Planned slices: PR1 T1–T2, PR2 T3, PR3 T4–T5, PR4 T6. Issue #2.
+Runners: rocketpy `cd packages/rocketpy && uv run python -m pytest tests/unit/simulation`; icaro `uv run python -m pytest packages/icaro/tests`; API `cd apps/api && uv run python -m pytest -m "not integration"`; web `cd apps/web && npm test` + `npx tsc --noEmit` + `npm run lint` + `npm run i18n:check` + `npm run api:check`.
+Forecast: ~2,400 authored changed lines (T1 ~200, T2 ~450, T3 ~150, T4 ~650, T5 ~30, T6 ~900).
+
+## Specs
+
+Quotes from issue #2 (rewritten 2026-11-05) are verbatim.
+
+- S1 Goal: "Run many stochastic flights that vary the launch inputs within the scenario's `uncertainty` budget, and produce a **landing ellipse** and an **apogee distribution**".
+- S2 Stochastic models: "Build the stochastic models (`StochasticEnvironment / StochasticRocket / StochasticSolidMotor / StochasticFlight`) from an export directory plus the scenario's `uncertainty` budget (`mass`, `inclination`, `heading`, `wind_factor`, `thrust`, `rail_length` — see `DEFAULT_UNCERTAINTY` in `scenario.py`). Reuse `build_nominal_flight`." A scenario without an `uncertainty` block uses `DEFAULT_UNCERTAINTY` on every surface (assumption: the API path, which uses `Scenario.model_validate`, must get the same default as `load_scenario`).
+- S3 Use-case: "`run_monte_carlo(...)` wrapping `rocketpy.MonteCarlo`, returning apogee/impact distributions and ellipse data."
+- S4 Output contract: "Own the output contract: NDJSON `{prefix}.inputs.txt / .outputs.txt / .errors.txt`." Acceptance: "The `{prefix}.inputs/.outputs/.errors.txt` files are written and each line parses with `json.loads`."
+- S5 Warning: "Relabel RocketPy's MonteCarlo \"under testing\" `UserWarning` into one clean icaro message." Acceptance: "No raw RocketPy \"under testing\" warning reaches the user; one icaro message instead."
+- S6 Progress: "Report progress through a callback so every surface can show it."
+- S7 Failed iterations (decision 2026-11-05, assumption pending user correction): one failing flight does not abort the run; its inputs are written to `.errors.txt` and the run continues. Implemented in the fork's `MonteCarlo.simulate` as an opt-in flag; RocketPy's default behaviour is unchanged.
+- S8 CLI: "`icaro mc --scenario s.yaml --export DIR -n N [--parallel --workers K]` with live progress." Acceptance: "`icaro mc --scenario scenarios/spain_alicante.yaml --export <dir> -n 100` produces apogee and impact distributions and a landing-ellipse artifact without crashing." No limit on `n` in the CLI.
+- S9 API job model: "It cannot live inside the synchronous `/simulate` request, which holds the process-wide simulate lock (`simulate_lock.py`). It needs a **job model**: submit, poll progress, fetch results; results stored with the existing storage/db adapters under the run directory". Decisions (user, 2026-11-05): jobs run in a subprocess on the same instance ("Subproceso en la misma instancia (recomendado)"); limits "Un job a la vez, n ≤ 500 (recomendado)": "Un solo Monte Carlo por instancia; si hay uno corriendo, el siguiente queda en cola (FIFO) y la web muestra su posición. n entre 10 y 500 (≈ 4–16 min). La CLI no tiene límite."
+- S10 Restart: from the issue's option text, "Si la instancia se reinicia, el job se pierde y queda en error." Jobs left queued or running by a previous process are marked `error` on startup.
+- S11 Deploy: Cloud Run must run with `--no-cpu-throttling` so the background job keeps CPU outside requests (`DEPLOY.md`).
+- S12 Web: "launch a Monte Carlo run from the workbench for the selected rocket and scenario, show progress, and show the landing ellipse on the map plus the apogee distribution in the results." Acceptance: "A Monte Carlo run started from the web does not block deterministic simulations of other users, reports progress, and its results survive a page reload."
+- S13 Tests: "Unit tests run without network or JVM (rocketpy mocked); real runs are marked integration, with one low-n smoke run (`-n 50`)."
+- S14 Risk to validate: "**Thrust dispersion knob** on `StochasticSolidMotor`: the physically correct knob is not pinned. Validate against a real run before relying on it."
+
+## Tasks
+
+- [ ] T1 — S7 — route: inline — rocketpy `MonteCarlo.simulate(skip_failed_simulations=...)`, serial + parallel, inputs serialized before the flight so `.errors.txt` holds them.
+- [ ] T2 — S1–S6, S13, S14 — route: inline — `packages/icaro/icaro/montecarlo.py` + tests + README.
+- [ ] T3 — S8 — route: inline — `icaro mc` CLI + tests + README.
+- [ ] T4 — S9, S10 — route: inline — API job model (queue, subprocess runner, endpoints, record status) + tests. Risk: items 3 and 4.
+- [ ] T5 — S11 — route: inline — `DEPLOY.md`. Risk: item 5.
+- [ ] T6 — S12 — route: inline — web: launch, progress, ellipse on map, apogee distribution, runs table status.
+
+## Log
+
+- L1 (2026-11-05, user): "vamos a abordar la #2"
+- L2 (2026-11-05, user decisions): execution "Subproceso en la misma instancia (recomendado)"; limits "Un job a la vez, n ≤ 500 (recomendado)".
+- L3 (2026-11-05, exploration): Cloud Run `--timeout 300`, one instance, `--concurrency 8`, 2 CPU, no `--no-cpu-throttling` (`DEPLOY.md:266-274`); no background mechanism exists; RocketPy `MonteCarlo` aborts the whole run on the first failed iteration and writes an empty line to `.errors.txt` (`monte_carlo.py:288-309`); no progress hook — icaro counts NDJSON lines instead.
