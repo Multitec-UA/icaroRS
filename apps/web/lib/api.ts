@@ -43,6 +43,7 @@
  */
 
 import type { components } from "./api/schema";
+import type { LaunchDayRequest, LaunchDayResult } from "./api/launchday";
 import { RETRY_DELAYS_MS, fetchRetrying } from "./fetch-retry";
 
 // ---------------------------------------------------------------------------
@@ -514,6 +515,34 @@ export function listMonteCarlo(rocketId?: string | null): Promise<MonteCarloSumm
 /** The landing/apogee ellipses as KML (404 until the run is done). */
 export function monteCarloKmlUrl(runId: string): string {
   return `/api/montecarlo/${encodeURIComponent(runId)}/kml`;
+}
+
+// ---------------------------------------------------------------------------
+// Launch day (launch-day S5): one synchronous sweep of rail settings.
+// ---------------------------------------------------------------------------
+
+export type {
+  LaunchCandidate,
+  LaunchCheck,
+  LaunchCheckId,
+  LaunchDayRequest,
+  LaunchDayResult,
+  LaunchDayWind,
+  LaunchLimits,
+  ScenarioWind,
+} from "./api/launchday";
+
+/**
+ * POST /api/launchday — fly every rail setting of the grid (72 flights by
+ * default, about 1–2 minutes) and return the closest landing plus the L1
+ * checklist. Not retried: a retry after a lost response would run it twice.
+ */
+export function recommendRail(body: LaunchDayRequest): Promise<LaunchDayResult> {
+  return request<LaunchDayResult>(
+    "/api/launchday",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { retryable: false },
+  );
 }
 
 export function getResult(runId: string): Promise<ResultEnvelope> {
