@@ -106,6 +106,7 @@ button and shared links keep it (`components/workbench/useWorkbenchUrl.ts`):
 | `/` | nothing loaded (the drop zone), or the in-memory draft, written into the URL |
 | `/?file={export_id}` | that file loaded, no run on screen |
 | `/?run={run_id}` | that run's file, scenario and result, "Up to date · run {id}" |
+| `…&mc={run_id}` | also a Monte Carlo dispersion run: polled while queued or running, its result once done |
 
 Loading a file replaces the URL; a new run pushes it, so back returns to the
 state before the run. A new file (uploaded or picked, of any rocket) starts
@@ -118,6 +119,15 @@ to `/?file={newest export}`. A run or file the API no longer has (404) shows
 available" with "Start fresh". A run still in flight when the user leaves the
 Workbench keeps going and announces itself with a toast ("{rocket} · apogee
 {value}" with an "Open" link).
+
+"Dispersion" beside Run queues a Monte Carlo run (10–500 flights, about
+0.4 s each; one runs at a time per API instance, the rest wait in line) and
+appends `mc={id}` to the URL, so a reload resumes it. The results column
+shows it as its own card, queued ("Waiting behind N runs"), running
+(progress bar, `done / total flights`), then done (flight counts, apogee
+statistics and histogram, landing ellipses on a map, "Download KML") or
+failed. Run stays usable the whole time. `/runs` lists each rocket's
+dispersion runs under "Dispersion", each opening at `/?file={export}&mc={id}`.
 
 Edits made after a run survive a refresh: the draft's scenario (site, launch
 time, atmosphere, rail overrides) is saved synchronously on every change to

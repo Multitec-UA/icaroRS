@@ -21,6 +21,13 @@ Phase C (Monte Carlo, issue #2):
     build_stochastic      — RocketPy stochastic models from export + budget
     MonteCarloResult      — apogee distribution, impacts, ellipses, files
 
+Launch day (SURT x SpainRocketry L1):
+    recommend_rail        — sweep rail inclination/heading → RailSweep
+    evaluate_rail         — one rail setting → RailCandidate
+    launch_checks         — L1 go/no-go checklist → list[LaunchCheck]
+    LaunchLimits          — L1 limits (defaults from the competition guide)
+    Wind                  — manual pad wind for a Scenario
+
 Phase D (Sensitivity) — forward stub, implemented in Phase D:
     run_sensitivity
 
@@ -36,8 +43,17 @@ trigger those imports — they only fire when ``convert_ork`` is called.
 
 from .convert import ConvertUnavailableError, convert_ork
 from .discovery import choose_atmosphere_model_for_date, gfs_window_check
+from .launchday import (
+    LaunchCheck,
+    LaunchLimits,
+    RailCandidate,
+    RailSweep,
+    evaluate_rail,
+    launch_checks,
+    recommend_rail,
+)
 from .montecarlo import MonteCarloResult, build_stochastic, run_monte_carlo
-from .scenario import Scenario, load_scenario
+from .scenario import Scenario, Wind, load_scenario
 from .series import extract_flight_series
 from .simulation import simulate_from_export
 
@@ -58,6 +74,15 @@ __all__ = [
     "run_monte_carlo",
     "build_stochastic",
     "MonteCarloResult",
+    # Launch day (L1)
+    "recommend_rail",
+    "evaluate_rail",
+    "launch_checks",
+    "LaunchLimits",
+    "RailSweep",
+    "RailCandidate",
+    "LaunchCheck",
+    "Wind",
     # Phase D — added when sensitivity.py is implemented
     # "run_sensitivity",
     # Phase E — added when comparison.py is implemented

@@ -18,6 +18,22 @@ export const GLOSSARY_TERMS = [
   "stability_margin",
   "forecast",
   "standard_atmosphere",
+  // Monte Carlo dispersion results (S15)
+  "mc_counts",
+  "mc_apogee_stats",
+  "mc_histogram",
+  "mc_ellipses",
+  // Launch-day advisor: the sweep and one term per L1 check (launch-day S6b)
+  "ld_sweep",
+  "ld_apogee_max",
+  "ld_apogee_recommended",
+  "ld_tilt_max",
+  "ld_static_margin_min",
+  "ld_descent_max",
+  "ld_descent_recommended",
+  "ld_landing_radius",
+  "ld_rail_exit_min",
+  "ld_wind_max",
 ] as const;
 
 export type GlossaryTerm = typeof GLOSSARY_TERMS[number];

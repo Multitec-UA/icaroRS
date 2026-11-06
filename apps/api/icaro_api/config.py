@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     firestore_database : str
         Firestore database name.  Default ``"(default)"`` matches the
         native-mode default database.
+    montecarlo_min_n, montecarlo_max_n : int
+        Inclusive bounds on ``n`` for ``POST /api/montecarlo`` (default
+        10..500, ≈ 4–16 min per run). The CLI has no limit.
     """
 
     results_dir: Path = Path(".icaro_runs")
@@ -69,6 +72,8 @@ class Settings(BaseSettings):
     gcs_bucket: str | None = None
     firestore_project: str | None = None
     firestore_database: str = "(default)"
+    montecarlo_min_n: int = 10
+    montecarlo_max_n: int = 500
 
     model_config = SettingsConfigDict(
         env_prefix="ICARO_",

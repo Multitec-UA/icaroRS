@@ -34,6 +34,7 @@ import type { Atmosphere, Site, SimulateResult } from "@/lib/api";
 import {
   buildScenarioBody,
   needsDate as computeNeedsDate,
+  type ManualWind,
   type RailOverrides,
   type ScenarioDraft,
 } from "@/lib/domain/scenario";
@@ -80,6 +81,11 @@ interface WizardState {
    * file's defaults instead of silently turning into a default.
    */
   railOverrides: RailOverrides;
+  /**
+   * The wind measured on the pad (launch-day S6a), or null to use the
+   * atmosphere model's own wind. Sent in m/s by `buildScenarioBody`.
+   */
+  wind: ManualWind | null;
 
   /**
    * The run on screen (S6): the reference the Workbench's status compares
@@ -128,6 +134,7 @@ type WizardAction =
   | { type: "SET_ATMOSPHERE"; atmosphere: Atmosphere }
   | { type: "SET_RAIL_OVERRIDE"; field: RailField; value: number }
   | { type: "RESET_RAIL_OVERRIDE"; field: RailField }
+  | { type: "SET_WIND"; wind: ManualWind | null }
   | { type: "LOAD_SCENARIO"; draft: ScenarioDraft }
   | { type: "SHOW_RUN"; run: DisplayedRun | null }
   | { type: "RESET" };
@@ -145,6 +152,7 @@ const INITIAL_STATE: WizardState = {
   launchDatetime: null,
   atmosphere: DEFAULT_ATMOSPHERE,
   railOverrides: {},
+  wind: null,
   displayedRun: null,
 };
 
@@ -161,7 +169,8 @@ function isDraftDirty(state: WizardState): boolean {
     state.site !== INITIAL_STATE.site ||
     state.launchDatetime !== INITIAL_STATE.launchDatetime ||
     state.atmosphere !== INITIAL_STATE.atmosphere ||
-    state.railOverrides !== INITIAL_STATE.railOverrides
+    state.railOverrides !== INITIAL_STATE.railOverrides ||
+    state.wind !== INITIAL_STATE.wind
   );
 }
 
@@ -210,8 +219,10 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
       // Back to the initial reference when empty, so the draft can be clean again.
       return { ...state, railOverrides: Object.keys(rest).length > 0 ? rest : INITIAL_STATE.railOverrides };
     }
+    case "SET_WIND":
+      return { ...state, wind: action.wind };
     case "LOAD_SCENARIO": {
-      const { name, site, launchDatetime, atmosphere, railOverrides } = action.draft;
+      const { name, site, launchDatetime, atmosphere, railOverrides, wind } = action.draft;
       return {
         ...state,
         name,
@@ -219,6 +230,7 @@ function reducer(state: WizardState, action: WizardAction): WizardState {
         launchDatetime,
         atmosphere,
         railOverrides: Object.keys(railOverrides).length > 0 ? railOverrides : INITIAL_STATE.railOverrides,
+        wind: wind ?? INITIAL_STATE.wind,
       };
     }
     case "SHOW_RUN":
@@ -281,6 +293,8 @@ interface WizardDraftContextValue {
   setRailOverride: (field: RailField, value: number) => void;
   /** Drop one rail override: the field shows the file's value again. */
   resetRailOverride: (field: RailField) => void;
+  /** The wind measured on the pad, or null to use the forecast's (launch-day S6a). */
+  setWind: (wind: ManualWind | null) => void;
   /** Replace the scenario fields at once — a stored run opened from its URL (S8). */
   loadScenario: (draft: ScenarioDraft) => void;
   /** Put a run on screen: the results column renders it and the status compares the draft with it. */
@@ -361,6 +375,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
     (field: RailField) => dispatch({ type: "RESET_RAIL_OVERRIDE", field }),
     [],
   );
+  const setWind = useCallback((wind: ManualWind | null) => dispatch({ type: "SET_WIND", wind }), []);
   const loadScenario = useCallback((draft: ScenarioDraft) => dispatch({ type: "LOAD_SCENARIO", draft }), []);
   const showRun = useCallback((run: DisplayedRun) => dispatch({ type: "SHOW_RUN", run }), []);
   const clearRun = useCallback(() => dispatch({ type: "SHOW_RUN", run: null }), []);
@@ -399,6 +414,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setAtmosphere,
       setRailOverride,
       resetRailOverride,
+      setWind,
       loadScenario,
       showRun,
       clearRun,
@@ -413,6 +429,7 @@ export function WizardProvider({ children }: { children: ReactNode }) {
       setAtmosphere,
       setRailOverride,
       resetRailOverride,
+      setWind,
       loadScenario,
       showRun,
       clearRun,

@@ -13,12 +13,20 @@ time to ~16 days ahead. Dates outside this window will trigger an automatic
 fallback to standard_atmosphere (with a warning message).
 """
 
+import contextlib
+import io
 from pathlib import Path
 from typing import Optional
 
 import typer
 
-from icaro import ConvertUnavailableError, convert_ork, load_scenario, simulate_from_export
+from icaro import (
+    ConvertUnavailableError,
+    convert_ork,
+    load_scenario,
+    run_monte_carlo,
+    simulate_from_export,
+)
 
 app = typer.Typer(
     help="icaroRS rocket simulation toolkit.",
@@ -140,6 +148,116 @@ def convert(
         raise typer.Exit(code=1)
 
     typer.echo(str(result))
+
+
+@app.command()
+def mc(
+    export_dir: Path = typer.Argument(
+        ...,
+        exists=True,
+        file_okay=False,
+        dir_okay=True,
+        readable=True,
+        help="RocketSerializer export directory (parameters.json + CSVs).",
+    ),
+    scenario: Optional[Path] = typer.Option(
+        None,
+        "--scenario",
+        "-s",
+        exists=True,
+        dir_okay=False,
+        readable=True,
+        help=(
+            "Path to a scenario YAML file. Its 'uncertainty' block sets the "
+            "dispersion budget; without it (or without --scenario) the default "
+            "budget applies."
+        ),
+    ),
+    n: int = typer.Option(
+        ...,
+        "-n",
+        "--n",
+        min=1,
+        help="Number of flights to simulate.",
+    ),
+    output: Optional[Path] = typer.Option(
+        None,
+        "--output",
+        "-o",
+        help=(
+            "Output file prefix. Writes PREFIX.inputs.txt, PREFIX.outputs.txt, "
+            "PREFIX.errors.txt and PREFIX.kml. Defaults to ./<scenario name>, "
+            "or ./montecarlo without --scenario."
+        ),
+    ),
+    parallel: bool = typer.Option(
+        False,
+        "--parallel",
+        help="Run flights in parallel worker processes.",
+    ),
+    workers: Optional[int] = typer.Option(
+        None,
+        "--workers",
+        min=2,
+        help="Number of worker processes (requires --parallel).",
+    ),
+) -> None:
+    """Run a Monte Carlo dispersion: N stochastic flights within the
+    scenario's uncertainty budget.
+
+    Prints the apogee distribution and the output file paths, including the
+    landing ellipses as KML (written when at least 3 flights succeed). Expect
+    minutes of runtime; live progress goes to stderr. Failed flights do not
+    abort the run; their inputs land in PREFIX.errors.txt. Exits 1 when no
+    flight succeeds.
+    """
+    if workers is not None and not parallel:
+        raise typer.BadParameter("--workers requires --parallel.", param_hint="'--workers'")
+
+    loaded_scenario = load_scenario(scenario) if scenario is not None else None
+    if output is None:
+        name = loaded_scenario.name if loaded_scenario is not None else "montecarlo"
+        output = Path(".") / name
+
+    def show_progress(done: int, total: int) -> None:
+        typer.echo(f"\r  {done}/{total} flights", err=True, nl=False)
+
+    typer.echo(f"Running {n} Monte Carlo flights from: {export_dir}", err=True)
+    # RocketPy prints its own progress to stdout; keep it out of our output.
+    with contextlib.redirect_stdout(io.StringIO()):
+        result = run_monte_carlo(
+            export_dir,
+            loaded_scenario,
+            n,
+            output,
+            parallel=parallel,
+            workers=workers,
+            on_progress=show_progress,
+        )
+    typer.echo("", err=True)
+
+    typer.echo(
+        f"Flights: {result.n_requested} attempted, {result.n_succeeded} succeeded, "
+        f"{result.n_failed} failed"
+    )
+    stats = result.apogee_stats
+    if stats is None:
+        typer.echo("Apogee AGL: no successful flights")
+    else:
+        typer.echo(
+            f"Apogee AGL: {stats.mean:.1f} ± {stats.std:.1f} m "
+            f"(p5 {stats.p5:.1f}, p50 {stats.p50:.1f}, p95 {stats.p95:.1f})"
+        )
+    typer.echo("Files:")
+    typer.echo(f"  Inputs:  {result.inputs_path}")
+    typer.echo(f"  Outputs: {result.outputs_path}")
+    typer.echo(f"  Errors:  {result.errors_path}")
+    if result.kml_path is not None:
+        typer.echo(f"  Landing ellipses (KML): {result.kml_path}")
+
+    if result.n_succeeded == 0:
+        typer.echo(f"No flight succeeded; see {result.errors_path}", err=True)
+        raise typer.Exit(code=1)
 
 
 if __name__ == "__main__":

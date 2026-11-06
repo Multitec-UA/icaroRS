@@ -16,7 +16,10 @@
  *   - the Run action (useRunSimulation, S7), reachable three ways with one
  *     implementation: the TopBar button, ⌘↵ / Ctrl+Enter anywhere on the
  *     page, and the rocket panel's switch to another file. Its `status`
- *     (S6) compares the draft with the displayed run for the TopBar pill.
+ *     (S6) compares the draft with the displayed run for the TopBar pill;
+ *   - the Monte Carlo dispersion (useMonteCarlo, S12): launched from the
+ *     TopBar's "Dispersion" panel, shown in the results column, kept in the
+ *     URL as `mc=`; it runs beside the deterministic Run, never blocking it.
  *
  * Drop anywhere (S9): dragging a file over the card shows an overlay ("Drop
  * your .ork to import it"); dropping it feeds `importer.pick` exactly like
@@ -49,6 +52,7 @@ import { ResultsColumn } from "./ResultsColumn";
 import { UploadIcon } from "./icons";
 import { useOrkImport } from "./useOrkImport";
 import { useRunSimulation } from "./useRunSimulation";
+import { useMonteCarlo } from "./useMonteCarlo";
 import { useWorkbenchUrl } from "./useWorkbenchUrl";
 
 type Tab = "inputs" | "result";
@@ -100,6 +104,7 @@ export function WorkbenchShell() {
   const url = useWorkbenchUrl();
   const importer = useOrkImport();
   const simulation = useRunSimulation({ hold: importer.converting });
+  const monteCarlo = useMonteCarlo(url);
   const { state } = useWizardDraft();
   const hasFile = state.exportId !== null;
   const { tab, select } = useWorkbenchTab(hasFile);
@@ -181,7 +186,7 @@ export function WorkbenchShell() {
         onDrop={onDrop}
         className="relative flex flex-1 flex-col rounded-2xl border border-border bg-surface shadow-soft"
       >
-        <TopBar simulation={{ ...simulation, run }} importer={importer} url={url} />
+        <TopBar simulation={{ ...simulation, run }} importer={importer} url={url} monteCarlo={monteCarlo} />
         {hasFile && (
           <div
             role="tablist"
@@ -227,6 +232,7 @@ export function WorkbenchShell() {
             fatal={simulation.fatal}
             importer={importer}
             url={url}
+            monteCarlo={monteCarlo}
           />
         </div>
         {dragging && (
