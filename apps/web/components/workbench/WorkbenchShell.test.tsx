@@ -220,8 +220,9 @@ describe("WorkbenchShell — the disabled Run button says why (S12f)", () => {
 
     const busy = await screen.findByRole("button", { name: /Simulating…/ });
     expect(busy).toBeDisabled();
-    expect(busy).toHaveAttribute("title", "Running…");
-    expect(reason()).toHaveTextContent("Running…");
+    // No title or helper while running: the button and the status pill say it.
+    expect(busy).not.toHaveAttribute("title");
+    expect(reason()).toBeNull();
   });
 });
 
@@ -396,7 +397,7 @@ describe("WorkbenchShell — status from the displayed run (S6)", () => {
 
     expect(await screen.findByRole("button", { name: /Simulating…/ })).toBeDisabled();
     // The status pill, and the disabled button's reason (S12f).
-    expect(screen.getAllByText("Running…")).toHaveLength(2);
+    expect(screen.getAllByText("Running…")).toHaveLength(1);
 
     fireEvent.change(screen.getByLabelText("Elevation (m)"), { target: { value: "40" } });
     resolveRun(RESULT);
