@@ -580,7 +580,7 @@
     "noEllipse": "Too few successful flights for a landing ellipse.",
     "downloadKml": "Download KML",
     "contextBudget": "We simulated {count} flights, each time slightly changing the {list}. This shows how much a real flight can differ from the single simulation.",
-    "contextDefault": "We simulated {count} flights with the default uncertainty budget. This shows how much a real flight can differ from the single simulation.",
+    "contextDefault": "We simulated {count} flights, each time slightly changing the inputs you cannot know exactly: mass, thrust, wind, launch angle and heading, and rail length. This shows how much a real flight can differ from the single simulation.",
     "budget": {
       "mass": "mass ({amount})",
       "thrust": "thrust ({amount})",
@@ -609,7 +609,7 @@
       "NW": "northwest"
     },
     "explainerTitle": "How to read these results",
-    "explainerWhat": "A Monte Carlo run repeats the same simulation many times. Each time, the inputs you cannot know exactly (the ones listed above) change a little at random.",
+    "explainerWhat": "A Monte Carlo run repeats the same simulation many times. Each time, the inputs you cannot know exactly (mass, thrust, wind, launch angle and heading, rail length, as listed above) change a little at random.",
     "explainerWhy": "That is why the result is a spread, not a single number: it shows the range a real flight is likely to fall in.",
     "explainerAltitude": "Use the apogee range to check your target altitude and to choose a launch window with suitable conditions.",
     "explainerSafety": "Use the outer ellipse to choose the launch site and size the safety area: almost every landing falls inside it.",

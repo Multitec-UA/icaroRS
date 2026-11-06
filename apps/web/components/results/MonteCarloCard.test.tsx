@@ -121,7 +121,7 @@ describe("MonteCarloCard (S15) — explaining a finished run", () => {
     wrap(<MonteCarloCard runId="mc-1" run={done({ uncertainty: {} })} loading={false} error={null} onDismiss={() => {}} />);
     expect(
       screen.getByText(
-        "We simulated 100 flights with the default uncertainty budget. This shows how much a real flight can differ from the single simulation.",
+        "We simulated 100 flights, each time slightly changing the inputs you cannot know exactly: mass, thrust, wind, launch angle and heading, and rail length. This shows how much a real flight can differ from the single simulation.",
       ),
     ).toBeInTheDocument();
   });

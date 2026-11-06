@@ -580,7 +580,7 @@
     "noEllipse": "Pocos vuelos completados para una elipse de aterrizaje.",
     "downloadKml": "Descargar KML",
     "contextBudget": "Simulamos {count} vuelos cambiando ligeramente en cada uno {list}. Así se ve cuánto puede diferir un vuelo real de la simulación única.",
-    "contextDefault": "Simulamos {count} vuelos con el margen de incertidumbre por defecto. Así se ve cuánto puede diferir un vuelo real de la simulación única.",
+    "contextDefault": "Simulamos {count} vuelos cambiando ligeramente en cada uno los datos de entrada que no se conocen con exactitud: la masa, el empuje, el viento, el ángulo de lanzamiento y el rumbo, y la longitud del raíl. Así se ve cuánto puede diferir un vuelo real de la simulación única.",
     "budget": {
       "mass": "la masa ({amount})",
       "thrust": "el empuje ({amount})",
@@ -609,7 +609,7 @@
       "NW": "noroeste"
     },
     "explainerTitle": "Cómo leer estos resultados",
-    "explainerWhat": "Un análisis de Monte Carlo repite la misma simulación muchas veces. En cada una, los datos de entrada que no se conocen con exactitud (los indicados arriba) cambian un poco al azar.",
+    "explainerWhat": "Un análisis de Monte Carlo repite la misma simulación muchas veces. En cada una, los datos de entrada que no se conocen con exactitud (la masa, el empuje, el viento, el ángulo de lanzamiento y el rumbo, y la longitud del raíl, como se indica arriba) cambian un poco al azar.",
     "explainerWhy": "Por eso el resultado es una dispersión y no un único número: muestra el rango en el que probablemente caerá un vuelo real.",
     "explainerAltitude": "El rango de apogeo sirve para comprobar la altura objetivo y elegir una ventana de lanzamiento con condiciones adecuadas.",
     "explainerSafety": "La elipse exterior sirve para elegir el lugar de lanzamiento y dimensionar la zona de seguridad: casi todos los aterrizajes caen dentro.",
