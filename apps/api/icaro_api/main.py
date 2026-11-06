@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager  # noqa: E402
 
 from fastapi import FastAPI  # noqa: E402
 
-from icaro_api.routers import convert, discovery, exports, results, rockets, history, montecarlo, scenario, session, simulate  # noqa: E402
+from icaro_api.routers import convert, discovery, exports, results, rockets, history, launchday, montecarlo, scenario, session, simulate  # noqa: E402
 
 logger = logging.getLogger("icaro_api.startup")
 
@@ -84,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(history.router, prefix="/api")
     app.include_router(discovery.router, prefix="/api")
     app.include_router(montecarlo.router, prefix="/api")
+    app.include_router(launchday.router, prefix="/api")
 
     return app
 
