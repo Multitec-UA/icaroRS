@@ -105,7 +105,7 @@ export function MonteCarloLauncher({
                 step={10}
                 value={flights}
                 onChange={(event) => setValue(event.target.value)}
-                className="min-w-0 flex-1 accent-[var(--accent)]"
+                className="min-w-[6rem] flex-1 accent-[var(--accent)]"
               />
               <input
                 id={fieldId}
@@ -117,7 +117,9 @@ export function MonteCarloLauncher({
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 onBlur={() => setValue(String(flights))}
-                className={cn(inputClass, "w-20 tabular-nums")}
+                // inputClass carries `w-full` and `cn` is not tailwind-merge: pin the width
+                // so the slider next to it keeps its track instead of collapsing to its thumb.
+                className={cn(inputClass, "w-20! shrink-0 tabular-nums")}
               />
             </div>
             <span className="text-xs tabular-nums text-muted">

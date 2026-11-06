@@ -25,6 +25,9 @@ import {
   renameRocket,
   simulate,
   submitMonteCarlo,
+  recommendRail,
+  type LaunchDayRequest,
+  type LaunchDayResult,
   type MonteCarloRequest,
   type MonteCarloRun,
   type MonteCarloSubmitted,
@@ -298,6 +301,16 @@ export function useSubmitMonteCarloMutation() {
   return useMutation<MonteCarloSubmitted, unknown, MonteCarloRequest>({
     mutationFn: (body) => submitMonteCarlo(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: queryKeys.monteCarlo }),
+  });
+}
+
+/**
+ * POST /api/launchday — the launch-day rail recommendation (S6b). Synchronous
+ * (1–2 min) and never retried (mutations default to `retry: false`).
+ */
+export function useRecommendRailMutation() {
+  return useMutation<LaunchDayResult, unknown, LaunchDayRequest>({
+    mutationFn: (body) => recommendRail(body),
   });
 }
 

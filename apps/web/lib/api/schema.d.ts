@@ -237,6 +237,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/launchday": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run Launchday
+         * @description Recommend the rail setting that lands closest to the pad (S5).
+         */
+        post: operations["run_launchday_api_launchday_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/montecarlo": {
         parameters: {
             query?: never;
@@ -775,6 +795,29 @@ export interface components {
             /** Longitude */
             longitude: number;
         };
+        /** LaunchCheckModel */
+        LaunchCheckModel: {
+            /**
+             * Comparator
+             * @enum {string}
+             */
+            comparator: "<=" | ">=" | "between";
+            /** Id */
+            id: string;
+            /** Limit */
+            limit: number | number[];
+            /** Ok */
+            ok: boolean;
+            /**
+             * Severity
+             * @enum {string}
+             */
+            severity: "hard" | "soft";
+            /** Source */
+            source: string;
+            /** Value */
+            value: number;
+        };
         /**
          * LaunchDate
          * @description UTC launch date and hour.
@@ -795,6 +838,61 @@ export interface components {
             month: number;
             /** Year */
             year: number;
+        };
+        /**
+         * LaunchDayRequest
+         * @description Request body for POST /api/launchday.
+         */
+        LaunchDayRequest: {
+            /** Export Id */
+            export_id: string;
+            /** Headings */
+            headings?: number[] | null;
+            /** Inclinations */
+            inclinations?: number[] | null;
+            /** Scenario */
+            scenario?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * LaunchDayResponse
+         * @description Response body for POST /api/launchday (``RailSweep.to_dict()``).
+         */
+        LaunchDayResponse: {
+            best: components["schemas"]["RailCandidateModel"] | null;
+            /** Candidates */
+            candidates: components["schemas"]["RailCandidateModel"][];
+            /** Checks Best */
+            checks_best: components["schemas"]["LaunchCheckModel"][] | null;
+            /** Checks Current */
+            checks_current: components["schemas"]["LaunchCheckModel"][];
+            current: components["schemas"]["RailCandidateModel"];
+            limits: components["schemas"]["LaunchLimitsModel"];
+            /** Skipped */
+            skipped: components["schemas"]["SkippedCandidateModel"][];
+            wind: components["schemas"]["WindUsedModel"];
+        };
+        /** LaunchLimitsModel */
+        LaunchLimitsModel: {
+            /** Apogee Max M */
+            apogee_max_m: number;
+            /** Apogee Recommended Max M */
+            apogee_recommended_max_m: number;
+            /** Descent Max Ms */
+            descent_max_ms: number;
+            /** Descent Recommended Ms */
+            descent_recommended_ms: number[];
+            /** Landing Radius M */
+            landing_radius_m: number;
+            /** Rail Exit Min Ms */
+            rail_exit_min_ms: number;
+            /** Static Margin Min Cal */
+            static_margin_min_cal: number;
+            /** Tilt Max Deg */
+            tilt_max_deg: number;
+            /** Wind Max Kmh */
+            wind_max_kmh: number;
         };
         /**
          * MonteCarloFiles
@@ -954,6 +1052,27 @@ export interface components {
             /** Length */
             length?: number | null;
         };
+        /** RailCandidateModel */
+        RailCandidateModel: {
+            /** Apogee Agl */
+            apogee_agl: number;
+            /** Checks Ok */
+            checks_ok: boolean;
+            /** Heading */
+            heading: number;
+            /** Impact Velocity */
+            impact_velocity: number;
+            /** Inclination */
+            inclination: number;
+            /** Landing Bearing */
+            landing_bearing: number;
+            /** Landing Distance */
+            landing_distance: number;
+            /** Out Of Rail Velocity */
+            out_of_rail_velocity: number;
+            /** Stability Margin Min */
+            stability_margin_min: number;
+        };
         /**
          * ResultEnvelope
          * @description Response body for GET /api/results/{run_id}.
@@ -1022,6 +1141,9 @@ export interface components {
          *         Atmosphere model configuration.
          *     rail : Rail or None
          *         Optional launch rail parameter overrides.
+         *     wind : Wind or None
+         *         Optional constant wind measured on the pad. Overrides the atmosphere
+         *         model's wind profile; ``None`` keeps the model's wind.
          *     uncertainty : dict[str, Dispersion] or None
          *         Per-parameter dispersion budget.  ``None`` signals "not set in YAML"
          *         so :func:`load_scenario` can fill DEFAULT_UNCERTAINTY.
@@ -1046,6 +1168,7 @@ export interface components {
             uncertainty?: {
                 [key: string]: components["schemas"]["Dispersion"];
             } | null;
+            wind?: components["schemas"]["Wind"] | null;
         };
         /**
          * ScenarioTemplate
@@ -1077,6 +1200,7 @@ export interface components {
                     [key: string]: components["schemas"]["Dispersion"];
                 };
             };
+            wind?: components["schemas"]["Wind"] | null;
         };
         /**
          * SessionRequest
@@ -1179,6 +1303,15 @@ export interface components {
             /** Longitude */
             longitude: number;
         };
+        /** SkippedCandidateModel */
+        SkippedCandidateModel: {
+            /** Error */
+            error: string;
+            /** Heading */
+            heading: number;
+            /** Inclination */
+            inclination: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -1191,6 +1324,40 @@ export interface components {
             msg: string;
             /** Error Type */
             type: string;
+        };
+        /**
+         * Wind
+         * @description Constant wind measured on the pad (launch-day manual entry).
+         *
+         *     When present, it replaces the atmosphere model's wind profile with a
+         *     constant wind at every altitude (see
+         *     :func:`icaro.simulation.build_environment`).
+         *
+         *     Parameters
+         *     ----------
+         *     speed : float
+         *         Wind speed in m/s (>= 0).
+         *     direction_from : float
+         *         Meteorological direction in degrees, 0 <= x < 360: where the wind
+         *         comes FROM, clockwise from north (270 = from the west, blowing east).
+         */
+        Wind: {
+            /** Direction From */
+            direction_from: number;
+            /** Speed */
+            speed: number;
+        };
+        /** WindUsedModel */
+        WindUsedModel: {
+            /** Direction From */
+            direction_from: number;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "model";
+            /** Speed */
+            speed: number;
         };
     };
     responses: never;
@@ -1451,6 +1618,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimulationSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    run_launchday_api_launchday_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LaunchDayRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LaunchDayResponse"];
                 };
             };
             /** @description Validation Error */

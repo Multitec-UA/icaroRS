@@ -68,8 +68,10 @@ export function TopBar({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelId = useId();
   const blocker = runBlocker(state);
+  // While running, the button ("Simulating…") and the status pill already say
+  // so; a third line under the button only misaligns the row (user, 2026-11-06).
   const runReason = busy
-    ? t("workbench.statusRunning")
+    ? null
     : ready
       ? null
       : blocker === "site"

@@ -434,3 +434,61 @@ def test_default_uncertainty_values():
     assert DEFAULT_UNCERTAINTY["thrust"].kind == "relative"
     assert DEFAULT_UNCERTAINTY["rail_length"].std == pytest.approx(0.05)
     assert DEFAULT_UNCERTAINTY["rail_length"].kind == "relative"
+
+
+# ---------------------------------------------------------------------------
+# launch-day S2 — manual wind block
+# ---------------------------------------------------------------------------
+
+
+def test_wind_absent_defaults_to_none(tmp_path):
+    p = write_yaml(
+        tmp_path,
+        """
+        site:
+          latitude: 41.734
+          longitude: 0.1076
+        """,
+    )
+    assert load_scenario(p).wind is None
+
+
+def test_wind_block_is_parsed(tmp_path):
+    p = write_yaml(
+        tmp_path,
+        """
+        site:
+          latitude: 41.734
+          longitude: 0.1076
+        wind:
+          speed: 5.0
+          direction_from: 270
+        """,
+    )
+    wind = load_scenario(p).wind
+    assert wind.speed == pytest.approx(5.0)
+    assert wind.direction_from == pytest.approx(270.0)
+
+
+@pytest.mark.parametrize(
+    "block, field",
+    [
+        ("speed: -1\n          direction_from: 90", "speed"),
+        ("speed: 3\n          direction_from: 360", "direction_from"),
+        ("speed: 3\n          direction_from: -5", "direction_from"),
+        ("speed: 3", "direction_from"),
+    ],
+)
+def test_wind_invalid_values_raise_naming_the_field(tmp_path, block, field):
+    p = write_yaml(
+        tmp_path,
+        f"""
+        site:
+          latitude: 41.734
+          longitude: 0.1076
+        wind:
+          {block}
+        """,
+    )
+    with pytest.raises(ScenarioValidationError, match=f"wind → {field}"):
+        load_scenario(p)

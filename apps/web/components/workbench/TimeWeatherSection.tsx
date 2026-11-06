@@ -20,9 +20,16 @@
  * With the Forecast model, a launch hour more than 16 days ahead or already
  * over shows a notice under the date before running (S12e,
  * `outsideForecastWindow`): the run would fall back.
+ *
+ * Wind on the pad (launch-day S6a): a switch between the atmosphere model's
+ * wind and the wind measured on the pad, typed in km/h (0–60) and the
+ * direction it comes FROM (0–359°, with its compass point). The draft keeps
+ * km/h; `buildScenarioBody` sends `wind: {speed (m/s), direction_from}` to
+ * /simulate, /montecarlo and /launchday, and nothing while the switch is off.
  */
 
 import { useState } from "react";
+import { DIRECTION_MAX, WIND_MAX_KMH, compassPoint } from "@/lib/domain/launchday";
 import {
   ApiError,
   suggestAtmosphere,
@@ -50,9 +57,19 @@ const MODEL_OPTIONS: ReadonlyArray<{ value: AtmosphereModel; labelKey: `workbenc
   { value: "wyoming_sounding", labelKey: "workbench.modelSounding" },
 ];
 
+type WindMode = "forecast" | "manual";
+
+/** Calm, from the north: what the inputs show when the switch is turned on. */
+const CALM = { speedKmh: 0, directionFrom: 0 };
+
+function clamp(value: number, max: number): number {
+  return Math.min(max, Math.max(0, value));
+}
+
 export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
   const t = useT();
-  const { state, setLaunchDatetime, setAtmosphere } = useWizardDraft();
+  const { state, setLaunchDatetime, setAtmosphere, setWind } = useWizardDraft();
+  const wind = state.wind;
   const { logout } = useAuth();
   const [suggestion, setSuggestion] = useState<AtmosphereSuggestion | null>(null);
 
@@ -147,6 +164,51 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
         </p>
       )}
 
+      <SegmentedControl<WindMode>
+        label={t("workbench.windMode")}
+        options={[
+          { value: "forecast", label: t("workbench.windForecast") },
+          { value: "manual", label: t("workbench.windManual") },
+        ]}
+        value={wind ? "manual" : "forecast"}
+        onChange={(mode) => setWind(mode === "manual" ? (wind ?? CALM) : null)}
+      />
+      {wind && (
+        <div className="grid grid-cols-2 gap-3">
+          <Field
+            label={t("workbench.windSpeed")}
+            htmlFor="wind-speed"
+            hint={t("workbench.windSpeedHint", { max: WIND_MAX_KMH })}
+            error={errorFor(errors, "wind.speed")}
+          >
+            <WindInput
+              id="wind-speed"
+              name="wind-speed"
+              max={WIND_MAX_KMH}
+              value={wind.speedKmh}
+              onValue={(speedKmh) => setWind({ ...wind, speedKmh })}
+            />
+          </Field>
+          <Field
+            label={t("workbench.windDirection")}
+            htmlFor="wind-direction"
+            hint={t("workbench.windDirectionHint", {
+              value: wind.directionFrom,
+              direction: t(`montecarlo.direction.${compassPoint(wind.directionFrom)}`),
+            })}
+            error={errorFor(errors, "wind.direction_from")}
+          >
+            <WindInput
+              id="wind-direction"
+              name="wind-direction"
+              max={DIRECTION_MAX}
+              value={wind.directionFrom}
+              onValue={(directionFrom) => setWind({ ...wind, directionFrom })}
+            />
+          </Field>
+        </div>
+      )}
+
       {suggestion && (
         <Callout tone={suggestion.needs_internet ? "success" : "info"}>
           <div className="flex items-center gap-1.5">
@@ -159,5 +221,46 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
         </Callout>
       )}
     </Section>
+  );
+}
+
+/**
+ * A number input clamped to 0–`max`: every parseable value is stored at once
+ * (clamped), the typed text is kept while it agrees, and leaving the field
+ * shows the stored value (an empty field keeps the previous one).
+ */
+function WindInput({
+  value,
+  max,
+  onValue,
+  ...props
+}: {
+  id: string;
+  name: string;
+  max: number;
+  value: number;
+  onValue: (value: number) => void;
+}) {
+  const [editing, setEditing] = useState<string | null>(null);
+  const typing = editing !== null && (editing.trim() === "" || Number(editing) === value);
+  return (
+    <TextInput
+      {...props}
+      type="number"
+      inputMode="decimal"
+      autoComplete="off"
+      min={0}
+      max={max}
+      step="any"
+      className="h-9"
+      value={typing ? editing : String(value)}
+      onChange={(e) => {
+        const text = e.target.value;
+        setEditing(text);
+        const num = Number(text);
+        if (text.trim() !== "" && Number.isFinite(num)) onValue(clamp(num, max));
+      }}
+      onBlur={() => setEditing(null)}
+    />
   );
 }

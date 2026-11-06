@@ -409,3 +409,48 @@ describe("draftFromScenario — a stored run's scenario back into the draft (S8)
     expect(draftFromScenario(null, "UTC").site).toBeNull();
   });
 });
+
+describe("manual wind on the pad (launch-day S6a)", () => {
+  const draft = {
+    name: "acme-1",
+    site: null,
+    launchDatetime: null,
+    atmosphere: STANDARD_ATMOSPHERE,
+    railOverrides: {},
+  };
+
+  it("sends no wind key while the switch is on the forecast", () => {
+    expect("wind" in buildScenarioBody(draft)).toBe(false);
+    expect("wind" in buildScenarioBody({ ...draft, wind: null })).toBe(false);
+  });
+
+  it("sends the measured wind in m/s with the direction it comes from", () => {
+    const body = buildScenarioBody({ ...draft, wind: { speedKmh: 18, directionFrom: 270 } });
+    expect(body.wind).toEqual({ speed: 5, direction_from: 270 });
+    expect(buildScenarioBody({ ...draft, wind: { speedKmh: 10, directionFrom: 45 } }).wind).toEqual({
+      speed: 2.778,
+      direction_from: 45,
+    });
+  });
+
+  it("keeps the wind in the canonical form, rounded, so a wind change is a change", () => {
+    const canonical = canonicalScenario({ name: "x", wind: { direction_from: 270.04, speed: 5.0001 } });
+    expect(canonical.wind).toEqual({ direction_from: 270, speed: 5 });
+    expect(canonicalScenario({ name: "x", wind: null })).not.toHaveProperty("wind");
+  });
+
+  it("reports a wind change in the weather group", () => {
+    const a = { exportId: "e", scenario: { name: "x", atmosphere: STANDARD_ATMOSPHERE } };
+    const b = { exportId: "e", scenario: { ...a.scenario, wind: { speed: 5, direction_from: 270 } } };
+    expect(scenarioDiff(a, b)).toEqual(["weather"]);
+    expect(scenarioDiff(b, b)).toEqual([]);
+  });
+
+  it("reads a stored wind back into the draft in km/h, and none when absent", () => {
+    expect(draftFromScenario({ wind: { speed: 5, direction_from: 270 } }).wind).toEqual({
+      speedKmh: 18,
+      directionFrom: 270,
+    });
+    expect(draftFromScenario({}).wind).toBeUndefined();
+  });
+});
