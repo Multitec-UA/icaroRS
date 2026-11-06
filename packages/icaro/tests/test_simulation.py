@@ -620,3 +620,96 @@ def test_build_rocket_translates_altitude_event_before_calling_rocketpy(tmp_path
 
     _, kwargs = mock_rocket.add_parachute.call_args
     assert kwargs["trigger"] == pytest.approx(200.0)
+
+
+# ---------------------------------------------------------------------------
+# launch-day S2 — manual wind override
+# ---------------------------------------------------------------------------
+
+from icaro.scenario import Wind  # noqa: E402
+from icaro.simulation import wind_components  # noqa: E402
+
+
+@pytest.mark.parametrize(
+    "direction_from, expected_u, expected_v",
+    [
+        (0.0, 0.0, -5.0),    # from the north → blows south
+        (90.0, -5.0, 0.0),   # from the east → blows west
+        (180.0, 0.0, 5.0),   # from the south → blows north
+        (270.0, 5.0, 0.0),   # from the west → blows east
+    ],
+)
+def test_wind_components_cardinal_directions(direction_from, expected_u, expected_v):
+    u, v = wind_components(5.0, direction_from)
+    assert u == pytest.approx(expected_u, abs=1e-9)
+    assert v == pytest.approx(expected_v, abs=1e-9)
+
+
+def _wind_scenario(model="standard_atmosphere", **kwargs) -> Scenario:
+    scenario = _make_scenario(model=model, **kwargs)
+    return scenario.model_copy(update={"wind": Wind(speed=5.0, direction_from=270.0)})
+
+
+def test_build_environment_manual_wind_replaces_standard_atmosphere(monkeypatch):
+    mock_env = MagicMock()
+    monkeypatch.setattr("icaro.simulation.Environment", MagicMock(return_value=mock_env))
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")  # no advisory for the standard atmosphere
+        result = build_environment(_make_env_data(), _wind_scenario())
+
+    assert result is mock_env
+    mock_env.set_atmospheric_model.assert_called_once()
+    kwargs = mock_env.set_atmospheric_model.call_args.kwargs
+    assert kwargs["type"] == "custom_atmosphere"
+    assert kwargs["pressure"] is None and kwargs["temperature"] is None
+    assert kwargs["wind_u"] == pytest.approx(5.0)
+    assert kwargs["wind_v"] == pytest.approx(0.0, abs=1e-9)
+
+
+def test_build_environment_manual_wind_after_forecast_warns_once(monkeypatch):
+    mock_env = MagicMock()
+    monkeypatch.setattr("icaro.simulation.Environment", MagicMock(return_value=mock_env))
+    scenario = _wind_scenario(
+        model="forecast",
+        file="GFS",
+        date=LaunchDate(year=2026, month=11, day=7, hour=10),
+    )
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        build_environment(_make_env_data(), scenario)
+
+    calls = mock_env.set_atmospheric_model.call_args_list
+    assert calls[0] == call(type="forecast", file="GFS")
+    assert len(calls) == 2
+    assert calls[1].kwargs["type"] == "custom_atmosphere"
+    assert calls[1].kwargs["wind_u"] == pytest.approx(5.0)
+    messages = [str(w.message) for w in caught]
+    assert len(messages) == 1
+    assert "standard atmosphere" in messages[0]
+    assert "forecast" in messages[0]
+
+
+def test_simulate_from_export_without_wind_keeps_environment_calls(tmp_path):
+    """No `wind` → exactly the pre-existing atmosphere calls (no custom_atmosphere)."""
+    export_dir = _write_export(tmp_path, _minimal_params())
+    scenario = _make_scenario(
+        model="forecast", file="GFS", date=LaunchDate(year=2026, month=11, day=7, hour=10)
+    )
+    assert scenario.wind is None
+    mock_env = MagicMock()
+
+    with (
+        patch("icaro.simulation.Environment", return_value=mock_env),
+        patch("icaro.simulation.SolidMotor", return_value=MagicMock()),
+        patch("icaro.simulation.Rocket", return_value=MagicMock()),
+        patch("icaro.simulation.Flight", return_value=MagicMock()),
+    ):
+        simulate_from_export(export_dir, scenario)
+        simulate_from_export(export_dir, _make_scenario())
+
+    assert mock_env.set_atmospheric_model.call_args_list == [
+        call(type="forecast", file="GFS"),
+        call(type="standard_atmosphere"),
+    ]
