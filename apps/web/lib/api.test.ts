@@ -9,6 +9,7 @@ import {
   logout,
   monteCarloKmlUrl,
   plotUrl,
+  recommendRail,
   simulate,
   submitMonteCarlo,
 } from "./api";
@@ -355,5 +356,36 @@ describe("Monte Carlo endpoints (S9)", () => {
 
   it("builds the KML download URL", () => {
     expect(monteCarloKmlUrl("mc/1")).toBe("/api/montecarlo/mc%2F1/kml");
+  });
+});
+
+describe("recommendRail — POST /api/launchday (launch-day S5/S6b)", () => {
+  it("POSTs the export and scenario and returns the sweep", async () => {
+    const sweep = { candidates: [], best: null };
+    const fetchMock = mockFetchResolve({ ok: true, status: 200, text: () => Promise.resolve(JSON.stringify(sweep)) });
+
+    const result = await recommendRail({ export_id: "exp-1", scenario: { name: "s", wind: { speed: 5, direction_from: 270 } } });
+
+    expect(result).toEqual(sweep);
+    const [path, init] = fetchMock.mock.calls[0];
+    expect(path).toBe("/api/launchday");
+    expect(init.method).toBe("POST");
+    expect(JSON.parse(init.body)).toEqual({
+      export_id: "exp-1",
+      scenario: { name: "s", wind: { speed: 5, direction_from: 270 } },
+    });
+  });
+
+  it("never retries: a second attempt would fly the whole sweep again", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue(proxyFailure());
+    vi.stubGlobal("fetch", fetchMock);
+
+    const pending = recommendRail({ export_id: "exp-1", scenario: {} }).catch((e) => e);
+    await vi.runAllTimersAsync();
+    const err: ApiError = await pending;
+
+    expect(err.code).toBe("network");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });

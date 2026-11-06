@@ -7,6 +7,7 @@ launcher is a fake process (no subprocess, no Monte Carlo).
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
@@ -16,7 +17,7 @@ from icaro_api.auth import SESSION_COOKIE_NAME, get_identity_verifier
 from icaro_api.services.db import ExportRecord, InMemoryDb
 from icaro_api.services.montecarlo_jobs import MonteCarloJobQueue
 from icaro_api.services.storage import LocalFsStorage
-from tests.fakes import FakeMonteCarloProcess, make_montecarlo_record
+from tests.fakes import FakeMonteCarloProcess, fake_montecarlo_result, make_montecarlo_record
 
 _COOKIE = "test-session-token"
 _ORG = "test-org"
@@ -239,3 +240,27 @@ def test_openapi_lists_the_montecarlo_paths(env):
     client, *_ = env
     paths = client.app.openapi()["paths"]
     assert {"/api/montecarlo", "/api/montecarlo/{run_id}", "/api/montecarlo/{run_id}/kml"} <= set(paths)
+
+
+def test_done_result_exposes_the_uncertainty_budget(env):
+    """S15: the stored result carries the dispersed budget and the API returns it."""
+    client, db, _queue, _ = env
+    rec = make_montecarlo_record("mc-u", org_id=_ORG, n=10)
+    result = fake_montecarlo_result()
+    result["uncertainty"] = {"mass": {"std": 0.05, "kind": "relative"}}
+    db.save_montecarlo(replace(rec, status="done", result=result), org_id=_ORG)
+
+    body = client.get("/api/montecarlo/mc-u", headers=_auth()).json()
+
+    assert body["result"]["uncertainty"] == {"mass": {"std": 0.05, "kind": "relative"}}
+
+
+def test_done_result_without_uncertainty_is_still_served(env):
+    """Runs stored before S15 have no budget: the field defaults to empty."""
+    client, db, _queue, _ = env
+    rec = make_montecarlo_record("mc-old", org_id=_ORG, n=10)
+    db.save_montecarlo(replace(rec, status="done", result=fake_montecarlo_result()), org_id=_ORG)
+
+    body = client.get("/api/montecarlo/mc-old", headers=_auth()).json()
+
+    assert body["result"]["uncertainty"] == {}

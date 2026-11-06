@@ -19,7 +19,8 @@
  *
  * A Monte Carlo dispersion run in the URL (`mc=`, S12) shows as its own card
  * above whatever else the column shows, so a deterministic run and a
- * dispersion run can be on screen together.
+ * dispersion run can be on screen together. With a file loaded, the
+ * launch-day advisor (LaunchDayPanel, launch-day S6b) follows the results.
  *
  * Errors the input sections could not place next to a field (general 422
  * messages, 503 hints, network failures) are shown here, above the results.
@@ -45,6 +46,7 @@ import { RocketPicker } from "./RocketPicker";
 import { DestinationCard } from "./DestinationCard";
 import { ImportStatusCard } from "./ImportStatusCard";
 import { RocketSummaryCard } from "./RocketSummaryCard";
+import { LaunchDayPanel } from "./LaunchDayPanel";
 import type { OrkImport } from "./useOrkImport";
 import type { WorkbenchUrl } from "./useWorkbenchUrl";
 import type { MonteCarloControl } from "./useMonteCarlo";
@@ -156,6 +158,8 @@ export function ResultsColumn({
           <RocketPicker />
         </>
       )}
+
+      {hasExport && urlStatus.kind !== "loading" && !urlProblem && <LaunchDayPanel />}
     </section>
   );
 }

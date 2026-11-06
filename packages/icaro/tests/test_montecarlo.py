@@ -466,6 +466,11 @@ def test_to_dict_is_json_serializable_without_raw(fake_mc, tmp_path):
     assert data["files"]["kml"] == str(tmp_path / "run.kml")
     assert len(data["landing_ellipses"]) == 3
     assert data["origin"] == {"latitude": 38.37, "longitude": -0.58}
+    # The budget that was actually dispersed travels with the result, so a
+    # surface can explain what varied (S15).
+    assert data["uncertainty"]["mass"] == {"std": 0.05, "kind": "relative"}
+    assert data["uncertainty"]["inclination"] == {"std": 2.0, "kind": "absolute"}
+    assert set(data["uncertainty"]) == set(DEFAULT_UNCERTAINTY)
 
 
 # ---------------------------------------------------------------------------

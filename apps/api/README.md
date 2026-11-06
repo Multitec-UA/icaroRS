@@ -46,8 +46,9 @@ interactive API docs.
 | `GET` | `/api/results/{run_id}/plots/{name}.png` | A rendered plot PNG |
 | `POST` | `/api/montecarlo` | `{export_id, scenario?, n}` (10 ≤ `n` ≤ 500) → `202 {run_id, status, queue_position}`; queues a Monte Carlo dispersion run |
 | `GET` | `/api/montecarlo?rocket_id=&limit=` | The org's Monte Carlo runs, newest first (status + progress, no result) |
-| `GET` | `/api/montecarlo/{run_id}` | `{status, progress: {done, total}, queue_position, result, error, …}`; `result` (apogee distribution, impact points, landing/apogee ellipses as `[lat, lon]` polygons) once `done` |
+| `GET` | `/api/montecarlo/{run_id}` | `{status, progress: {done, total}, queue_position, result, error, …}`; `result` (the dispersed `uncertainty` budget, apogee distribution, impact points, landing/apogee ellipses as `[lat, lon]` polygons) once `done` |
 | `GET` | `/api/montecarlo/{run_id}/kml` | The ellipses as KML (`404` until done, or with < 3 successful flights) |
+| `POST` | `/api/launchday` | `{export_id, scenario?, inclinations?, headings?}` → `{wind, current, best, candidates, skipped, limits, checks_current, checks_best}`; recommends the rail setting (synchronous, up to ~1 min) |
 
 ## Auth
 
@@ -82,6 +83,21 @@ its dev proxy.
   protect matplotlib/global state; `run_id` is always returned for forward-compat
   with an async upgrade.
 - `matplotlib.use("Agg")` is set in `main.py` before any pyplot import.
+- **Launch day is a synchronous sweep.** `POST /api/launchday` calls
+  `icaro.recommend_rail`: it flies the rocket once per rail (inclination,
+  heading) pair, by default 6 inclinations (90° to 80°) × 12 headings (every
+  30°), with the scenario's wind (`scenario.wind`, measured on the pad) or the
+  atmosphere model's, and recommends the setting that lands closest to the pad.
+  It also runs the L1 launch checks for the current and the recommended
+  setting. Each grid point is one flight, so a request takes from a few seconds
+  to about a minute (under the 300 s Cloud Run timeout); the grid is capped at
+  100 candidates and `inclinations` must lie within `[90 − tilt_max, 90]`
+  (`422` otherwise). The default limits come from the SURT × SpainRocketry L1
+  guide: apogee ≤ 1000 m (≤ 600 m recommended) and tilt ≤ 20° (PROP-003),
+  static margin ≥ 1.5 cal through the ascent (PROP-004), descent ≤ 10 m/s
+  (5–6 m/s recommended) and landing within 500 m (REC-003), wind ≤ 32 km/h to
+  go to the rail (Operativa 5.1), plus a rail exit ≥ 15 m/s practice check.
+  It does not take the simulate lock (no matplotlib).
 - **Monte Carlo runs are background jobs.** A run takes minutes, so
   `POST /api/montecarlo` records a `queued` run in the Firestore collection
   `montecarlo_runs` and returns `202`. One worker thread per process

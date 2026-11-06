@@ -2,8 +2,8 @@
 
 /**
  * MonteCarloLauncher — "Dispersion" beside the Run button (S12): a small
- * panel with the number of flights (number field + slider, 10..500, default
- * 100), an "≈ N min" estimate (~0.4 s per flight) and "Run dispersion".
+ * panel saying what a dispersion run does (S15), the number of flights
+ * (number field + slider, 10..500, default 100), an "≈ N min" estimate (~0.4 s per flight) and "Run dispersion".
  *
  * The count is clamped on blur and again on submit, so whatever is typed
  * the API receives a count it accepts. A launch the parent reports as queued
@@ -91,7 +91,7 @@ export function MonteCarloLauncher({
           noValidate
           className={cn(popoverClass, "absolute right-0 top-full z-30 mt-2 flex w-72 flex-col gap-3 p-4")}
         >
-          <p className="text-xs text-muted">{t("montecarlo.panelHint")}</p>
+          <p className="text-xs text-muted">{t("montecarlo.panelHint", { count: flights })}</p>
           <div className="flex flex-col gap-1.5">
             <label htmlFor={fieldId} className="text-xs font-medium text-ink-2">
               {t("montecarlo.flights")}
@@ -105,7 +105,7 @@ export function MonteCarloLauncher({
                 step={10}
                 value={flights}
                 onChange={(event) => setValue(event.target.value)}
-                className="min-w-0 flex-1 accent-[var(--accent)]"
+                className="min-w-[6rem] flex-1 accent-[var(--accent)]"
               />
               <input
                 id={fieldId}
@@ -117,7 +117,9 @@ export function MonteCarloLauncher({
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
                 onBlur={() => setValue(String(flights))}
-                className={cn(inputClass, "w-20 tabular-nums")}
+                // inputClass carries `w-full` and `cn` is not tailwind-merge: pin the width
+                // so the slider next to it keeps its track instead of collapsing to its thumb.
+                className={cn(inputClass, "w-20! shrink-0 tabular-nums")}
               />
             </div>
             <span className="text-xs tabular-nums text-muted">

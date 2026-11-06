@@ -27,6 +27,18 @@ describe("MonteCarloLauncher (S12) — launching a dispersion run", () => {
     expect(screen.getByText("10–500 flights · ≈ 1 min")).toBeInTheDocument();
   });
 
+  it("says what the run will do with the chosen number of flights (S15)", () => {
+    wrap(<MonteCarloLauncher disabledReason={null} submitting={false} error={null} onLaunch={() => {}} />);
+    const flights = open();
+    expect(
+      screen.getByText(
+        "Runs 100 simulations with small random changes to mass, thrust, wind, angle and rail length to see how much the flight can vary. More flights = smoother result, longer wait.",
+      ),
+    ).toBeInTheDocument();
+    fireEvent.change(flights, { target: { value: "250" } });
+    expect(screen.getByText(/^Runs 250 simulations/)).toBeInTheDocument();
+  });
+
   it("keeps the count within 10..500 and updates the estimate", () => {
     wrap(<MonteCarloLauncher disabledReason={null} submitting={false} error={null} onLaunch={() => {}} />);
     const flights = open();

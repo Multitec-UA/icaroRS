@@ -23,6 +23,7 @@ from typing import Any, Literal
 import yaml
 from pydantic import (
     BaseModel,
+    Field,
     field_validator,
     model_validator,
 )
@@ -154,6 +155,26 @@ class Rail(BaseModel):
     heading: float | None = None
 
 
+class Wind(BaseModel):
+    """Constant wind measured on the pad (launch-day manual entry).
+
+    When present, it replaces the atmosphere model's wind profile with a
+    constant wind at every altitude (see
+    :func:`icaro.simulation.build_environment`).
+
+    Parameters
+    ----------
+    speed : float
+        Wind speed in m/s (>= 0).
+    direction_from : float
+        Meteorological direction in degrees, 0 <= x < 360: where the wind
+        comes FROM, clockwise from north (270 = from the west, blowing east).
+    """
+
+    speed: float = Field(ge=0)
+    direction_from: float = Field(ge=0, lt=360)
+
+
 class Dispersion(BaseModel):
     """Uncertainty dispersion for a single parameter.
 
@@ -206,6 +227,9 @@ class Scenario(BaseModel):
         Atmosphere model configuration.
     rail : Rail or None
         Optional launch rail parameter overrides.
+    wind : Wind or None
+        Optional constant wind measured on the pad. Overrides the atmosphere
+        model's wind profile; ``None`` keeps the model's wind.
     uncertainty : dict[str, Dispersion] or None
         Per-parameter dispersion budget.  ``None`` signals "not set in YAML"
         so :func:`load_scenario` can fill DEFAULT_UNCERTAINTY.
@@ -216,6 +240,7 @@ class Scenario(BaseModel):
     date: LaunchDate | None = None
     atmosphere: Atmosphere = Atmosphere()
     rail: Rail | None = None
+    wind: Wind | None = None
     # None = absent from YAML (→ filled with template in load_scenario).
     # {} = explicitly empty dict (partial override with no params).
     uncertainty: dict[str, Dispersion] | None = None

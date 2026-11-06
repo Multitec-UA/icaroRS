@@ -4,6 +4,9 @@ import {
   MC_MAX_FLIGHTS,
   MC_MIN_FLIGHTS,
   apogeeHistogram,
+  budgetItems,
+  ellipseCoverage,
+  landingSummary,
   clampFlights,
   ellipseLayers,
   ellipsePositions,
@@ -119,5 +122,88 @@ describe("flightCounts", () => {
       succeeded: 97,
       failed: 3,
     });
+  });
+});
+
+describe("budget items (S15) — what the run dispersed, in display units", () => {
+  it("relative entries become percentages and angles stay in degrees, in a fixed order", () => {
+    expect(
+      budgetItems({
+        rail_length: { std: 0.05, kind: "relative" },
+        heading: { std: 2, kind: "absolute" },
+        mass: { std: 0.05, kind: "relative" },
+        inclination: { std: 2, kind: "absolute" },
+        wind_factor: { std: 0.1, kind: "relative" },
+        thrust: { std: 0.03, kind: "relative" },
+      }),
+    ).toEqual([
+      { key: "mass", amount: 5, unit: "%" },
+      { key: "thrust", amount: 3, unit: "%" },
+      { key: "wind_factor", amount: 10, unit: "%" },
+      { key: "angles", amount: 2, unit: "°" },
+      { key: "rail_length", amount: 5, unit: "%" },
+    ]);
+  });
+
+  it("keeps inclination and heading apart when they differ, and absolute rail length in metres", () => {
+    expect(
+      budgetItems({
+        inclination: { std: 1, kind: "absolute" },
+        heading: { std: 3, kind: "absolute" },
+        rail_length: { std: 0.02, kind: "absolute" },
+      }),
+    ).toEqual([
+      { key: "inclination", amount: 1, unit: "°" },
+      { key: "heading", amount: 3, unit: "°" },
+      { key: "rail_length", amount: 0.02, unit: "m" },
+    ]);
+  });
+
+  it("keeps one decimal only when needed and omits missing or unknown keys", () => {
+    expect(budgetItems({ mass: { std: 0.025, kind: "relative" }, spin: { std: 1, kind: "absolute" } })).toEqual([
+      { key: "mass", amount: 2.5, unit: "%" },
+    ]);
+    expect(budgetItems({ thrust: { std: 0.03000000004, kind: "relative" } })).toEqual([
+      { key: "thrust", amount: 3, unit: "%" },
+    ]);
+  });
+
+  it("an empty budget (runs stored before S15) has no items", () => {
+    expect(budgetItems({})).toEqual([]);
+    expect(budgetItems(undefined)).toEqual([]);
+  });
+});
+
+describe("landing summary (S15) — mean impact point from the launch site", () => {
+  it("a mean impact of (120, 5) is about 120 m to the east", () => {
+    expect(landingSummary([110, 130], [0, 10])).toEqual({ distance: 120, direction: "E" });
+  });
+
+  it("rounds the bearing to the nearest of 8 compass points", () => {
+    const dir = (x: number, y: number) => landingSummary([x], [y])?.direction;
+    expect([dir(0, 50), dir(50, 50), dir(50, 0), dir(50, -50), dir(0, -50), dir(-50, -50), dir(-50, 0), dir(-50, 50)]).toEqual([
+      "N", "NE", "E", "SE", "S", "SW", "W", "NW",
+    ]);
+    expect(dir(-10, 100)).toBe("N"); // 354° rounds back to north
+    expect(dir(30, 100)).toBe("N"); // 16.7°
+    expect(dir(50, 100)).toBe("NE"); // 26.6°
+  });
+
+  it("rounds the distance to whole metres, and to 10 m from 100 m up", () => {
+    expect(landingSummary([30], [40])?.distance).toBe(50);
+    expect(landingSummary([7.4], [0])?.distance).toBe(7);
+    expect(landingSummary([0], [-1234])).toEqual({ distance: 1230, direction: "S" });
+  });
+
+  it("ignores non-finite pairs and has no summary without impacts", () => {
+    expect(landingSummary([100, Number.NaN], [0, 5])).toEqual({ distance: 100, direction: "E" });
+    expect(landingSummary([], [])).toBeNull();
+    expect(landingSummary([Number.NaN], [1])).toBeNull();
+  });
+});
+
+describe("ellipse coverage (S15) — share of landings inside kσ (2-D normal)", () => {
+  it("is ≈ 39 %, 86 % and 99 % for 1σ, 2σ and 3σ", () => {
+    expect([1, 2, 3].map((sigma) => Math.round(ellipseCoverage(sigma) * 100))).toEqual([39, 86, 99]);
   });
 });
