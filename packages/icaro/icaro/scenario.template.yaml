@@ -55,6 +55,16 @@ rail:
   inclination: 84.0     # degrees from horizontal. Optional.
   heading: 90.0         # degrees clockwise from north. Optional.
 
+# ── Manual wind measured on the pad (optional) ─────────────────────────────
+# When present, replaces the atmosphere model's wind with a CONSTANT wind at
+# every altitude. Pressure and temperature then follow the standard
+# atmosphere (a warning says so when a forecast/sounding is replaced).
+# Remove the block to keep the atmosphere model's wind.
+# wind:
+#   speed: 5.0            # m/s (>= 0). 32 km/h = 8.9 m/s is the L1 limit.
+#   direction_from: 270   # degrees, where the wind comes FROM, clockwise
+#                         # from north (0 <= x < 360). 270 = from the west.
+
 # ── Uncertainty budget for Monte Carlo dispersion ───────────────────────────
 # If this block is ENTIRELY omitted, the DEFAULT_UNCERTAINTY template is used
 # (shown below with the default values).

@@ -1,6 +1,49 @@
 {
   "components": {
     "schemas": {
+      "ApogeeStatsModel": {
+        "properties": {
+          "max": {
+            "title": "Max",
+            "type": "number"
+          },
+          "mean": {
+            "title": "Mean",
+            "type": "number"
+          },
+          "min": {
+            "title": "Min",
+            "type": "number"
+          },
+          "p5": {
+            "title": "P5",
+            "type": "number"
+          },
+          "p50": {
+            "title": "P50",
+            "type": "number"
+          },
+          "p95": {
+            "title": "P95",
+            "type": "number"
+          },
+          "std": {
+            "title": "Std",
+            "type": "number"
+          }
+        },
+        "required": [
+          "mean",
+          "std",
+          "min",
+          "max",
+          "p5",
+          "p50",
+          "p95"
+        ],
+        "title": "ApogeeStatsModel",
+        "type": "object"
+      },
       "Atmosphere": {
         "description": "Atmosphere model selection and fallback policy.\n\nParameters\n----------\nmodel : str\n    One of ``forecast``, ``wyoming_sounding``, ``standard_atmosphere``,\n    ``reanalysis``. Validated at load time (REQ-SCN-03).\nfile : str or None\n    For ``forecast``: GFS ensemble name (default ``\"GFS\"``).\n    For ``reanalysis``: path to a local ERA5-compatible .nc file (required\n    when model is ``reanalysis``, REQ-SCN-04).\nstation : str or None\n    Wyoming sounding station id. Required when model is\n    ``wyoming_sounding`` (REQ-SCN-05).\nfallback : str\n    Atmosphere model to use when the primary fetch fails.  Defaults to\n    ``\"standard_atmosphere\"`` (REQ-SCN-06).",
         "properties": {
@@ -157,6 +200,29 @@
           "kind"
         ],
         "title": "Dispersion",
+        "type": "object"
+      },
+      "DispersionModel": {
+        "description": "One entry of the uncertainty budget that was dispersed.",
+        "properties": {
+          "kind": {
+            "enum": [
+              "relative",
+              "absolute"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "std": {
+            "title": "Std",
+            "type": "number"
+          }
+        },
+        "required": [
+          "std",
+          "kind"
+        ],
+        "title": "DispersionModel",
         "type": "object"
       },
       "ElevationLookupResult": {
@@ -462,6 +528,86 @@
         "title": "IdentityResponse",
         "type": "object"
       },
+      "LatLon": {
+        "properties": {
+          "latitude": {
+            "title": "Latitude",
+            "type": "number"
+          },
+          "longitude": {
+            "title": "Longitude",
+            "type": "number"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ],
+        "title": "LatLon",
+        "type": "object"
+      },
+      "LaunchCheckModel": {
+        "properties": {
+          "comparator": {
+            "enum": [
+              "<=",
+              ">=",
+              "between"
+            ],
+            "title": "Comparator",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "limit": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              }
+            ],
+            "title": "Limit"
+          },
+          "ok": {
+            "title": "Ok",
+            "type": "boolean"
+          },
+          "severity": {
+            "enum": [
+              "hard",
+              "soft"
+            ],
+            "title": "Severity",
+            "type": "string"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "value",
+          "limit",
+          "comparator",
+          "ok",
+          "severity",
+          "source"
+        ],
+        "title": "LaunchCheckModel",
+        "type": "object"
+      },
       "LaunchDate": {
         "description": "UTC launch date and hour.\n\nRequired for real-atmosphere models (forecast, wyoming_sounding).\n\nParameters\n----------\nyear, month, day, hour : int\n    UTC date and hour of the simulated launch.",
         "properties": {
@@ -489,6 +635,627 @@
           "hour"
         ],
         "title": "LaunchDate",
+        "type": "object"
+      },
+      "LaunchDayRequest": {
+        "description": "Request body for POST /api/launchday.",
+        "properties": {
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "headings": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Headings"
+          },
+          "inclinations": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inclinations"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          }
+        },
+        "required": [
+          "export_id"
+        ],
+        "title": "LaunchDayRequest",
+        "type": "object"
+      },
+      "LaunchDayResponse": {
+        "description": "Response body for POST /api/launchday (``RailSweep.to_dict()``).",
+        "properties": {
+          "best": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RailCandidateModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/RailCandidateModel"
+            },
+            "title": "Candidates",
+            "type": "array"
+          },
+          "checks_best": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/LaunchCheckModel"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checks Best"
+          },
+          "checks_current": {
+            "items": {
+              "$ref": "#/components/schemas/LaunchCheckModel"
+            },
+            "title": "Checks Current",
+            "type": "array"
+          },
+          "current": {
+            "$ref": "#/components/schemas/RailCandidateModel"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/LaunchLimitsModel"
+          },
+          "skipped": {
+            "items": {
+              "$ref": "#/components/schemas/SkippedCandidateModel"
+            },
+            "title": "Skipped",
+            "type": "array"
+          },
+          "wind": {
+            "$ref": "#/components/schemas/WindUsedModel"
+          }
+        },
+        "required": [
+          "wind",
+          "current",
+          "best",
+          "candidates",
+          "skipped",
+          "limits",
+          "checks_current",
+          "checks_best"
+        ],
+        "title": "LaunchDayResponse",
+        "type": "object"
+      },
+      "LaunchLimitsModel": {
+        "properties": {
+          "apogee_max_m": {
+            "title": "Apogee Max M",
+            "type": "number"
+          },
+          "apogee_recommended_max_m": {
+            "title": "Apogee Recommended Max M",
+            "type": "number"
+          },
+          "descent_max_ms": {
+            "title": "Descent Max Ms",
+            "type": "number"
+          },
+          "descent_recommended_ms": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Descent Recommended Ms",
+            "type": "array"
+          },
+          "landing_radius_m": {
+            "title": "Landing Radius M",
+            "type": "number"
+          },
+          "rail_exit_min_ms": {
+            "title": "Rail Exit Min Ms",
+            "type": "number"
+          },
+          "static_margin_min_cal": {
+            "title": "Static Margin Min Cal",
+            "type": "number"
+          },
+          "tilt_max_deg": {
+            "title": "Tilt Max Deg",
+            "type": "number"
+          },
+          "wind_max_kmh": {
+            "title": "Wind Max Kmh",
+            "type": "number"
+          }
+        },
+        "required": [
+          "apogee_max_m",
+          "apogee_recommended_max_m",
+          "tilt_max_deg",
+          "static_margin_min_cal",
+          "descent_max_ms",
+          "descent_recommended_ms",
+          "landing_radius_m",
+          "rail_exit_min_ms",
+          "wind_max_kmh"
+        ],
+        "title": "LaunchLimitsModel",
+        "type": "object"
+      },
+      "MonteCarloFiles": {
+        "description": "Blob names under the run's storage prefix (``kml`` only with >= 3 flights).",
+        "properties": {
+          "errors": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Errors"
+          },
+          "inputs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inputs"
+          },
+          "kml": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kml"
+          },
+          "outputs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outputs"
+          }
+        },
+        "title": "MonteCarloFiles",
+        "type": "object"
+      },
+      "MonteCarloProgress": {
+        "properties": {
+          "done": {
+            "title": "Done",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "done",
+          "total"
+        ],
+        "title": "MonteCarloProgress",
+        "type": "object"
+      },
+      "MonteCarloRequest": {
+        "description": "Body of POST /api/montecarlo.",
+        "properties": {
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "scenario": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scenario"
+          }
+        },
+        "required": [
+          "export_id",
+          "n"
+        ],
+        "title": "MonteCarloRequest",
+        "type": "object"
+      },
+      "MonteCarloResultModel": {
+        "description": "``icaro.MonteCarloResult.to_dict()``; ellipses are [lat, lon] polygons.",
+        "properties": {
+          "apogee_agl": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Apogee Agl",
+            "type": "array"
+          },
+          "apogee_ellipses": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Apogee Ellipses",
+            "type": "array"
+          },
+          "apogee_stats": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ApogeeStatsModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "ellipse_sigmas": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Ellipse Sigmas",
+            "type": "array"
+          },
+          "files": {
+            "$ref": "#/components/schemas/MonteCarloFiles"
+          },
+          "impact_x": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Impact X",
+            "type": "array"
+          },
+          "impact_y": {
+            "items": {
+              "type": "number"
+            },
+            "title": "Impact Y",
+            "type": "array"
+          },
+          "landing_ellipses": {
+            "items": {
+              "items": {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              "type": "array"
+            },
+            "title": "Landing Ellipses",
+            "type": "array"
+          },
+          "n_failed": {
+            "title": "N Failed",
+            "type": "integer"
+          },
+          "n_requested": {
+            "title": "N Requested",
+            "type": "integer"
+          },
+          "n_succeeded": {
+            "title": "N Succeeded",
+            "type": "integer"
+          },
+          "origin": {
+            "$ref": "#/components/schemas/LatLon"
+          },
+          "uncertainty": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/DispersionModel"
+            },
+            "default": {},
+            "title": "Uncertainty",
+            "type": "object"
+          }
+        },
+        "required": [
+          "n_requested",
+          "n_succeeded",
+          "n_failed",
+          "apogee_agl",
+          "apogee_stats",
+          "impact_x",
+          "impact_y",
+          "ellipse_sigmas",
+          "landing_ellipses",
+          "apogee_ellipses",
+          "origin",
+          "files"
+        ],
+        "title": "MonteCarloResultModel",
+        "type": "object"
+      },
+      "MonteCarloRun": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/MonteCarloProgress"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MonteCarloResultModel"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "rocket_id",
+          "export_id",
+          "created_at",
+          "created_by",
+          "n",
+          "status",
+          "progress",
+          "queue_position",
+          "error",
+          "finished_at",
+          "result"
+        ],
+        "title": "MonteCarloRun",
+        "type": "object"
+      },
+      "MonteCarloSubmitted": {
+        "properties": {
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "status",
+          "queue_position"
+        ],
+        "title": "MonteCarloSubmitted",
+        "type": "object"
+      },
+      "MonteCarloSummary": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by": {
+            "title": "Created By",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "export_id": {
+            "title": "Export Id",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "n": {
+            "title": "N",
+            "type": "integer"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/MonteCarloProgress"
+          },
+          "queue_position": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Queue Position"
+          },
+          "rocket_id": {
+            "title": "Rocket Id",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "rocket_id",
+          "export_id",
+          "created_at",
+          "created_by",
+          "n",
+          "status",
+          "progress",
+          "queue_position",
+          "error",
+          "finished_at"
+        ],
+        "title": "MonteCarloSummary",
         "type": "object"
       },
       "Rail": {
@@ -529,6 +1296,59 @@
           }
         },
         "title": "Rail",
+        "type": "object"
+      },
+      "RailCandidateModel": {
+        "properties": {
+          "apogee_agl": {
+            "title": "Apogee Agl",
+            "type": "number"
+          },
+          "checks_ok": {
+            "title": "Checks Ok",
+            "type": "boolean"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "number"
+          },
+          "impact_velocity": {
+            "title": "Impact Velocity",
+            "type": "number"
+          },
+          "inclination": {
+            "title": "Inclination",
+            "type": "number"
+          },
+          "landing_bearing": {
+            "title": "Landing Bearing",
+            "type": "number"
+          },
+          "landing_distance": {
+            "title": "Landing Distance",
+            "type": "number"
+          },
+          "out_of_rail_velocity": {
+            "title": "Out Of Rail Velocity",
+            "type": "number"
+          },
+          "stability_margin_min": {
+            "title": "Stability Margin Min",
+            "type": "number"
+          }
+        },
+        "required": [
+          "inclination",
+          "heading",
+          "apogee_agl",
+          "landing_distance",
+          "landing_bearing",
+          "out_of_rail_velocity",
+          "stability_margin_min",
+          "impact_velocity",
+          "checks_ok"
+        ],
+        "title": "RailCandidateModel",
         "type": "object"
       },
       "ResultEnvelope": {
@@ -638,7 +1458,7 @@
         "type": "object"
       },
       "Scenario": {
-        "description": "Root scenario model.  Returned by :func:`load_scenario`.\n\nParameters\n----------\nname : str\n    Human-readable label for this scenario (used as default MC output prefix).\nsite : Site\n    Launch site coordinates.  Required.\ndate : LaunchDate or None\n    UTC launch date.  Required when atmosphere.model requires it.\natmosphere : Atmosphere\n    Atmosphere model configuration.\nrail : Rail or None\n    Optional launch rail parameter overrides.\nuncertainty : dict[str, Dispersion] or None\n    Per-parameter dispersion budget.  ``None`` signals \"not set in YAML\"\n    so :func:`load_scenario` can fill DEFAULT_UNCERTAINTY.",
+        "description": "Root scenario model.  Returned by :func:`load_scenario`.\n\nParameters\n----------\nname : str\n    Human-readable label for this scenario (used as default MC output prefix).\nsite : Site\n    Launch site coordinates.  Required.\ndate : LaunchDate or None\n    UTC launch date.  Required when atmosphere.model requires it.\natmosphere : Atmosphere\n    Atmosphere model configuration.\nrail : Rail or None\n    Optional launch rail parameter overrides.\nwind : Wind or None\n    Optional constant wind measured on the pad. Overrides the atmosphere\n    model's wind profile; ``None`` keeps the model's wind.\nuncertainty : dict[str, Dispersion] or None\n    Per-parameter dispersion budget.  ``None`` signals \"not set in YAML\"\n    so :func:`load_scenario` can fill DEFAULT_UNCERTAINTY.",
         "properties": {
           "atmosphere": {
             "$ref": "#/components/schemas/Atmosphere",
@@ -688,6 +1508,16 @@
               }
             ],
             "title": "Uncertainty"
+          },
+          "wind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Wind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -757,6 +1587,16 @@
             },
             "title": "Uncertainty Presets",
             "type": "object"
+          },
+          "wind": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Wind"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -977,6 +1817,29 @@
         "title": "Site",
         "type": "object"
       },
+      "SkippedCandidateModel": {
+        "properties": {
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "heading": {
+            "title": "Heading",
+            "type": "number"
+          },
+          "inclination": {
+            "title": "Inclination",
+            "type": "number"
+          }
+        },
+        "required": [
+          "inclination",
+          "heading",
+          "error"
+        ],
+        "title": "SkippedCandidateModel",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1015,6 +1878,55 @@
           "type"
         ],
         "title": "ValidationError",
+        "type": "object"
+      },
+      "Wind": {
+        "description": "Constant wind measured on the pad (launch-day manual entry).\n\nWhen present, it replaces the atmosphere model's wind profile with a\nconstant wind at every altitude (see\n:func:`icaro.simulation.build_environment`).\n\nParameters\n----------\nspeed : float\n    Wind speed in m/s (>= 0).\ndirection_from : float\n    Meteorological direction in degrees, 0 <= x < 360: where the wind\n    comes FROM, clockwise from north (270 = from the west, blowing east).",
+        "properties": {
+          "direction_from": {
+            "exclusiveMaximum": 360.0,
+            "minimum": 0.0,
+            "title": "Direction From",
+            "type": "number"
+          },
+          "speed": {
+            "minimum": 0.0,
+            "title": "Speed",
+            "type": "number"
+          }
+        },
+        "required": [
+          "speed",
+          "direction_from"
+        ],
+        "title": "Wind",
+        "type": "object"
+      },
+      "WindUsedModel": {
+        "properties": {
+          "direction_from": {
+            "title": "Direction From",
+            "type": "number"
+          },
+          "source": {
+            "enum": [
+              "manual",
+              "model"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "speed": {
+            "title": "Speed",
+            "type": "number"
+          }
+        },
+        "required": [
+          "speed",
+          "direction_from",
+          "source"
+        ],
+        "title": "WindUsedModel",
         "type": "object"
       }
     }
@@ -1405,6 +2317,238 @@
         "summary": "Get History Item",
         "tags": [
           "history"
+        ]
+      }
+    },
+    "/api/launchday": {
+      "post": {
+        "description": "Recommend the rail setting that lands closest to the pad (S5).",
+        "operationId": "run_launchday_api_launchday_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LaunchDayRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LaunchDayResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Run Launchday",
+        "tags": [
+          "launchday"
+        ]
+      }
+    },
+    "/api/montecarlo": {
+      "get": {
+        "description": "The org's Monte Carlo runs, newest first (without results).",
+        "operationId": "list_montecarlo_api_montecarlo_get",
+        "parameters": [
+          {
+            "description": "Only this rocket's runs.",
+            "in": "query",
+            "name": "rocket_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Only this rocket's runs.",
+              "title": "Rocket Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MonteCarloSummary"
+                  },
+                  "title": "Response List Montecarlo Api Montecarlo Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Montecarlo",
+        "tags": [
+          "montecarlo"
+        ]
+      },
+      "post": {
+        "description": "Queue a Monte Carlo run; one runs at a time per instance, the rest wait (FIFO).",
+        "operationId": "submit_montecarlo_api_montecarlo_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MonteCarloRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonteCarloSubmitted"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Submit Montecarlo",
+        "tags": [
+          "montecarlo"
+        ]
+      }
+    },
+    "/api/montecarlo/{run_id}": {
+      "get": {
+        "description": "Status, progress and (once done) the summary result of one run.",
+        "operationId": "get_montecarlo_api_montecarlo__run_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MonteCarloRun"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Montecarlo",
+        "tags": [
+          "montecarlo"
+        ]
+      }
+    },
+    "/api/montecarlo/{run_id}/kml": {
+      "get": {
+        "description": "The landing/apogee ellipses as KML; 404 until done or when not produced.",
+        "operationId": "get_montecarlo_kml_api_montecarlo__run_id__kml_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.google-earth.kml+xml": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Montecarlo Kml",
+        "tags": [
+          "montecarlo"
         ]
       }
     },

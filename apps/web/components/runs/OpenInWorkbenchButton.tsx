@@ -26,6 +26,11 @@ import { EyeIcon, PlayIcon } from "@/components/workbench/icons";
 const PRIMARY_CLASS = buttonClass({ variant: "primary", size: "icon" });
 const SECONDARY_CLASS = buttonClass({ variant: "ghost", size: "icon" });
 
+/** The Workbench URL that shows a dispersion run with its file (S12). */
+export function workbenchMonteCarloHref(exportId: string, runId: string): string {
+  return `/?file=${encodeURIComponent(exportId)}&mc=${encodeURIComponent(runId)}`;
+}
+
 /** The Workbench URL that shows one run (S8). */
 export function workbenchRunHref(runId: string): string {
   return `/?run=${encodeURIComponent(runId)}`;

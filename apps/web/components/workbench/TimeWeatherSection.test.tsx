@@ -107,3 +107,42 @@ describe("TimeWeatherSection — forecast window notice (S12e)", () => {
     expect(screen.queryByText(NOTICE)).toBeNull();
   });
 });
+
+describe("TimeWeatherSection — wind on the pad (launch-day S6a)", () => {
+  it("uses the forecast by default: no wind inputs and no wind in the body", async () => {
+    await renderSection();
+    expect(screen.getByRole("button", { name: "Forecast wind" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByLabelText("Speed (km/h)")).toBeNull();
+    expect(draft?.scenarioBody()).not.toHaveProperty("wind");
+  });
+
+  it("sends the measured wind in m/s once the switch is on, and drops it when switched back", async () => {
+    await renderSection();
+    fireEvent.click(screen.getByRole("button", { name: "Measured on the pad" }));
+    fireEvent.change(screen.getByLabelText("Speed (km/h)"), { target: { value: "18" } });
+    fireEvent.change(screen.getByLabelText("From (°)"), { target: { value: "270" } });
+
+    expect(screen.getByText("270° = from the west")).toBeInTheDocument();
+    expect(draft?.scenarioBody().wind).toEqual({ speed: 5, direction_from: 270 });
+
+    fireEvent.click(screen.getByRole("button", { name: "Forecast wind" }));
+    expect(screen.queryByLabelText("Speed (km/h)")).toBeNull();
+    expect(draft?.scenarioBody()).not.toHaveProperty("wind");
+  });
+
+  it("clamps the speed to 0–60 km/h and the direction to 0–359° when leaving the field", async () => {
+    await renderSection();
+    fireEvent.click(screen.getByRole("button", { name: "Measured on the pad" }));
+    // The section re-renders on every draft change: query the inputs afresh.
+    const speed = () => screen.getByLabelText("Speed (km/h)");
+    const direction = () => screen.getByLabelText("From (°)");
+    fireEvent.change(speed(), { target: { value: "90" } });
+    fireEvent.blur(speed());
+    fireEvent.change(direction(), { target: { value: "400" } });
+    fireEvent.blur(direction());
+
+    expect(speed()).toHaveValue(60);
+    expect(direction()).toHaveValue(359);
+    expect(draft?.state.wind).toEqual({ speedKmh: 60, directionFrom: 359 });
+  });
+});

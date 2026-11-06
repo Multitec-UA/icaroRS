@@ -469,3 +469,94 @@ class TestFirestoreDbListSimulations:
         assert result[0].simulation_id == "s-listed"
         assert result[0].scalars == {"apogee_m": 2500.0}
         assert result[0].org_id == _ORG
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo runs — collection ``montecarlo_runs`` (S9, S10)
+# ---------------------------------------------------------------------------
+
+
+class TestFirestoreDbMonteCarlo:
+    def _chained_query(self, mock_db_client):
+        q = mock_db_client.collection.return_value
+        q.where.return_value = q
+        q.order_by.return_value = q
+        q.limit.return_value = q
+        q.start_after.return_value = q
+        return q
+
+    def test_save_writes_result_as_json_string(self, fs, mock_db_client):
+        """Firestore rejects arrays nested in arrays (the ellipse polygons), so
+        the result is persisted as a JSON string, not a map."""
+        import json
+
+        from tests.fakes import fake_montecarlo_result, make_montecarlo_record
+
+        rec = make_montecarlo_record("mc-1", org_id=_ORG, status="done",
+                                     result=fake_montecarlo_result())
+        fs.save_montecarlo(rec, org_id=_ORG)
+
+        mock_db_client.collection.assert_called_with("montecarlo_runs")
+        mock_db_client.collection.return_value.document.assert_called_with("mc-1")
+        doc = mock_db_client.collection.return_value.document.return_value.set.call_args.args[0]
+        assert "result" not in doc
+        assert json.loads(doc["result_json"]) == fake_montecarlo_result()
+        assert doc["org_id"] == _ORG and doc["status"] == "done"
+        assert doc["created_at"] == rec.created_at
+
+    def test_save_rejects_mismatched_org(self, fs):
+        from tests.fakes import make_montecarlo_record
+
+        with pytest.raises(ValueError):
+            fs.save_montecarlo(make_montecarlo_record(org_id=_ORG), org_id=_OTHER_ORG)
+
+    def test_get_round_trips_and_scopes_org(self, fs, mock_db_client):
+        import json
+
+        from tests.fakes import fake_montecarlo_result
+
+        snap = MagicMock()
+        snap.exists = True
+        snap.to_dict.return_value = {
+            "rocket_id": "rk-1", "export_id": "exp-1", "org_id": _ORG,
+            "created_by": "ci", "created_at": _T1, "scenario": None, "n": 20,
+            "status": "done", "progress_done": 20, "progress_total": 20,
+            "result_json": json.dumps(fake_montecarlo_result()),
+            "result_prefix": "orgs/x/montecarlo/mc-1/", "error": None, "finished_at": _T2,
+        }
+        mock_db_client.collection.return_value.document.return_value.get.return_value = snap
+
+        rec = fs.get_montecarlo("mc-1", org_id=_ORG)
+        assert rec.run_id == "mc-1" and rec.n == 20 and rec.finished_at == _T2
+        assert rec.result == fake_montecarlo_result()
+        assert fs.get_montecarlo("mc-1", org_id=_OTHER_ORG) is None
+
+    def test_get_missing_returns_none(self, fs, mock_db_client):
+        snap = MagicMock()
+        snap.exists = False
+        mock_db_client.collection.return_value.document.return_value.get.return_value = snap
+        assert fs.get_montecarlo("nope", org_id=_ORG) is None
+
+    def test_list_filters_org_and_rocket_ordered_desc(self, fs, mock_db_client):
+        q = self._chained_query(mock_db_client)
+        q.stream.return_value = []
+
+        fs.list_montecarlo(org_id=_ORG, rocket_id="rk-1", limit=5)
+
+        mock_db_client.collection.assert_called_with("montecarlo_runs")
+        assert q.where.call_args_list == [call("org_id", "==", _ORG), call("rocket_id", "==", "rk-1")]
+        q.order_by.assert_called_once_with("created_at", direction="DESCENDING")
+        q.limit.assert_called_once_with(5)
+
+    def test_list_unfinished_queries_status_in(self, fs, mock_db_client):
+        q = self._chained_query(mock_db_client)
+        snap = MagicMock()
+        snap.id = "mc-q"
+        snap.to_dict.return_value = {"org_id": _ORG, "status": "queued", "n": 10, "created_at": _T1}
+        q.stream.return_value = [snap]
+
+        rows = fs.list_unfinished_montecarlo()
+
+        q.where.assert_called_once_with("status", "in", ["queued", "running"])
+        assert [r.run_id for r in rows] == ["mc-q"]
+        assert rows[0].result is None

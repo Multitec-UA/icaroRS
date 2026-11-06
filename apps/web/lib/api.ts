@@ -43,6 +43,7 @@
  */
 
 import type { components } from "./api/schema";
+import type { LaunchDayRequest, LaunchDayResult } from "./api/launchday";
 import { RETRY_DELAYS_MS, fetchRetrying } from "./fetch-retry";
 
 // ---------------------------------------------------------------------------
@@ -468,6 +469,80 @@ export function simulate(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+// ---------------------------------------------------------------------------
+// Monte Carlo dispersion (S9): a queued background job, polled for progress.
+// ---------------------------------------------------------------------------
+
+export type MonteCarloRequest = components["schemas"]["MonteCarloRequest"];
+export type MonteCarloSubmitted = components["schemas"]["MonteCarloSubmitted"];
+/** One run as listed (no result). */
+export type MonteCarloSummary = components["schemas"]["MonteCarloSummary"];
+/** One run with its result once `done`. */
+export type MonteCarloRun = components["schemas"]["MonteCarloRun"];
+export type MonteCarloRunResult = components["schemas"]["MonteCarloResultModel"];
+export type MonteCarloStatus = MonteCarloSummary["status"];
+
+/** Runs listed per rocket on /runs. */
+const MONTE_CARLO_PAGE = 50;
+
+/**
+ * POST /api/montecarlo — queue a run (202). Not retried: a retry after a lost
+ * response would queue a second run.
+ */
+export function submitMonteCarlo(body: MonteCarloRequest): Promise<MonteCarloSubmitted> {
+  return request<MonteCarloSubmitted>(
+    "/api/montecarlo",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { retryable: false },
+  );
+}
+
+/** GET /api/montecarlo/{runId} — status, progress and, once done, the result. */
+export function getMonteCarlo(runId: string): Promise<MonteCarloRun> {
+  return request<MonteCarloRun>(`/api/montecarlo/${encodeURIComponent(runId)}`);
+}
+
+/** GET /api/montecarlo — the org's runs (or one rocket's), newest first, without results. */
+export function listMonteCarlo(rocketId?: string | null): Promise<MonteCarloSummary[]> {
+  const q = new URLSearchParams();
+  if (rocketId) q.set("rocket_id", rocketId);
+  q.set("limit", String(MONTE_CARLO_PAGE));
+  return request<MonteCarloSummary[]>(`/api/montecarlo?${q}`);
+}
+
+/** The landing/apogee ellipses as KML (404 until the run is done). */
+export function monteCarloKmlUrl(runId: string): string {
+  return `/api/montecarlo/${encodeURIComponent(runId)}/kml`;
+}
+
+// ---------------------------------------------------------------------------
+// Launch day (launch-day S5): one synchronous sweep of rail settings.
+// ---------------------------------------------------------------------------
+
+export type {
+  LaunchCandidate,
+  LaunchCheck,
+  LaunchCheckId,
+  LaunchDayRequest,
+  LaunchDayResult,
+  LaunchDayWind,
+  LaunchLimits,
+  ScenarioWind,
+} from "./api/launchday";
+
+/**
+ * POST /api/launchday — fly every rail setting of the grid (72 flights by
+ * default, about 1–2 minutes) and return the closest landing plus the L1
+ * checklist. Not retried: a retry after a lost response would run it twice.
+ */
+export function recommendRail(body: LaunchDayRequest): Promise<LaunchDayResult> {
+  return request<LaunchDayResult>(
+    "/api/launchday",
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
+    { retryable: false },
+  );
 }
 
 export function getResult(runId: string): Promise<ResultEnvelope> {

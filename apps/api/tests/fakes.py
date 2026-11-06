@@ -148,3 +148,128 @@ class FakeFlight:
 
         # --- Plots stub ---
         self.plots: _FakePlots = _FakePlots()
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo doubles
+# ---------------------------------------------------------------------------
+
+
+def make_montecarlo_record(
+    run_id: str = "mc-1",
+    *,
+    org_id: str = "test-org",
+    rocket_id: str = "rk-1",
+    export_id: str = "exp-1",
+    status: str = "queued",
+    n: int = 10,
+    created_at=None,
+    result: dict | None = None,
+    result_prefix: str | None = None,
+):
+    """Build a ``MonteCarloRecord`` with sensible defaults for unit tests."""
+    from datetime import datetime, timezone
+
+    from icaro_api.services.db import MonteCarloRecord
+
+    return MonteCarloRecord(
+        run_id=run_id,
+        rocket_id=rocket_id,
+        export_id=export_id,
+        org_id=org_id,
+        created_by="test",
+        created_at=created_at or datetime(2026, 1, 1, tzinfo=timezone.utc),
+        scenario={"site": {"latitude": 0.0, "longitude": 0.0}},
+        n=n,
+        status=status,
+        progress_done=0,
+        progress_total=n,
+        result=result,
+        result_prefix=result_prefix,
+    )
+
+
+def fake_montecarlo_result(kml: str | None = "/tmp/x/montecarlo.kml") -> dict:
+    """A ``MonteCarloResult.to_dict()``-shaped payload (nested ellipse arrays)."""
+    return {
+        "n_requested": 10,
+        "n_succeeded": 10,
+        "n_failed": 0,
+        "apogee_agl": [800.0, 810.0],
+        "apogee_stats": {
+            "mean": 805.0, "std": 5.0, "min": 800.0, "max": 810.0,
+            "p5": 800.5, "p50": 805.0, "p95": 809.5,
+        },
+        "impact_x": [1.0, 2.0],
+        "impact_y": [3.0, 4.0],
+        "ellipse_sigmas": [1, 2, 3],
+        "landing_ellipses": [[[38.1, -0.5], [38.2, -0.6]]],
+        "apogee_ellipses": [[[38.1, -0.5], [38.2, -0.6]]],
+        "origin": {"latitude": 38.0, "longitude": -0.5},
+        "files": {
+            "inputs": "/tmp/x/montecarlo.inputs.txt",
+            "outputs": "/tmp/x/montecarlo.outputs.txt",
+            "errors": "/tmp/x/montecarlo.errors.txt",
+            "kml": kml,
+        },
+    }
+
+
+class FakeMonteCarloProcess:
+    """Popen-like double for the Monte Carlo worker subprocess.
+
+    Reads the worker argv to find ``--output-prefix`` and ``--result-json``.
+    Each ``poll()`` appends one line to ``{prefix}.outputs.txt`` (simulating a
+    finished flight) until ``lines`` flights are written; the next poll writes
+    the result JSON (exit 0) or the stderr text (non-zero exit) and returns the
+    exit code.
+    """
+
+    def __init__(self, argv, stderr_file, *, lines=3, returncode=0, stderr=b"", result=None):
+        import json as _json
+
+        def _arg(flag):
+            return argv[argv.index(flag) + 1]
+
+        self.argv = list(argv)
+        self._prefix = Path(_arg("--output-prefix"))
+        self._result_json = Path(_arg("--result-json"))
+        self._stderr_file = stderr_file
+        self._remaining = lines
+        self._rc = returncode
+        self._stderr = stderr
+        self._result = result if result is not None else fake_montecarlo_result(
+            kml=str(self._prefix) + ".kml"
+        )
+        self._json = _json
+        self.returncode = None
+        self.killed = False
+
+    def kill(self):
+        self.killed = True
+        self.returncode = -9
+
+    def wait(self, timeout=None):
+        return self.returncode
+
+    def poll(self):
+        if self.returncode is not None:
+            return self.returncode
+        if self._remaining > 0:
+            with open(f"{self._prefix}.outputs.txt", "a", encoding="utf-8") as f:
+                f.write('{"apogee": 1}\n')
+            self._remaining -= 1
+            return None
+        if self._rc == 0:
+            Path(f"{self._prefix}.kml").write_text("<kml/>", encoding="utf-8")
+            self._result_json.write_text(self._json.dumps(self._result), encoding="utf-8")
+        else:
+            self._stderr_file.write(self._stderr)
+            self._stderr_file.flush()
+        self.returncode = self._rc
+        return self.returncode
+
+    def wait(self, timeout=None):
+        while self.poll() is None:
+            pass
+        return self.returncode

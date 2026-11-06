@@ -41,6 +41,7 @@ Usage
 
 from __future__ import annotations
 
+import threading
 import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -53,6 +54,7 @@ from icaro_api.config import Settings, get_settings
 
 if TYPE_CHECKING:
     from icaro_api.services.db import Db
+    from icaro_api.services.montecarlo_jobs import MonteCarloJobQueue
     from icaro_api.services.storage import Storage
 
 
@@ -115,6 +117,10 @@ def resolve_run_dir(base_dir: Path, run_id: str) -> Path | None:
 # module load; lazily initialised on first get_db() call without firestore.
 # Reset to None in tests that exercise the real get_db() to keep isolation.
 _inmemory_db: "Db | None" = None
+
+# Process-wide Monte Carlo job queue (one worker thread per process, S9).
+_job_queue: "MonteCarloJobQueue | None" = None
+_job_queue_lock = threading.Lock()
 
 
 def get_storage(settings: Settings = Depends(get_settings)) -> "Storage":
@@ -192,3 +198,23 @@ def get_db(settings: Settings = Depends(get_settings)) -> "Db":
     if _inmemory_db is None:
         _inmemory_db = InMemoryDb()
     return _inmemory_db
+
+
+def get_job_queue(settings: Settings = Depends(get_settings)) -> "MonteCarloJobQueue":
+    """FastAPI dependency: return the process-wide Monte Carlo job queue.
+
+    A singleton by necessity: the queue owns the single worker thread that
+    serialises Monte Carlo runs on this instance (S9). Its run directories
+    live under ``settings.results_dir``. Tests override the dependency with
+    their own ``MonteCarloJobQueue(autostart=False, launcher=fake)``.
+    """
+    global _job_queue
+    from icaro_api.services.montecarlo_jobs import MonteCarloJobQueue
+
+    if _job_queue is None:
+        # Two first requests arriving together must not each build a queue:
+        # every queue owns a worker thread, and S9 allows one run at a time.
+        with _job_queue_lock:
+            if _job_queue is None:
+                _job_queue = MonteCarloJobQueue(settings.results_dir)
+    return _job_queue

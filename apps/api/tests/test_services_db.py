@@ -261,3 +261,67 @@ class TestInMemoryDbSimulationContract:
         """Empty db → empty list."""
         db = InMemoryDb()
         assert db.list_simulations(org_id=_ORG) == []
+
+
+# ---------------------------------------------------------------------------
+# Monte Carlo runs (S9, S10)
+# ---------------------------------------------------------------------------
+
+
+class TestInMemoryDbMonteCarlo:
+    def _rec(self, run_id, *, org_id=_ORG, rocket_id="rk-1", status="queued", day=1):
+        from tests.fakes import make_montecarlo_record
+
+        return make_montecarlo_record(
+            run_id,
+            org_id=org_id,
+            rocket_id=rocket_id,
+            status=status,
+            created_at=datetime(2026, 1, day, tzinfo=timezone.utc),
+        )
+
+    def test_save_and_get_round_trip(self):
+        db = InMemoryDb()
+        rec = self._rec("mc-1")
+        db.save_montecarlo(rec, org_id=_ORG)
+        assert db.get_montecarlo("mc-1", org_id=_ORG) == rec
+
+    def test_save_is_an_upsert(self):
+        db = InMemoryDb()
+        db.save_montecarlo(self._rec("mc-1"), org_id=_ORG)
+        db.save_montecarlo(self._rec("mc-1", status="running"), org_id=_ORG)
+        assert db.get_montecarlo("mc-1", org_id=_ORG).status == "running"
+
+    def test_get_other_org_returns_none(self):
+        db = InMemoryDb()
+        db.save_montecarlo(self._rec("mc-1"), org_id=_ORG)
+        assert db.get_montecarlo("mc-1", org_id=_OTHER_ORG) is None
+        assert db.get_montecarlo("missing", org_id=_ORG) is None
+
+    def test_save_rejects_mismatched_org(self):
+        db = InMemoryDb()
+        with pytest.raises(ValueError):
+            db.save_montecarlo(self._rec("mc-1"), org_id=_OTHER_ORG)
+
+    def test_list_is_org_scoped_newest_first_and_filters_rocket(self):
+        db = InMemoryDb()
+        db.save_montecarlo(self._rec("a", day=1), org_id=_ORG)
+        db.save_montecarlo(self._rec("b", day=3), org_id=_ORG)
+        db.save_montecarlo(self._rec("c", day=2, rocket_id="rk-2"), org_id=_ORG)
+        db.save_montecarlo(self._rec("x", org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+
+        assert [r.run_id for r in db.list_montecarlo(_ORG)] == ["b", "c", "a"]
+        assert [r.run_id for r in db.list_montecarlo(_ORG, rocket_id="rk-1")] == ["b", "a"]
+        assert [r.run_id for r in db.list_montecarlo(_ORG, limit=1)] == ["b"]
+        before = datetime(2026, 1, 3, tzinfo=timezone.utc)
+        assert [r.run_id for r in db.list_montecarlo(_ORG, before=before)] == ["c", "a"]
+
+    def test_list_unfinished_spans_orgs_and_skips_finished(self):
+        db = InMemoryDb()
+        db.save_montecarlo(self._rec("q", status="queued"), org_id=_ORG)
+        db.save_montecarlo(self._rec("r", status="running", org_id=_OTHER_ORG), org_id=_OTHER_ORG)
+        db.save_montecarlo(self._rec("d", status="done"), org_id=_ORG)
+        db.save_montecarlo(self._rec("e", status="error"), org_id=_ORG)
+
+        assert sorted(r.run_id for r in db.list_unfinished_montecarlo()) == ["q", "r"]
+        assert [r.run_id for r in db.list_unfinished_montecarlo(org_id=_ORG)] == ["q"]
