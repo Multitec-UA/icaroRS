@@ -128,7 +128,10 @@ def _std(uncertainty: dict[str, Dispersion], key: str, nominal: float) -> float 
 
 
 def _resolve_uncertainty(scenario: "Scenario | None") -> dict[str, Dispersion]:
-    if scenario is None or scenario.uncertainty is None:
+    # None (API path, no block) and {} (the web always sends an empty block)
+    # both mean "the default budget": an empty budget would make every
+    # sampled flight identical, which is never what a Monte Carlo asks for.
+    if scenario is None or not scenario.uncertainty:
         return dict(DEFAULT_UNCERTAINTY)
     unknown = sorted(set(scenario.uncertainty) - set(ALLOWED_UNCERTAINTY_KEYS))
     if unknown:
@@ -294,6 +297,7 @@ class MonteCarloResult:
     outputs_path: Path
     errors_path: Path
     kml_path: Path | None
+    uncertainty: dict[str, Dispersion] = field(default_factory=dict)
     raw: Any = field(default=None, repr=False, compare=False)
 
     def to_dict(self) -> dict:
@@ -307,6 +311,10 @@ class MonteCarloResult:
             "impact_x": list(self.impact_x),
             "impact_y": list(self.impact_y),
             "ellipse_sigmas": list(ELLIPSE_SIGMAS),
+            "uncertainty": {
+                key: {"std": d.std, "kind": d.kind}
+                for key, d in self.uncertainty.items()
+            },
             "landing_ellipses": [[list(p) for p in e] for e in self.landing_ellipses],
             "apogee_ellipses": [[list(p) for p in e] for e in self.apogee_ellipses],
             "origin": {
@@ -548,5 +556,6 @@ def run_monte_carlo(
         outputs_path=outputs_path,
         errors_path=errors_path,
         kml_path=written_kml,
+        uncertainty=dict(models.uncertainty),
         raw=mc,
     )

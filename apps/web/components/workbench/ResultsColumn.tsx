@@ -17,6 +17,11 @@
  *     (404): "This run's file is no longer available" / "This file is no
  *     longer available" with "Start fresh", never a blank column.
  *
+ * A Monte Carlo dispersion run in the URL (`mc=`, S12) shows as its own card
+ * above whatever else the column shows, so a deterministic run and a
+ * dispersion run can be on screen together. With a file loaded, the
+ * launch-day advisor (LaunchDayPanel, launch-day S6b) follows the results.
+ *
  * Errors the input sections could not place next to a field (general 422
  * messages, 503 hints, network failures) are shown here, above the results.
  */
@@ -32,6 +37,7 @@ import { ResultsSkeleton } from "@/components/results/ResultsSkeleton";
 import { FadeSwap } from "@/components/motion";
 import { ReplayProvider } from "@/components/flight/ReplayContext";
 import { RunResults } from "@/components/results/RunResults";
+import { MonteCarloCard } from "@/components/results/MonteCarloCard";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { unplacedErrors } from "./fieldErrors";
 import { InfoIcon } from "./icons";
@@ -40,8 +46,10 @@ import { RocketPicker } from "./RocketPicker";
 import { DestinationCard } from "./DestinationCard";
 import { ImportStatusCard } from "./ImportStatusCard";
 import { RocketSummaryCard } from "./RocketSummaryCard";
+import { LaunchDayPanel } from "./LaunchDayPanel";
 import type { OrkImport } from "./useOrkImport";
 import type { WorkbenchUrl } from "./useWorkbenchUrl";
+import type { MonteCarloControl } from "./useMonteCarlo";
 import { fileLabel } from "@/lib/domain/exports";
 
 export function ResultsColumn({
@@ -51,6 +59,7 @@ export function ResultsColumn({
   fatal,
   importer,
   url,
+  monteCarlo,
 }: {
   /** Phone tab state (S10): hides the column below lg only, never unmounting it. */
   id?: string;
@@ -59,6 +68,7 @@ export function ResultsColumn({
   fatal: string | null;
   importer: OrkImport;
   url: WorkbenchUrl;
+  monteCarlo: MonteCarloControl;
 }) {
   const t = useT();
   const { state } = useWizardDraft();
@@ -104,6 +114,16 @@ export function ResultsColumn({
         <ImportStatusCard phase={phase} onRetry={importer.cancel} />
       )}
 
+      {monteCarlo.runId && (
+        <MonteCarloCard
+          runId={monteCarlo.runId}
+          run={monteCarlo.run.data}
+          loading={monteCarlo.run.isPending}
+          error={monteCarlo.run.error}
+          onDismiss={monteCarlo.dismiss}
+        />
+      )}
+
       {urlStatus.kind === "loading" ? (
         <ResultsSkeleton label={t("workbench.loadingUrl")} />
       ) : urlProblem && phase.kind === "idle" ? (
@@ -138,6 +158,8 @@ export function ResultsColumn({
           <RocketPicker />
         </>
       )}
+
+      {hasExport && urlStatus.kind !== "loading" && !urlProblem && <LaunchDayPanel />}
     </section>
   );
 }

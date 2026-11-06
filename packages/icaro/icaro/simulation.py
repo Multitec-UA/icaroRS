@@ -13,6 +13,7 @@ delivery layer (CLI, API, web). Keep it that way: if you find yourself adding a
 from __future__ import annotations
 
 import json
+import math
 import os
 import warnings
 from collections.abc import Callable
@@ -98,6 +99,45 @@ def _load_drag_curve(path: str | os.PathLike) -> list[tuple[float, float]]:
     return sorted(curve.items())
 
 
+def wind_components(speed: float, direction_from: float) -> tuple[float, float]:
+    """Convert a meteorological wind into RocketPy's ``(wind_u, wind_v)``.
+
+    ``direction_from`` is where the wind comes FROM, in degrees clockwise from
+    north; ``u`` points east and ``v`` points north (the direction the air
+    moves). A wind from the west (270) therefore has a positive ``u``.
+    """
+    rad = math.radians(direction_from)
+    return -speed * math.sin(rad), -speed * math.cos(rad)
+
+
+def _apply_manual_wind(env: Environment, scenario: "Scenario") -> None:
+    """Replace the environment's atmosphere with a constant manual wind.
+
+    RocketPy's ``custom_atmosphere`` with no pressure/temperature uses the
+    standard atmosphere for both, so a real model's pressure/temperature are
+    replaced too; a warning says so when the base model was not already the
+    standard atmosphere.
+    """
+    wind = scenario.wind
+    wind_u, wind_v = wind_components(wind.speed, wind.direction_from)
+    model = scenario.atmosphere.model
+    if model != "standard_atmosphere":
+        warnings.warn(
+            f"Manual wind replaces the '{model}' atmosphere: wind is constant "
+            f"({wind.speed:g} m/s from {wind.direction_from:g} deg) and "
+            "pressure/temperature follow the standard atmosphere.",
+            UserWarning,
+            stacklevel=3,
+        )
+    env.set_atmospheric_model(
+        type="custom_atmosphere",
+        pressure=None,
+        temperature=None,
+        wind_u=wind_u,
+        wind_v=wind_v,
+    )
+
+
 def build_environment(
     env_data: dict,
     scenario: "Scenario | None" = None,
@@ -116,6 +156,11 @@ def build_environment(
     - On any fetch failure, a :class:`UserWarning` is emitted identifying the
       model, the failure reason, and the fallback, then the fallback model is
       used (REQ-SIM-03, REQ-XC-04). The simulation never crashes over weather.
+    - If ``scenario.wind`` is set (launch-day manual wind), the resolved
+      model is replaced by a ``custom_atmosphere`` with that constant wind
+      at every altitude; pressure/temperature then follow the standard
+      atmosphere (a warning says so when a real model was replaced). With
+      no ``wind`` the behaviour above is unchanged.
 
     Parameters
     ----------
@@ -168,7 +213,10 @@ def build_environment(
         )
 
     if model == "standard_atmosphere":
-        env.set_atmospheric_model(type="standard_atmosphere")
+        if scenario.wind is not None:
+            _apply_manual_wind(env, scenario)
+        else:
+            env.set_atmospheric_model(type="standard_atmosphere")
         return env
 
     # Date-dependent models: try/except with fallback.
@@ -207,6 +255,9 @@ def build_environment(
             stacklevel=2,
         )
         env.set_atmospheric_model(type=fallback)
+
+    if scenario.wind is not None:
+        _apply_manual_wind(env, scenario)
 
     return env
 

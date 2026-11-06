@@ -220,6 +220,15 @@ def test_no_scenario_uses_default_uncertainty(patched_models):
     assert models.uncertainty == DEFAULT_UNCERTAINTY
 
 
+def test_empty_uncertainty_block_uses_default_uncertainty(patched_models):
+    # The web always sends ``uncertainty: {}``; an empty budget would make
+    # every sampled flight identical, so it means "the defaults".
+    models = build_stochastic("export", _scenario({}))
+
+    assert models.uncertainty == DEFAULT_UNCERTAINTY
+    assert _kwargs(patched_models["StochasticRocket"])["mass"] == pytest.approx(1.0)
+
+
 def test_partial_uncertainty_disperses_only_listed_keys(patched_models):
     build_stochastic(
         "export", _scenario({"heading": Dispersion(std=2.0, kind="absolute")})
@@ -457,6 +466,11 @@ def test_to_dict_is_json_serializable_without_raw(fake_mc, tmp_path):
     assert data["files"]["kml"] == str(tmp_path / "run.kml")
     assert len(data["landing_ellipses"]) == 3
     assert data["origin"] == {"latitude": 38.37, "longitude": -0.58}
+    # The budget that was actually dispersed travels with the result, so a
+    # surface can explain what varied (S15).
+    assert data["uncertainty"]["mass"] == {"std": 0.05, "kind": "relative"}
+    assert data["uncertainty"]["inclination"] == {"std": 2.0, "kind": "absolute"}
+    assert set(data["uncertainty"]) == set(DEFAULT_UNCERTAINTY)
 
 
 # ---------------------------------------------------------------------------
