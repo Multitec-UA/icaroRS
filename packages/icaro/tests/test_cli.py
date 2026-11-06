@@ -14,6 +14,7 @@ TDD: tests written BEFORE the --scenario flag is added to the CLI.
 
 from __future__ import annotations
 
+import re
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -359,7 +360,10 @@ def test_mc_workers_without_parallel_exits_2(tmp_path):
     result, mock_run, _ = _invoke_mc(tmp_path, ["-n", "4", "--workers", "3"])
 
     assert result.exit_code == 2
-    assert "--workers requires --parallel" in result.stderr
+    # With `rich` installed (CI), Typer colours and boxes the message; compare
+    # the plain text so the assertion does not depend on the terminal styling.
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)
+    assert "--workers requires --parallel" in plain
     mock_run.assert_not_called()
 
 
