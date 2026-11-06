@@ -83,7 +83,7 @@ env vars below.
 gcloud storage buckets create gs://PROJECT-icaro-runs \
   --location REGION --uniform-bucket-level-access
 
-# 2. Firestore (Native mode) — metadata: `rockets` + `exports` + `simulations` collections
+# 2. Firestore (Native mode) — metadata: `rockets` + `exports` + `simulations` + `montecarlo_runs` collections
 gcloud firestore databases create --location REGION   # creates the "(default)" db
 
 # 3. IAM on the API's runtime service account (SA_EMAIL = what the API runs as)
@@ -117,14 +117,14 @@ gcloud run services update icaro-api --region REGION \
 ### Composite indexes (org_id [+ rocket_id] + created_at)
 
 Every list query filters by `org_id` **and** orders by `created_at DESC`;
-`list_exports` / `list_simulations` can also filter by `rocket_id` (the files
-and runs of one rocket). Firestore requires a composite index for each
+`list_exports` / `list_simulations` / `list_montecarlo` can also filter by
+`rocket_id` (the files and runs of one rocket). Firestore requires a composite index for each
 combination — declared in
 [`apps/api/firestore.indexes.json`](apps/api/firestore.indexes.json) — or the
 query fails at **runtime** (not at deploy). Create them once per project:
 
 ```bash
-for group in rockets exports simulations; do
+for group in rockets exports simulations montecarlo_runs; do
   gcloud firestore indexes composite create \
     --collection-group=$group \
     --field-config field-path=org_id,order=ascending \
@@ -132,7 +132,7 @@ for group in rockets exports simulations; do
     --project=PROJECT
 done
 
-for group in exports simulations; do
+for group in exports simulations montecarlo_runs; do
   gcloud firestore indexes composite create \
     --collection-group=$group \
     --field-config field-path=org_id,order=ascending \
@@ -145,6 +145,12 @@ done
 Index builds are asynchronous — check status with
 `gcloud firestore indexes composite list --project=PROJECT` before relying on
 the filtered queries in production.
+
+The `montecarlo_runs` indexes are new with the Monte Carlo job endpoints: an
+existing project needs only those two (re-running the loops is harmless; an
+existing index fails with `ALREADY_EXISTS`). Startup recovery queries
+`montecarlo_runs` by `status in [queued, running]`, which Firestore's automatic
+single-field indexes already serve.
 
 ### Backfill org_id on existing documents
 
@@ -270,6 +276,7 @@ gcloud run deploy icaro-api \
   --concurrency 8 \
   --cpu 2 --memory 2Gi \
   --timeout 300 \
+  --no-cpu-throttling \
   --no-allow-unauthenticated \
   --ingress internal
   # Optional:
@@ -284,6 +291,16 @@ gcloud run deploy icaro-api \
   real metrics.
 - `ICARO_ORK_JAR` and `ICARO_RESULTS_DIR` are already set in the image; no need
   to pass them.
+- `--no-cpu-throttling` (CPU always allocated) is required by the Monte Carlo
+  jobs: `POST /api/montecarlo` returns `202` at once and the run keeps going in
+  a background subprocess for minutes, outside any request — with request-based
+  billing Cloud Run would throttle its CPU to near zero between requests. The
+  trade-off is cost: the instance is billed for CPU continuously, not per
+  request (with `min-instances 1` it is always up anyway).
+- Monte Carlo runs one job at a time on the instance (FIFO queue, `n` between
+  `ICARO_MONTECARLO_MIN_N=10` and `ICARO_MONTECARLO_MAX_N=500`). The queue lives
+  in memory: a restart or redeploy marks queued/running jobs as `error`
+  ("interrupted by an API restart") on the next startup.
 
 ### web → api link (pick one)
 
@@ -372,5 +389,6 @@ account, and run a `.ork` → simulate end-to-end.
 | --- | --- | --- |
 | Runs lost on restart/redeploy | tmpfs is ephemeral | ✅ **Fixed** when GCS + Firestore are configured — see [Persistence](#persistence-gcs--firestore) |
 | API can't scale past 1 instance | per-instance simulate lock (matplotlib global state) | GCS removes the disk constraint, but the per-instance lock remains — needs a cross-instance lock to lift the pin |
+| Monte Carlo jobs lost on restart/redeploy | the job queue is in-process memory | a durable queue (e.g. Cloud Tasks / Cloud Run jobs); today they are marked `error` at startup |
 | No self-serve org signup | `org_id` custom claim is set by hand | admin console / invite flow |
 | First `convert` is slow | JVM cold start | `min-instances ≥ 1` already mitigates |

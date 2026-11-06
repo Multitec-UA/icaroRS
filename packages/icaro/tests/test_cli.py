@@ -14,6 +14,7 @@ TDD: tests written BEFORE the --scenario flag is added to the CLI.
 
 from __future__ import annotations
 
+import re
 import textwrap
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -255,3 +256,158 @@ def test_req_cvt_no_ork_extractor_import_in_cli():
             f"REQ-CVT-04 violation: CLI contains '{pattern}'. "
             "rocketserializer must be accessed only via the icaro.convert use-case."
         )
+
+
+# ---------------------------------------------------------------------------
+# S8 — icaro mc (Monte Carlo dispersion)
+# ---------------------------------------------------------------------------
+
+
+def _fake_mc_result(prefix: Path, *, n: int = 10, failed: int = 1, kml: bool = True):
+    from icaro.montecarlo import ApogeeStats, MonteCarloResult
+
+    succeeded = n - failed
+    stats = (
+        ApogeeStats(mean=1234.5, std=56.7, min=1100.0, max=1350.0, p5=1150.2, p50=1230.0, p95=1320.9)
+        if succeeded
+        else None
+    )
+    return MonteCarloResult(
+        n_requested=n,
+        n_succeeded=succeeded,
+        n_failed=failed,
+        apogee_agl=[1234.5] * succeeded,
+        apogee_stats=stats,
+        impact_x=[0.0] * succeeded,
+        impact_y=[0.0] * succeeded,
+        landing_ellipses=[],
+        apogee_ellipses=[],
+        origin_latitude=38.37,
+        origin_longitude=-0.58,
+        inputs_path=Path(f"{prefix}.inputs.txt"),
+        outputs_path=Path(f"{prefix}.outputs.txt"),
+        errors_path=Path(f"{prefix}.errors.txt"),
+        kml_path=Path(f"{prefix}.kml") if kml else None,
+    )
+
+
+def _invoke_mc(tmp_path, extra_args, *, n_failed=1, kml=True):
+    """Run `icaro mc` with run_monte_carlo patched; returns (result, mock)."""
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    scenario_path = write_scenario(tmp_path, minimal_scenario_yaml())
+
+    def fake_run(export_dir, scenario, n, output_prefix, **kwargs):
+        on_progress = kwargs.get("on_progress")
+        if on_progress is not None:
+            on_progress(n // 2, n)
+            on_progress(n, n)
+        return _fake_mc_result(Path(output_prefix), n=n, failed=min(n_failed, n), kml=kml)
+
+    with patch("icaro_cli.main.run_monte_carlo", side_effect=fake_run) as mock_run:
+        result = runner.invoke(
+            app, ["mc", str(export_dir), "--scenario", str(scenario_path), *extra_args]
+        )
+    return result, mock_run, export_dir
+
+
+def test_mc_wires_options_to_use_case(tmp_path):
+    prefix = tmp_path / "out" / "run1"
+    result, mock_run, export_dir = _invoke_mc(
+        tmp_path, ["-n", "10", "--output", str(prefix), "--parallel", "--workers", "3"]
+    )
+
+    assert result.exit_code == 0, result.output
+    mock_run.assert_called_once()
+    args, kwargs = mock_run.call_args
+    assert args[0] == export_dir
+    assert args[1].name == "test_scenario"
+    assert args[2] == 10
+    assert Path(args[3]) == prefix
+    assert kwargs["parallel"] is True
+    assert kwargs["workers"] == 3
+    assert callable(kwargs["on_progress"])
+
+
+def test_mc_default_prefix_is_scenario_name(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result, mock_run, _ = _invoke_mc(tmp_path, ["-n", "4"])
+
+    assert result.exit_code == 0, result.output
+    args, kwargs = mock_run.call_args
+    assert Path(args[3]) == Path(".") / "test_scenario"
+    assert kwargs["parallel"] is False
+    assert kwargs["workers"] is None
+
+
+def test_mc_default_prefix_without_scenario_is_montecarlo(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    export_dir = tmp_path / "export"
+    export_dir.mkdir()
+    with patch(
+        "icaro_cli.main.run_monte_carlo",
+        side_effect=lambda e, s, n, p, **kw: _fake_mc_result(Path(p), n=n),
+    ) as mock_run:
+        result = runner.invoke(app, ["mc", str(export_dir), "-n", "4"])
+
+    assert result.exit_code == 0, result.output
+    args, _ = mock_run.call_args
+    assert args[1] is None
+    assert Path(args[3]) == Path(".") / "montecarlo"
+
+
+def test_mc_workers_without_parallel_exits_2(tmp_path):
+    result, mock_run, _ = _invoke_mc(tmp_path, ["-n", "4", "--workers", "3"])
+
+    assert result.exit_code == 2
+    # With `rich` installed (CI), Typer colours and boxes the message; compare
+    # the plain text so the assertion does not depend on the terminal styling.
+    plain = re.sub(r"\x1b\[[0-9;]*m", "", result.stderr)
+    assert "--workers requires --parallel" in plain
+    mock_run.assert_not_called()
+
+
+def test_mc_requires_n_at_least_one(tmp_path):
+    result, mock_run, _ = _invoke_mc(tmp_path, ["-n", "0"])
+
+    assert result.exit_code == 2
+    mock_run.assert_not_called()
+
+
+def test_mc_prints_summary_and_files(tmp_path):
+    prefix = tmp_path / "run"
+    result, _, _ = _invoke_mc(tmp_path, ["-n", "10", "-o", str(prefix)])
+
+    assert result.exit_code == 0, result.output
+    out = result.stdout
+    assert "Flights: 10 attempted, 9 succeeded, 1 failed" in out
+    assert "Apogee AGL: 1234.5 ± 56.7 m (p5 1150.2, p50 1230.0, p95 1320.9)" in out
+    for suffix in (".inputs.txt", ".outputs.txt", ".errors.txt", ".kml"):
+        assert f"{prefix}{suffix}" in out
+
+
+def test_mc_omits_kml_line_when_not_written(tmp_path):
+    prefix = tmp_path / "run"
+    result, _, _ = _invoke_mc(tmp_path, ["-n", "10", "-o", str(prefix)], kml=False)
+
+    assert result.exit_code == 0, result.output
+    assert ".kml" not in result.stdout
+    assert "Landing ellipses" not in result.stdout
+
+
+def test_mc_exits_1_when_no_flight_succeeded(tmp_path):
+    prefix = tmp_path / "run"
+    result, _, _ = _invoke_mc(tmp_path, ["-n", "5", "-o", str(prefix)], n_failed=5, kml=False)
+
+    assert result.exit_code == 1
+    assert "no successful flights" in result.stdout
+    assert f"{prefix}.errors.txt" in result.stderr
+
+
+def test_mc_reports_progress_on_stderr(tmp_path):
+    result, _, _ = _invoke_mc(tmp_path, ["-n", "10"])
+
+    assert result.exit_code == 0, result.output
+    assert "5/10 flights" in result.stderr
+    assert "10/10 flights" in result.stderr
+    assert "flights" not in result.stdout.split("Flights:")[0]

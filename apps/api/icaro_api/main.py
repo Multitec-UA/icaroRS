@@ -10,9 +10,45 @@ import matplotlib
 
 matplotlib.use("Agg")  # noqa: E402 — MUST precede any pyplot/rocketpy import
 
+import logging  # noqa: E402
+from contextlib import asynccontextmanager  # noqa: E402
+
 from fastapi import FastAPI  # noqa: E402
 
-from icaro_api.routers import convert, discovery, exports, results, rockets, history, scenario, session, simulate  # noqa: E402
+from icaro_api.routers import convert, discovery, exports, results, rockets, history, launchday, montecarlo, scenario, session, simulate  # noqa: E402
+
+logger = logging.getLogger("icaro_api.startup")
+
+
+def _recover_montecarlo(app: FastAPI) -> None:
+    """Mark Monte Carlo runs a previous process left queued/running as error (S10).
+
+    Resolves the Db the same way requests do (honouring
+    ``app.dependency_overrides`` in tests). A failure here is logged, never
+    fatal: it must not keep the API from serving.
+    """
+    from icaro_api.config import get_settings
+    from icaro_api.runs import get_db
+    from icaro_api.services.montecarlo_jobs import recover_interrupted_montecarlo
+
+    try:
+        override_db = app.dependency_overrides.get(get_db)
+        if override_db is not None:
+            db = override_db()
+        else:
+            settings = app.dependency_overrides.get(get_settings, get_settings)()
+            db = get_db(settings)
+        count = recover_interrupted_montecarlo(db)
+        if count:
+            logger.warning("Marked %d interrupted Monte Carlo run(s) as error.", count)
+    except Exception:  # noqa: BLE001
+        logger.error("Monte Carlo startup recovery failed", exc_info=True)
+
+
+@asynccontextmanager
+async def _lifespan(app: FastAPI):
+    _recover_montecarlo(app)
+    yield
 
 
 def create_app() -> FastAPI:
@@ -30,6 +66,7 @@ def create_app() -> FastAPI:
             "Thin adapter over the icaro domain package."
         ),
         version="0.1.0",
+        lifespan=_lifespan,
     )
 
     # All routers mounted under /api.  Auth is applied at router-level via
@@ -46,6 +83,8 @@ def create_app() -> FastAPI:
     app.include_router(exports.router, prefix="/api")
     app.include_router(history.router, prefix="/api")
     app.include_router(discovery.router, prefix="/api")
+    app.include_router(montecarlo.router, prefix="/api")
+    app.include_router(launchday.router, prefix="/api")
 
     return app
 

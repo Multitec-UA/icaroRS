@@ -17,6 +17,10 @@ Firestore collections
 * ``simulations`` — id == simulation_id (== simulate run id). References the
   export it simulated (``export_id``) and, denormalised, its rocket
   (``rocket_id``) so "runs of this rocket" is a single query.
+* ``montecarlo_runs`` — id == run_id. One Monte Carlo dispersion job (queued →
+  running → done/error) with its progress and, once done, its summary result.
+  Kept apart from ``simulations`` so the deterministic history contract is
+  unchanged.
 
 Migration from the pre-split shape (one ``rockets`` doc per file) lives in
 ``icaro_api.scripts.migrate_rocket_exports``.
@@ -26,7 +30,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone
-from typing import Any, Protocol, runtime_checkable
+import json
+from typing import Any, Literal, Protocol, runtime_checkable
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +169,62 @@ class SimRecord:
     artifact_refs: dict[str, str] = field(default_factory=dict)
 
 
+MonteCarloStatus = Literal["queued", "running", "done", "error"]
+UNFINISHED_MONTECARLO: tuple[str, ...] = ("queued", "running")
+
+
+@dataclass
+class MonteCarloRecord:
+    """Firestore ``montecarlo_runs`` document shape — one Monte Carlo job.
+
+    Attributes
+    ----------
+    run_id : str
+        Unique id (``make_run_id``); also the run directory name.
+    rocket_id, export_id : str
+        The rocket and the converted file the job disperses.
+    org_id : str
+        Owning organization — the tenancy boundary (see ``RocketRecord``).
+    created_by : str
+        Identity Platform user id of the submitter.
+    created_at : datetime
+        UTC timestamp of the submit request.
+    scenario : dict | None
+        Scenario JSON as submitted (``None`` → icaro defaults).
+    n : int
+        Number of flights requested.
+    status : str
+        ``queued`` → ``running`` → ``done`` | ``error``.
+    progress_done, progress_total : int
+        Flights finished (succeeded or failed) out of ``n``.
+    result : dict | None
+        ``MonteCarloResult.to_dict()`` once done, with ``files`` reduced to
+        blob names under *result_prefix*.
+    result_prefix : str | None
+        Object-storage prefix of the uploaded run files.
+    error : str | None
+        Failure reason (worker stderr tail) when ``status == "error"``.
+    finished_at : datetime | None
+        UTC timestamp of the terminal state.
+    """
+
+    run_id: str
+    rocket_id: str
+    export_id: str
+    org_id: str
+    created_by: str
+    created_at: datetime
+    scenario: dict[str, Any] | None
+    n: int
+    status: MonteCarloStatus = "queued"
+    progress_done: int = 0
+    progress_total: int = 0
+    result: dict[str, Any] | None = None
+    result_prefix: str | None = None
+    error: str | None = None
+    finished_at: datetime | None = None
+
+
 # ---------------------------------------------------------------------------
 # Protocol
 # ---------------------------------------------------------------------------
@@ -270,6 +331,35 @@ class Db(Protocol):
         """
         ...
 
+    # -- Monte Carlo runs ----------------------------------------------------
+
+    def save_montecarlo(self, rec: MonteCarloRecord, org_id: str) -> None:
+        """Persist a Monte Carlo record (upsert by run_id), owned by org_id."""
+        ...
+
+    def get_montecarlo(self, run_id: str, org_id: str) -> MonteCarloRecord | None:
+        """Return the Monte Carlo record, or ``None`` if not found OR not owned by org_id."""
+        ...
+
+    def list_montecarlo(
+        self,
+        org_id: str,
+        rocket_id: str | None = None,
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> list[MonteCarloRecord]:
+        """Return org_id's Monte Carlo runs newest first, optionally one rocket's."""
+        ...
+
+    def list_unfinished_montecarlo(self, org_id: str | None = None) -> list[MonteCarloRecord]:
+        """Return ``queued``/``running`` runs, across ALL orgs when org_id is None.
+
+        The one deliberate exception to the required-org rule: startup
+        recovery (S10) is a system operation that must see every org's jobs.
+        Never call it with ``org_id=None`` from a request handler.
+        """
+        ...
+
 
 # ---------------------------------------------------------------------------
 # InMemoryDb — dev / CI adapter
@@ -291,6 +381,7 @@ class InMemoryDb:
         self._rockets: dict[str, RocketRecord] = {}
         self._exports: dict[str, ExportRecord] = {}
         self._simulations: dict[str, SimRecord] = {}
+        self._montecarlo: dict[str, MonteCarloRecord] = {}
 
     @staticmethod
     def _page(records, org_id: str, limit: int, before: datetime | None, predicate=None):
@@ -387,6 +478,41 @@ class InMemoryDb:
         pred = None if rocket_id is None else (lambda r: r.rocket_id == rocket_id)
         return self._page(self._simulations.values(), org_id, limit, before, pred)
 
+    # ------------------------------------------------------------------
+    # Monte Carlo operations
+    # ------------------------------------------------------------------
+
+    def save_montecarlo(self, rec: MonteCarloRecord, org_id: str) -> None:
+        """Upsert a Monte Carlo record keyed by ``run_id`` (same org rule)."""
+        _check_org("MonteCarloRecord", rec.org_id, org_id)
+        self._montecarlo[rec.run_id] = rec
+
+    def get_montecarlo(self, run_id: str, org_id: str) -> MonteCarloRecord | None:
+        """Return the Monte Carlo record, or ``None`` if absent or owned by another org."""
+        rec = self._montecarlo.get(run_id)
+        if rec is None or rec.org_id != org_id:
+            return None
+        return rec
+
+    def list_montecarlo(
+        self,
+        org_id: str,
+        rocket_id: str | None = None,
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> list[MonteCarloRecord]:
+        """Return org_id's Monte Carlo runs reverse-chronologically."""
+        pred = None if rocket_id is None else (lambda r: r.rocket_id == rocket_id)
+        return self._page(self._montecarlo.values(), org_id, limit, before, pred)
+
+    def list_unfinished_montecarlo(self, org_id: str | None = None) -> list[MonteCarloRecord]:
+        """Return queued/running runs; all orgs when *org_id* is ``None``."""
+        return [
+            r
+            for r in self._montecarlo.values()
+            if r.status in UNFINISHED_MONTECARLO and (org_id is None or r.org_id == org_id)
+        ]
+
 
 # ---------------------------------------------------------------------------
 # FirestoreDb — production adapter
@@ -435,6 +561,27 @@ def _sim_from_doc(simulation_id: str, d: dict[str, Any]) -> SimRecord:
         plot_names=d.get("plot_names", []),
         has_series=d.get("has_series", False),
         artifact_refs=d.get("artifact_refs", {}),
+    )
+
+
+def _montecarlo_from_doc(run_id: str, d: dict[str, Any]) -> MonteCarloRecord:
+    raw = d.get("result_json")
+    return MonteCarloRecord(
+        run_id=run_id,
+        rocket_id=d.get("rocket_id", ""),
+        export_id=d.get("export_id", ""),
+        org_id=d.get("org_id", ""),
+        created_by=d.get("created_by", ""),
+        created_at=d.get("created_at", datetime.now(timezone.utc)),
+        scenario=d.get("scenario"),
+        n=d.get("n", 0),
+        status=d.get("status", "error"),
+        progress_done=d.get("progress_done", 0),
+        progress_total=d.get("progress_total", d.get("n", 0)),
+        result=json.loads(raw) if raw else None,
+        result_prefix=d.get("result_prefix"),
+        error=d.get("error"),
+        finished_at=d.get("finished_at"),
     )
 
 
@@ -594,3 +741,56 @@ class FirestoreDb:
         """Query org_id's simulations reverse-chronologically, optionally one rocket's."""
         snaps = self._query("simulations", org_id, limit, before, rocket_id).stream()
         return [_sim_from_doc(s.id, s.to_dict()) for s in snaps]
+
+    # ------------------------------------------------------------------
+    # Monte Carlo operations
+    # ------------------------------------------------------------------
+
+    def save_montecarlo(self, rec: MonteCarloRecord, org_id: str) -> None:
+        """Write a Monte Carlo document to collection ``montecarlo_runs`` (full upsert).
+
+        The ``result`` is stored as the JSON string ``result_json``: its
+        ellipse polygons are arrays nested directly in arrays, which Firestore
+        Native rejects (same constraint as ``save_export``'s manifest).
+        """
+        _check_org("MonteCarloRecord", rec.org_id, org_id)
+        doc = asdict(rec)
+        doc.pop("result", None)
+        doc["result_json"] = json.dumps(rec.result) if rec.result is not None else None
+        doc["created_at"] = rec.created_at
+        doc["finished_at"] = rec.finished_at
+        self._db.collection("montecarlo_runs").document(rec.run_id).set(doc)
+
+    def get_montecarlo(self, run_id: str, org_id: str) -> MonteCarloRecord | None:
+        """Fetch one Monte Carlo document, or ``None`` if absent or owned by another org."""
+        snap = self._db.collection("montecarlo_runs").document(run_id).get()
+        if not snap.exists:
+            return None
+        d = snap.to_dict()
+        if d.get("org_id") != org_id:
+            return None
+        return _montecarlo_from_doc(run_id, d)
+
+    def list_montecarlo(
+        self,
+        org_id: str,
+        rocket_id: str | None = None,
+        limit: int = 50,
+        before: datetime | None = None,
+    ) -> list[MonteCarloRecord]:
+        """Query org_id's Monte Carlo runs newest first, optionally one rocket's."""
+        snaps = self._query("montecarlo_runs", org_id, limit, before, rocket_id).stream()
+        return [_montecarlo_from_doc(s.id, s.to_dict()) for s in snaps]
+
+    def list_unfinished_montecarlo(self, org_id: str | None = None) -> list[MonteCarloRecord]:
+        """Query queued/running runs across all orgs (or one) — startup recovery only.
+
+        ``status in [...]`` (+ optional ``org_id ==``) is served by Firestore's
+        automatic single-field indexes; no composite index is needed.
+        """
+        q = self._db.collection("montecarlo_runs").where(
+            "status", "in", list(UNFINISHED_MONTECARLO)
+        )
+        if org_id is not None:
+            q = q.where("org_id", "==", org_id)
+        return [_montecarlo_from_doc(s.id, s.to_dict()) for s in q.stream()]

@@ -9,6 +9,10 @@
  * files" link), else it is the rocket of the org's most recent run. The
  * board below is keyed by rocket, so baseline and selection start fresh
  * whenever the rocket changes. Reads go through lib/queries only.
+ *
+ * "Simulations | Dispersion" (S12) switches the board to the rocket's Monte
+ * Carlo runs (MonteCarloRunsTable); their list is only requested once that
+ * view is chosen, and the deterministic board is left exactly as it was.
  */
 
 import { useState } from "react";
@@ -16,13 +20,16 @@ import { useSearchParams } from "next/navigation";
 import type { SimulationSummary } from "@/lib/api";
 import { useHistoryQuery, useRocketsQuery, useSeriesQueries } from "@/lib/queries";
 import { plural } from "@/lib/i18n";
-import { Callout, Select } from "@/components/ui";
+import { Callout, SegmentedControl, Select } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { MAX_OVERLAY } from "./colors";
 import { OverlayCard } from "./OverlayCard";
 import { RunsSkeleton } from "./RunsSkeleton";
 import { RunsTable } from "./RunsTable";
+import { MonteCarloRunsTable } from "./MonteCarloRunsTable";
 import { WhatChanged } from "./WhatChanged";
+
+type RunsKind = "simulations" | "dispersion";
 
 /** Runs listed per rocket; the API caps a page at 100. */
 const RUNS_PAGE = 50;
@@ -34,6 +41,7 @@ export function RunsView() {
   const paramRocket = params.get("rocket_id");
   const rockets = useRocketsQuery();
   const [chosenRocket, setChosenRocket] = useState<string | null>(null);
+  const [kind, setKind] = useState<RunsKind>("simulations");
 
   // No rocket named anywhere: default to the rocket of the most recent run,
   // and failing that to the first rocket of the org.
@@ -72,18 +80,34 @@ export function RunsView() {
             ))}
           </Select>
         </label>
-        {runs.data && (
+        <SegmentedControl<RunsKind>
+          label={t("runs.viewLabel")}
+          options={[
+            { value: "simulations", label: t("runs.viewSimulations") },
+            { value: "dispersion", label: t("runs.viewDispersion") },
+          ]}
+          value={kind}
+          onChange={setKind}
+          className="mb-0.5 w-auto"
+        />
+        {kind === "simulations" && runs.data && (
           <span className="pb-2 text-sm text-muted">{plural(locale, runs.data.length, "runs.count")}</span>
         )}
       </div>
 
-      {runs.isError && <Callout tone="error">{t("runs.errorLoad")}</Callout>}
-      {(runs.isPending && rocketId !== null) || (rocketId === null && !rockets.isError && !latest.isError) ? (
-        !runs.data && <RunsSkeleton label={t("runs.loading")} />
-      ) : null}
-      {runs.isSuccess && runs.data.length === 0 && <Callout tone="info">{t("runs.empty")}</Callout>}
-      {runs.data && runs.data.length > 0 && rocketId && (
-        <RunsBoard key={rocketId} runs={runs.data} rocketName={rocketName} />
+      {kind === "dispersion" ? (
+        rocketId && <MonteCarloRunsTable key={rocketId} rocketId={rocketId} rocketName={rocketName} />
+      ) : (
+        <>
+          {runs.isError && <Callout tone="error">{t("runs.errorLoad")}</Callout>}
+          {(runs.isPending && rocketId !== null) || (rocketId === null && !rockets.isError && !latest.isError) ? (
+            !runs.data && <RunsSkeleton label={t("runs.loading")} />
+          ) : null}
+          {runs.isSuccess && runs.data.length === 0 && <Callout tone="info">{t("runs.empty")}</Callout>}
+          {runs.data && runs.data.length > 0 && rocketId && (
+            <RunsBoard key={rocketId} runs={runs.data} rocketName={rocketName} />
+          )}
+        </>
       )}
     </div>
   );

@@ -28,6 +28,14 @@ const nextConfig: NextConfig = {
   // — see apps/web/Dockerfile. Has no effect on `next dev`.
   output: "standalone",
 
+  // The /api rewrite below is a proxy, and Next cuts proxied requests at 30 s
+  // by default. The API serves long synchronous calls (.ork conversion ≈ 1 min,
+  // the launch-day rail sweep ≈ 1–2 min), so match Cloud Run's 300 s request
+  // timeout (DEPLOY.md). Applies to `next dev` and the standalone server.
+  experimental: {
+    proxyTimeout: 300_000,
+  },
+
   async rewrites() {
     const API_ORIGIN = process.env.ICARO_API_ORIGIN ?? "http://127.0.0.1:8000";
     return [

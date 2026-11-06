@@ -14,6 +14,7 @@
  */
 
 import type { Atmosphere, AtmosphereModel, LaunchDate, Site } from "@/lib/api";
+import { kmhToMs, msToKmh } from "./launchday";
 
 // ---------------------------------------------------------------------------
 // Atmosphere
@@ -197,6 +198,15 @@ export function formatLaunchDate(
  */
 export type RailOverrides = Partial<Record<"length" | "inclination" | "heading", number>>;
 
+/**
+ * Wind measured on the pad (launch-day S6a), as the user types it: km/h and
+ * the direction it comes FROM in degrees (270 = from the west).
+ */
+export interface ManualWind {
+  speedKmh: number;
+  directionFrom: number;
+}
+
 /** The subset of the wizard draft needed to build the API payload. */
 export interface ScenarioDraft {
   name: string;
@@ -204,6 +214,8 @@ export interface ScenarioDraft {
   launchDatetime: string | null;
   atmosphere: Atmosphere;
   railOverrides: RailOverrides;
+  /** Null or absent: the atmosphere model's own wind (the forecast). */
+  wind?: ManualWind | null;
 }
 
 /**
@@ -214,7 +226,8 @@ export interface ScenarioDraft {
  * `rail` carries ONLY the overridden fields and is omitted when none is:
  * the core falls back to the export's own `flight` values per missing key,
  * so the file's defaults are never frozen into a run. `uncertainty` is always
- * empty: the simulate use-case does not read it (S5).
+ * empty: the simulate use-case does not read it (S5). `wind` is present only
+ * while the user enters the wind measured on the pad, converted to m/s.
  */
 export function buildScenarioBody(
   draft: ScenarioDraft,
@@ -229,6 +242,9 @@ export function buildScenarioBody(
     date: toLaunchDate(draft.launchDatetime, timeZone),
     atmosphere: draft.atmosphere,
     ...(Object.keys(rail).length > 0 ? { rail } : {}),
+    ...(draft.wind
+      ? { wind: { speed: kmhToMs(draft.wind.speedKmh), direction_from: draft.wind.directionFrom } }
+      : {}),
     uncertainty: {},
   };
 }
@@ -267,12 +283,16 @@ export function draftFromScenario(
       if (typeof value === "number") railOverrides[key] = value;
     }
   }
+  const wind = isRecord(source.wind) ? source.wind : null;
   return {
     name: typeof source.name === "string" ? source.name : DEFAULT_SCENARIO_NAME,
     site,
     launchDatetime: toLocalDatetime(isLaunchDate(source.date) ? source.date : null, timeZone),
     atmosphere,
     railOverrides,
+    ...(wind && typeof wind.speed === "number" && typeof wind.direction_from === "number"
+      ? { wind: { speedKmh: msToKmh(wind.speed), directionFrom: wind.direction_from } }
+      : {}),
   };
 }
 
@@ -313,7 +333,9 @@ function sortKeys(value: unknown): Json {
  *   - coordinates rounded to 5 decimals (about a metre), elevation to 1;
  *   - `rail` holds only the keys that carry a value and is absent when none
  *     does (an override that was reset, or a stored `rail: null`);
- *   - `uncertainty` is dropped: the simulate use-case ignores it (S5).
+ *   - `uncertainty` is dropped: the simulate use-case ignores it (S5);
+ *   - `wind` (manual wind, it changes the flight) keeps its speed to the
+ *     cm/s and its direction to 0.1°, and is absent when null.
  */
 export function canonicalScenario(body: unknown): Record<string, Json> {
   const source = isRecord(body) ? { ...body } : {};
@@ -335,6 +357,14 @@ export function canonicalScenario(body: unknown): Record<string, Json> {
   if (Object.keys(rail).length > 0) source.rail = rail;
   else delete source.rail;
 
+  if (isRecord(source.wind)) {
+    source.wind = {
+      ...source.wind,
+      speed: round(source.wind.speed, 2),
+      direction_from: round(source.wind.direction_from, 1),
+    };
+  } else delete source.wind;
+
   return sortKeys(source) as Record<string, Json>;
 }
 
@@ -352,11 +382,11 @@ export interface RunReference {
   scenario: unknown;
 }
 
-const GROUP_FIELD: Record<Exclude<ChangeGroup, "file">, string> = {
-  site: "site",
-  date: "date",
-  weather: "atmosphere",
-  rail: "rail",
+const GROUP_FIELDS: Record<Exclude<ChangeGroup, "file">, string[]> = {
+  site: ["site"],
+  date: ["date"],
+  weather: ["atmosphere", "wind"],
+  rail: ["rail"],
 };
 
 /**
@@ -371,7 +401,9 @@ export function scenarioDiff(a: RunReference, b: RunReference): ChangeGroup[] {
   return CHANGE_GROUPS.filter((group) =>
     group === "file"
       ? a.exportId !== b.exportId
-      : JSON.stringify(ca[GROUP_FIELD[group]] ?? null) !== JSON.stringify(cb[GROUP_FIELD[group]] ?? null),
+      : GROUP_FIELDS[group].some(
+          (field) => JSON.stringify(ca[field] ?? null) !== JSON.stringify(cb[field] ?? null),
+        ),
   );
 }
 
