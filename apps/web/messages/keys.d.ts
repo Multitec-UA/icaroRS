@@ -525,6 +525,8 @@ export type MessageKey =
   | "montecarlo.mapLoading"
   | "montecarlo.launchSite"
   | "montecarlo.sigma"
+  | "montecarlo.legendApogee"
+  | "montecarlo.legendPoints"
   | "montecarlo.noEllipse"
   | "montecarlo.downloadKml"
   | "montecarlo.contextBudget"

@@ -608,6 +608,8 @@
     "mapLoading": "Loading map…",
     "launchSite": "Launch site",
     "sigma": "{sigma}σ",
+    "legendApogee": "Apogee ellipses",
+    "legendPoints": "Landing points",
     "noEllipse": "Too few successful flights for a landing ellipse.",
     "downloadKml": "Download KML",
     "contextBudget": "We simulated {count} flights, each time slightly changing the {list}. This shows how much a real flight can differ from the single simulation.",

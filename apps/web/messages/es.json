@@ -608,6 +608,8 @@
     "mapLoading": "Cargando mapa…",
     "launchSite": "Sitio de lanzamiento",
     "sigma": "{sigma}σ",
+    "legendApogee": "Elipses de apogeo",
+    "legendPoints": "Puntos de aterrizaje",
     "noEllipse": "Pocos vuelos completados para una elipse de aterrizaje.",
     "downloadKml": "Descargar KML",
     "contextBudget": "Simulamos {count} vuelos cambiando ligeramente en cada uno {list}. Así se ve cuánto puede diferir un vuelo real de la simulación única.",

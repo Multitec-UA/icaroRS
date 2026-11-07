@@ -4,8 +4,9 @@
  * MonteCarloResults — a finished dispersion run (S12): flight counts
  * (attempted / succeeded / failed), the apogee AGL statistics (mean ± std,
  * P5 / median / P95), the apogee histogram as plain SVG bars (bins from
- * lib/domain/montecarlo), the landing ellipses on a map with a 1σ/2σ/3σ
- * legend, and the KML download.
+ * lib/domain/montecarlo), the landing ellipses (1σ/2σ/3σ), the apogee
+ * ellipses and every landing point on a satellite map with its legend, and
+ * the KML download.
  *
  * S15 explains it for first-year students: a context line built from the
  * budget the run dispersed, an automatic reading of this run's numbers, an
@@ -15,12 +16,14 @@
 import type { MonteCarloRunResult } from "@/lib/api";
 import { monteCarloKmlUrl } from "@/lib/api";
 import {
+  apogeeEllipseLayers,
   apogeeHistogram,
   budgetItemIn,
   budgetItems,
   ellipseCoverage,
   ellipseLayers,
   flightCounts,
+  impactPositions,
   landingSummary,
   type BudgetItem,
   type EllipseLayer,
@@ -100,6 +103,8 @@ export function MonteCarloResults({ runId, result }: { runId: string; result: Mo
   const counts = flightCounts(result);
   const stats = result.apogee_stats;
   const layers = ellipseLayers(result);
+  const apogeeLayers = apogeeEllipseLayers(result);
+  const impacts = impactPositions(result);
   const { system } = useUnits();
   const m = (value: number) => formatMeasureQuantity(value, "length", system, locale);
 
@@ -178,7 +183,7 @@ export function MonteCarloResults({ runId, result }: { runId: string; result: Mo
         </h3>
         {layers.length > 0 ? (
           <>
-            <LandingEllipseMap origin={result.origin} layers={layers} />
+            <LandingEllipseMap origin={result.origin} layers={layers} apogeeLayers={apogeeLayers} impacts={impacts} />
             <ul className="flex flex-wrap gap-3 text-xs text-ink-2">
               {layers.map((layer) => (
                 <li key={layer.sigma} className="flex items-center gap-1.5">
@@ -190,6 +195,18 @@ export function MonteCarloResults({ runId, result }: { runId: string; result: Mo
                   {t("montecarlo.sigma", { sigma: formatNumber(layer.sigma, locale) })}
                 </li>
               ))}
+              {apogeeLayers.length > 0 && (
+                <li className="flex items-center gap-1.5">
+                  <span aria-hidden className="h-3 w-3 rounded-sm border border-dashed border-ok bg-ok-soft" />
+                  {t("montecarlo.legendApogee")}
+                </li>
+              )}
+              {impacts.length > 0 && (
+                <li className="flex items-center gap-1.5">
+                  <span aria-hidden className="h-2 w-2 rounded-full border border-ink bg-surface" />
+                  {t("montecarlo.legendPoints")}
+                </li>
+              )}
             </ul>
           </>
         ) : (

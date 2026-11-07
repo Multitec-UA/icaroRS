@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * LandingEllipseMap — a dispersion run's landing ellipses on a map (S12).
+ * LandingEllipseMap — a dispersion run on a satellite map (S12): landing
+ * ellipses, apogee ellipses and every landing point.
  * The Leaflet part is dynamically imported with `ssr: false`, as SitePicker
  * does with MapInner; tests mock this module because Leaflet needs `window`.
  */
@@ -27,14 +28,18 @@ const LandingEllipseMapInner = dynamic(() => import("./LandingEllipseMapInner"),
 export function LandingEllipseMap({
   origin,
   layers,
+  apogeeLayers,
+  impacts,
 }: {
   origin: { latitude: number; longitude: number };
   layers: EllipseLayer[];
+  apogeeLayers: EllipseLayer[];
+  impacts: [number, number][];
 }) {
   const t = useT();
   return (
     <div role="region" aria-label={t("montecarlo.mapLabel")} className="isolate">
-      <LandingEllipseMapInner origin={origin} layers={layers} />
+      <LandingEllipseMapInner origin={origin} layers={layers} apogeeLayers={apogeeLayers} impacts={impacts} />
     </div>
   );
 }
