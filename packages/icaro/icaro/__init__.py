@@ -32,6 +32,13 @@ Stability:
     wind_stability_margin — rail-exit margin with body lift (OpenRocket-equivalent)
     WindMarginResult      — static and with-wind margins, AoA, CPs
 
+Real flight interop (contract mt-interop schema v1):
+    interop_simulation_payload    — Flight → site, events, stats, series
+    interop_simulation_from_series — approximate payload from stored chart data
+    compare_with_real_flight      — simulated vs real flight → FlightComparison
+    FlightComparison              — aligned series, event/KPI deltas, RMSE, warnings
+    InteropSchemaError            — an interop document has the wrong schema
+
 Phase D (Sensitivity) — forward stub, implemented in Phase D:
     run_sensitivity
 
@@ -60,6 +67,15 @@ from .montecarlo import MonteCarloResult, build_stochastic, run_monte_carlo
 from .scenario import Scenario, Wind, load_scenario
 from .series import extract_flight_series
 from .simulation import simulate_from_export
+from .interop import (
+    INTEROP_REAL_FLIGHT_SCHEMA,
+    INTEROP_SIMULATION_SCHEMA,
+    FlightComparison,
+    InteropSchemaError,
+    compare_with_real_flight,
+    interop_simulation_from_series,
+    interop_simulation_payload,
+)
 from .stability import WindMarginResult, wind_stability_margin
 
 __all__ = [
@@ -91,6 +107,14 @@ __all__ = [
     # Stability (rail-exit margin with wind)
     "wind_stability_margin",
     "WindMarginResult",
+    # Real flight interop (mt-interop schema v1)
+    "interop_simulation_payload",
+    "interop_simulation_from_series",
+    "compare_with_real_flight",
+    "FlightComparison",
+    "InteropSchemaError",
+    "INTEROP_SIMULATION_SCHEMA",
+    "INTEROP_REAL_FLIGHT_SCHEMA",
     # Phase D — added when sensitivity.py is implemented
     # "run_sensitivity",
     # Phase E — added when comparison.py is implemented

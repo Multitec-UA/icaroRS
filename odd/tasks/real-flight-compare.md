@@ -1,0 +1,27 @@
+# real-flight-compare: Compare a simulation with a real MT1 flight
+
+Objective: publish every simulation of the allowed organisations into the shared Firestore collection `interop_simulations`, read the real flights the MT1 telemetry service publishes into `interop_real_flights`, and show a simulated vs real comparison (overlay charts, event deltas, KPI deltas, RMSE) under the run results.
+Branch `feat/real-flight-compare` (from `main` 257df08). Delivery: `single-pr` (one behaviour across domain, API and web; the telemetry side lives in Multitec-UA/multi-rocket-avionica). Runners: icaro `uv run python -m pytest packages/icaro/tests -m "not integration"`; API `cd apps/api && uv run python -m pytest -m "not integration"`; web `cd apps/web && npm test` + `npx tsc --noEmit` + `npm run lint` + `npm run i18n:check` + `npm run api:check` + `npm run build`.
+
+## Specs
+
+- S1 Request (user, 2026-11-07): both apps get a view that compares an Ícaro simulation with a flight recorded by the MT1. The apps do not call each other: each reads the other's data straight from the shared Firestore `(default)` database of project `multitecweb`.
+- S2 Contract (schema v1): SI units; `t` in seconds with `t = 0` at liftoff (RocketPy's t = 0 for the simulation); `series` is a map of flat number arrays of equal length, at most 2000 points, uniform grid; `alt_m` is height above the pad; `acc_ms2` is the specific-force magnitude (sim `|a_inertial - g|`, real `|(ax, ay, az)|`); events are `{id, t, label}` with `id` in `liftoff, rail_exit, burnout, apogee, ejection, deploy, landing`, unknown ids ignored by readers.
+  - `interop_real_flights/{flight_id}` (writer: telemetry, reader: Ícaro): `schema: "mt-interop/real-flight@1"`, `flight_id`, `device_id`, `rocket`, `launch_utc`, `pad {lat, lon, elev_m} | null`, `events [{id, t, label, source}]`, `stats {apogee_m, apogee_t, vmax_ms, amax_ms2, landing_t}`, `series {t, alt_m, vz_ms, acc_ms2}`, `rate_hz`, `source_samples`, `server_version`, `updated_at`.
+  - `interop_simulations/{simulation_id}` (writer: Ícaro, reader: telemetry): `schema: "mt-interop/simulation@1"`, `simulation_id`, `org_id`, `rocket_id`, `rocket_name`, `export_id`, `export_label`, `site {lat, lon, elev_m}`, `launch_date | null`, `motor | null`, `events [{id, t, label}]` (liftoff 0, rail_exit, burnout, apogee, one deploy per parachute, landing), `stats {apogee_m, apogee_t, vmax_ms, amax_ms2, flight_time_s}`, `series {t, alt_m, vz_ms, speed_ms, acc_ms2, x_m, y_m}`, `created_at`, `updated_at`.
+- S3 Access boundary: Ícaro publishes a simulation only when its `org_id` is in `ICARO_INTEROP_ORGS` (comma-separated) and shows real flights only to users of those orgs; unset means the feature is off. A publishing failure never fails the simulation.
+- S4 Domain: a use-case builds the interop simulation payload from a solved `Flight`; a pure use-case `compare_with_real_flight(sim_payload, real_doc)` returns aligned series on one time grid, per-event deltas, apogee / time-to-apogee / vmax / landing deltas, RMSE of altitude and vz over the common window, and warnings (site more than 1 km from the real pad, one simulated parachute against a real ejection + deploy). The real doc's schema string is validated.
+- S5 API: `GET /api/real-flights` (summaries, `enabled: false` when off), `GET /api/real-flights/{flight_id}`, `GET /api/results/{run_id}/compare/{flight_id}` (no re-simulation: stored artefacts only; runs older than this change degrade with a clear warning), and the backfill script `icaro_api/scripts/publish_interop_simulations.py` (idempotent, dry-run by default). Firestore listing orders by `updated_at` only (no composite index).
+- S6 Web: a "Real flight" / "Vuelo real" card under the run results (Workbench and `/results/[runId]`): picker of real flights (rocket, flight id, launch date, apogee), overlay charts sim vs real for altitude, vertical speed and acceleration, an events table (sim t, real t, delta) and KPI deltas (apogee, time to apogee, vmax, landing time, RMSE). Hidden when the API says the feature is off. en + es.
+
+## Tasks
+
+- [x] T1: S2, S4: domain `icaro.interop`: payload from a Flight, fallback payload from stored series, `compare_with_real_flight`, tests (icaro 164 passed / 5 deselected; integration MT1-v1.7.1 passed: apogee 571.4 m AGL at 11.13 s, deploy 14.0 s, amax 108 m/s², 2000 points, 109 KB JSON).
+- [ ] T2: S3, S5: API: settings, interop store (protocol, in-memory, Firestore), publish after simulate, routes, backfill script, tests.
+- [ ] T3: S6: web: queries, pure comparison helpers, card, charts, i18n, OpenAPI snapshot, tests.
+- [ ] T4: S2: docs: interop contract in `apps/api/README.md`, README and AGENTS mentions.
+
+## Log
+
+- L1 (2026-11-07, user): the plan `icaro-telemetry-interop` fixes the contract (schema v1) and the access boundary; Ícaro's side lands as one PR to review, never self-merged.
+- L2 (2026-11-07): T1. Sampling the Flight's `Function`s through their splines made `az` ring across the parachute opening (1489 m/s² between two solver nodes at 14 s, RocketPy's own `max_acceleration` 278); the payload interpolates the solver nodes linearly instead (`source`), which gives 108 m/s² on the 0.074 s grid. MT1-v1.7.1's parachute is "launch + 14 s", so the sim has one `deploy` at 14.0 s against flight 279's ejection at 16.06 s and chute open at 17.50 s: the `single_deploy` warning covers it.
