@@ -13,6 +13,45 @@ internals. The repo ships the two Dockerfiles; this doc is the runbook.
 > Auth is Identity Platform-backed, multi-org — see
 > [Identity Platform (auth)](#identity-platform-auth).
 
+> **Deploys are automatic.** In production (project `multitecweb`, region
+> `europe-west1`) every push to `main` is deployed by Cloud Build — see
+> [Automatic deploys (Cloud Build)](#automatic-deploys-cloud-build). The manual
+> `gcloud run deploy` commands below are for bootstrapping a new environment
+> and for emergencies, not for routine releases.
+
+---
+
+## Automatic deploys (Cloud Build)
+
+Two Cloud Build triggers in `europe-west1` (GitHub connection `Multitec-repo`,
+repository `icaroRS`, branch `^main$`, service account
+`run-cloudbuild-sa@multitecweb.iam.gserviceaccount.com`) build, push and deploy
+on every push to `main`:
+
+| Trigger | Runs when the push changes | Image | Service |
+|---|---|---|---|
+| `mt-icaro-api` | `packages/**`, `apps/api/**`, `apps/cli/**`, `pyproject.toml`, `uv.lock` | `europe-west1-docker.pkg.dev/multitecweb/mt-icaro-api/icaro-api:<SHORT_SHA>` (+ `:latest`) | `mt-icaro-api` |
+| `mt-icaro-web` | `apps/web/**` | `europe-west1-docker.pkg.dev/multitecweb/mt-icaro-web/icaro-web:<SHORT_SHA>` (+ `:latest`) | `mt-icaro-web` |
+
+Each build runs `docker build` → `docker push --all-tags` →
+`gcloud run deploy <service> --image <image>:<SHORT_SHA>`. Only the image
+changes: every other service setting (CPU throttling off, min/max instances,
+ingress, VPC egress, env vars, the `allUsers` invoker binding) stays as it was
+configured once with the commands in [Deploy — API](#deploy--api) and
+[Deploy — web](#deploy--web).
+
+So **merging to `main` is a release**:
+
+- Check the result with
+  `gcloud builds list --project multitecweb --region europe-west1 --limit 5`
+  and the [Smoke test](#smoke-test).
+- Do not redeploy by hand after a merge: the trigger is already doing it, and a
+  manual `gcloud run deploy` with different flags changes the service
+  configuration (deploying the API with `--no-allow-unauthenticated` removed
+  the `allUsers` invoker binding and made every `/api` call fail with `403`).
+- Data steps a release needs (new Firestore indexes, migrations) are not part
+  of the trigger: run them before merging.
+
 ---
 
 ## Architecture — two services
