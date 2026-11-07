@@ -16,6 +16,7 @@ export const GLOSSARY_TERMS = [
   "mach",
   "rail_departure",
   "stability_margin",
+  "stability_margin_wind",
   "forecast",
   "standard_atmosphere",
   // Monte Carlo dispersion results (S15)

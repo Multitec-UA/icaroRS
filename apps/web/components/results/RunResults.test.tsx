@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import { AppProviders } from "@/test/test-providers";
 import { ApiError } from "@/lib/api";
 import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
-import { SCALARS } from "@/components/flight/fixtures";
+import { SCALARS, WIND_SCALARS } from "@/components/flight/fixtures";
 import { ReplayProvider } from "@/components/flight/ReplayContext";
 import { RunResults, type RunResultsProps } from "./RunResults";
 
@@ -103,6 +103,16 @@ describe("RunResults (S7) — the two disclosures", () => {
     expect(screen.getByText("All results")).toBeInTheDocument();
     expect(screen.getByText("All results").closest("summary")).toHaveTextContent("All results (16 values)");
     expect(screen.getByRole("region", { name: "All results" })).toHaveTextContent("Maximum Mach number");
+  });
+
+  it("lists both rail-exit margins, static and with wind, and the angle of attack when the run has them", async () => {
+    await renderResults({ result: { scalars: WIND_SCALARS, warnings: [], plot_urls: PLOTS } });
+
+    expect(screen.getByText("All results").closest("summary")).toHaveTextContent("All results (18 values)");
+    const all = screen.getByRole("region", { name: "All results" });
+    expect(all).toHaveTextContent("Rail departure stability margin1.93 cal");
+    expect(all).toHaveTextContent("Rail departure stability margin (with wind)1.42 cal");
+    expect(all).toHaveTextContent("Angle of attack at rail departure6.97 °");
   });
 
   it("mounts the plot images only once 'Plots' is opened, and keeps them after closing", async () => {

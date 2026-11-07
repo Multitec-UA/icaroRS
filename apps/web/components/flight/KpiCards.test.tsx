@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { KpiCards } from "./KpiCards";
-import { SCALARS, SERIES } from "./fixtures";
+import { SCALARS, SERIES, WIND_SCALARS } from "./fixtures";
 
 // CountUp settles instantly and the reduced-motion flag is ours to flip.
 const motionState = vi.hoisted(() => ({ reduce: false }));
@@ -113,5 +113,40 @@ describe("KpiCards — imperial units", () => {
     );
     // 5 km = 3.11 mi.
     expect(screen.getByRole("group", { name: "Landing" })).toHaveTextContent("3.11 mi");
+  });
+});
+
+describe("KpiCards — rail-exit stability with the wind", () => {
+  it("shows the static margin, the margin with wind and the angle of attack", () => {
+    renderCards(WIND_SCALARS);
+    const stability = screen.getByRole("group", { name: "Stability off rail" });
+    expect(stability).toHaveTextContent("1.93 cal");
+    expect(stability).toHaveTextContent("1.42 cal with wind");
+    expect(stability).toHaveTextContent("27.3 m/s off the rail · 6.97° angle of attack");
+  });
+
+  it("explains the margin with wind in an InfoTip", () => {
+    renderCards(WIND_SCALARS);
+    const stability = screen.getByRole("group", { name: "Stability off rail" });
+    fireEvent.click(within(stability).getByRole("button", { name: "More information" }));
+    expect(screen.getByRole("status")).toHaveTextContent(/angle of attack/);
+    expect(screen.getByRole("status")).toHaveTextContent(/OpenRocket/);
+  });
+
+  it("formats the margin with wind for the active locale", () => {
+    render(
+      <LocaleProvider initialLocale="es">
+        <KpiCards scalars={WIND_SCALARS} series={SERIES} />
+      </LocaleProvider>,
+    );
+    const stability = screen.getByRole("group", { name: "Estabilidad al salir del riel" });
+    expect(stability).toHaveTextContent("1,42 cal con viento");
+  });
+
+  it("renders the card exactly as before when the run has no margin with wind", () => {
+    const { container: before } = renderCards(SCALARS);
+    const html = before.innerHTML;
+    expect(html).not.toMatch(/with wind/);
+    expect(screen.queryByRole("button", { name: "More information" })).toBeNull();
   });
 });
