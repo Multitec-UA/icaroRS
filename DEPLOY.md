@@ -277,15 +277,19 @@ gcloud run deploy icaro-api \
   --cpu 2 --memory 2Gi \
   --timeout 300 \
   --no-cpu-throttling \
-  --no-allow-unauthenticated \
+  --allow-unauthenticated \
   --ingress internal
   # Optional:
   #   --set-env-vars ICARO_ALLOW_FORECAST=false   # skip live GFS fetches (faster, no egress)
   #   --set-env-vars ICARO_SESSION_COOKIE_SECURE=false   # local HTTP dev only — never in prod
 ```
 
-- `--ingress internal` + `--no-allow-unauthenticated` keeps the API off the
-  public internet; only the web service reaches it (see the web↔api note below).
+- `--ingress internal` keeps the API off the public internet; only the web
+  service reaches it, over Direct VPC egress (see the web↔api note below).
+  Keep `--allow-unauthenticated`: the Next proxy forwards the user's session
+  cookie, not a Google ID token, so the IAM invoker check must stay open to
+  `allUsers`. Deploying with `--no-allow-unauthenticated` removes that binding
+  and every call fails with a Cloud Run `403` (it happened on 2026-11-06).
 - `2Gi`/`2 CPU`/`300s` are starting points — rocketpy + matplotlib are
   CPU/RAM-hungry and the JVM warm-up on the first `convert` is slow. Tune from
   real metrics.
