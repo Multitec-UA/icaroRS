@@ -17,7 +17,7 @@ Forecast: ~600 authored changed lines (T1 ~120, T2 ~250, T3 ~230).
 
 - [x] T1 — S4, S6 (fixture/geometry) — route: delegated writer (context backstop, parent at ~550k) — serializer `body_segments` + v1.7.1 fixture + tests — commit 342d0dc (writer: RED module missing → GREEN; unit 59, acceptance 9; differential vs HEAD: existing keys byte-identical; regenerated acceptance JSONs are additions only; Risk: none)
 - [x] T2 — S2, S3, S5 (domain/API/CLI), S6 — route: delegated writer, parallel with T1 against the S4 contract (disjoint surfaces) — `packages/icaro` computation + API scalars + CLI line + tests — commit 97e9260 (writer: RED → GREEN in test_stability/test_serialize/test_cli; parent: integration test repointed from /tmp to a committed export `Serializer-export-rockets/v1.7.1` with body_segments; MT1-v1.7.1 vs OpenRocket rail exit: static 5.785 cal, wind 4.423 cal vs 4.54 (Δ 0.12, within S6's 0.2), AoA 0.1217 vs 0.110 rad, CP wind 1.0234 vs 1.030 m, fallback False; icaro 144/1 skipped, API 418; assess medium/under_budget; Risk: none — additive optional scalars and attribute, existing scalars pinned)
-- [ ] T3 — S5 (web) — route: delegated writer after T2 — web display, InfoTip, report, i18n, regenerated API types.
+- [x] T3 — S5 (web) — route: delegated writer after T2 — web display, InfoTip, report, i18n — commit 8ff3fe0 (writer: RED 9 → GREEN; KPI card HTML byte-identical to HEAD without the wind scalars in 12 en/es × metric/imperial cases; parent: tsc clean, vitest 74 files / 683 tests; Risk: none)
 
 ## Log
 
@@ -26,3 +26,4 @@ Forecast: ~600 authored changed lines (T1 ~120, T2 ~250, T3 ~230).
 - L3 (2026-11-07, user): "vamos con esa" — the reporting-only OpenRocket-equivalent margin, both numbers shown together.
 - L4 (2026-11-07): T1 committed 342d0dc. The acceptance key-set check against `examples/*/parameters.json` now ignores the optional `body_segments` (asserts it is a list). MT1-v1.7.1 segments: Ojiva 0/0.18 (0→0.03), Cuerpo 0.18/1.0, Aletas 1.18/0.2, Body Tube 1.38/0.02 (r 0.03).
 - L5 (2026-11-07): T2 committed 97e9260. Residual 0.12 cal comes from RocketPy's rail-exit AoA being ~11% above OpenRocket's (6.97° vs 6.3°), a dynamics difference (OpenRocket wind turbulence/rail model), not the body-lift formula.
+- L6 (2026-11-07): T3 committed 8ff3fe0. Open follow-up: the .ork's stored results carry no OpenRocket rail-exit margin (only max/min/burnout), so the report's OpenRocket column stays "—" for both rail-exit rows; adding it needs the converter + `lib/domain/rocket.ts`.
