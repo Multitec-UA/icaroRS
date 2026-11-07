@@ -61,7 +61,7 @@ describe("LaunchSiteSection — elevation units (units S5)", () => {
   it("sends the same SI body as typing the equivalent metres", async () => {
     const imperial = await typeSite("imperial", "Elevation (ft)", "100");
     cleanup();
-    const metric = await typeSite("metric", "Elevation (m)", String(100 / 3.28084));
+    const metric = await typeSite("metric", "Elevation (m)", "30.48");
     expect(imperial).toEqual(metric);
   });
 });

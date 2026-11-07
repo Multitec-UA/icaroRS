@@ -165,7 +165,7 @@ describe("LaunchRailSection — rail length in imperial units (units S5)", () =>
     const imperial = draft?.scenarioBody();
     cleanup();
     renderRail();
-    fireEvent.change(screen.getByLabelText("Rail length (m)"), { target: { value: String(10 / 3.28084) } });
+    fireEvent.change(screen.getByLabelText("Rail length (m)"), { target: { value: "3.048" } });
     expect(imperial).toEqual(draft?.scenarioBody());
   });
 });
