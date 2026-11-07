@@ -47,7 +47,7 @@ interactive API docs.
 | `POST` | `/api/montecarlo` | `{export_id, scenario?, n}` (10 ≤ `n` ≤ 500) → `202 {run_id, status, queue_position}`; queues a Monte Carlo dispersion run |
 | `GET` | `/api/montecarlo?rocket_id=&limit=` | The org's Monte Carlo runs, newest first (status + progress, no result) |
 | `GET` | `/api/montecarlo/{run_id}` | `{status, progress: {done, total}, queue_position, result, error, …}`; `result` (the dispersed `uncertainty` budget, apogee distribution, impact points, landing/apogee ellipses as `[lat, lon]` polygons) once `done` |
-| `GET` | `/api/montecarlo/{run_id}/kml` | The ellipses as KML (`404` until done, or with < 3 successful flights) |
+| `GET` | `/api/montecarlo/{run_id}/kml` | The ellipses as KML, served as a download named `montecarlo-{run_id}.kml` (`404` until done, or with < 3 successful flights) |
 | `POST` | `/api/launchday` | `{export_id, scenario?, inclinations?, headings?}` → `{wind, current, best, candidates, skipped, limits, checks_current, checks_best}`; recommends the rail setting (synchronous, up to ~1 min) |
 
 ## Auth

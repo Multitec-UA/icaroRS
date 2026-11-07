@@ -207,6 +207,8 @@ def test_kml_404_before_done_then_served(env):
     resp = client.get(f"/api/montecarlo/{run_id}/kml", headers=_auth())
     assert resp.status_code == 200
     assert resp.headers["content-type"].startswith("application/vnd.google-earth.kml+xml")
+    # Without it the browser saves the file as "kml" (last URL segment), no extension.
+    assert resp.headers["content-disposition"] == f'attachment; filename="montecarlo-{run_id}.kml"'
     assert resp.content == b"<kml/>"
 
 
