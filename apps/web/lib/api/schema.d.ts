@@ -321,6 +321,53 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/real-flights": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Real Flights
+         * @description Real MT1 flights published by the telemetry service, newest first.
+         *
+         *     ``enabled: false`` with no flights when the caller's organization is not
+         *     in ``ICARO_INTEROP_ORGS`` (or the variable is unset). Documents without a
+         *     valid summary (no id) are skipped.
+         */
+        get: operations["list_real_flights_api_real_flights_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/real-flights/{flight_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Real Flight
+         * @description One real flight: the full ``mt-interop/real-flight@1`` document.
+         *
+         *     404 when the feature is off for the caller's organization or the flight
+         *     does not exist.
+         */
+        get: operations["get_real_flight_api_real_flights__flight_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/results/{run_id}": {
         parameters: {
             query?: never;
@@ -344,6 +391,33 @@ export interface paths {
          *     Returns 404 if the run is absent or not owned by the caller's org.
          */
         get: operations["get_result_api_results__run_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/results/{run_id}/compare/{flight_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compare Run With Real Flight
+         * @description Compare a run (the caller's org) with a real flight, from stored data only.
+         *
+         *     404 when the feature is off for the organization, the run is not the
+         *     organization's or does not exist, the flight does not exist, or the run
+         *     has no stored flight data. 422 when the real flight document does not
+         *     follow ``mt-interop/real-flight@1``. Runs simulated before the interop
+         *     artefact existed compare approximately (``approximate: true`` plus a
+         *     ``sim_approximate`` warning).
+         */
+        get: operations["compare_run_with_real_flight_api_results__run_id__compare__flight_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -634,6 +708,44 @@ export interface components {
             rocket_id?: string | null;
         };
         /**
+         * ComparisonSeries
+         * @description Both flights on one uniform time grid ``t`` (s); ``null`` outside a side's range.
+         */
+        ComparisonSeries: {
+            /** Real */
+            real: {
+                [key: string]: (number | null)[];
+            };
+            /** Sim */
+            sim: {
+                [key: string]: (number | null)[];
+            };
+            /** T */
+            t: number[];
+        };
+        /**
+         * ComparisonWarningModel
+         * @description An advisory with a stable ``code`` the web translates.
+         */
+        ComparisonWarningModel: {
+            /** Code */
+            code: string;
+            /** Message */
+            message: string;
+            /** Value */
+            value?: number | null;
+        };
+        /**
+         * ComparisonWindow
+         * @description Time span (s) where both flights have data: RMSE is computed over it.
+         */
+        ComparisonWindow: {
+            /** T End */
+            t_end: number;
+            /** T Start */
+            t_start: number;
+        };
+        /**
          * ConvertResult
          * @description Response body for POST /api/convert.
          */
@@ -698,6 +810,30 @@ export interface components {
             source: "dem";
         };
         /**
+         * EventDeltaModel
+         * @description One event on both sides; deltas are simulated minus real.
+         */
+        EventDeltaModel: {
+            /** Delta T */
+            delta_t?: number | null;
+            /** Delta Value */
+            delta_value?: number | null;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Real T */
+            real_t?: number | null;
+            /** Real Value */
+            real_value?: number | null;
+            /** Sim T */
+            sim_t?: number | null;
+            /** Sim Value */
+            sim_value?: number | null;
+            /** Value Unit */
+            value_unit?: string | null;
+        };
+        /**
          * ExportDetail
          * @description Response body for GET /api/exports/{export_id} — summary plus manifest.
          */
@@ -754,6 +890,33 @@ export interface components {
             rocket_id: string;
         };
         /**
+         * FlightComparison
+         * @description Response of GET /api/results/{run_id}/compare/{flight_id}.
+         */
+        FlightComparison: {
+            /** Approximate */
+            approximate: boolean;
+            /** Events */
+            events: components["schemas"]["EventDeltaModel"][];
+            /** Flight Id */
+            flight_id: string;
+            /** Kpis */
+            kpis: components["schemas"]["KpiDeltaModel"][];
+            real_flight: components["schemas"]["RealFlightSummary"];
+            /** Rmse */
+            rmse: {
+                [key: string]: number | null;
+            };
+            /** Run Id */
+            run_id: string;
+            series: components["schemas"]["ComparisonSeries"];
+            /** Site Distance M */
+            site_distance_m?: number | null;
+            /** Warnings */
+            warnings: components["schemas"]["ComparisonWarningModel"][];
+            window?: components["schemas"]["ComparisonWindow"] | null;
+        };
+        /**
          * FlightSeries
          * @description Response body for GET /api/results/{run_id}/series.
          */
@@ -787,6 +950,50 @@ export interface components {
             org_id: string;
             /** User Id */
             user_id: string;
+        };
+        /**
+         * InteropEvent
+         * @description One flight event; ``t`` in s from liftoff. ``source`` is ``fsm`` or ``derived``.
+         */
+        InteropEvent: {
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+            /** Source */
+            source?: string | null;
+            /** T */
+            t: number;
+        };
+        /**
+         * InteropSite
+         * @description A launch site or pad: WGS-84 degrees, elevation in m above sea level.
+         */
+        InteropSite: {
+            /** Elev M */
+            elev_m?: number | null;
+            /** Lat */
+            lat: number;
+            /** Lon */
+            lon: number;
+        };
+        /**
+         * KpiDeltaModel
+         * @description One headline number on both sides; ``delta`` is simulated minus real.
+         */
+        KpiDeltaModel: {
+            /** Delta */
+            delta?: number | null;
+            /** Delta Pct */
+            delta_pct?: number | null;
+            /** Id */
+            id: string;
+            /** Real */
+            real?: number | null;
+            /** Sim */
+            sim?: number | null;
+            /** Unit */
+            unit: string;
         };
         /** LatLon */
         LatLon: {
@@ -1072,6 +1279,82 @@ export interface components {
             out_of_rail_velocity: number;
             /** Stability Margin Min */
             stability_margin_min: number;
+        };
+        /**
+         * RealFlightDetail
+         * @description Response of GET /api/real-flights/{flight_id}: the ``mt-interop/real-flight@1`` document.
+         */
+        RealFlightDetail: {
+            /** Device Id */
+            device_id?: string | null;
+            /** Events */
+            events?: components["schemas"]["InteropEvent"][];
+            /** Flight Id */
+            flight_id: string;
+            /** Launch Utc */
+            launch_utc?: string | null;
+            pad?: components["schemas"]["InteropSite"] | null;
+            /** Rate Hz */
+            rate_hz?: number | null;
+            /** Rocket */
+            rocket?: string | null;
+            /** Schema */
+            schema: string;
+            /** Series */
+            series?: {
+                [key: string]: (number | null)[];
+            };
+            /** Server Version */
+            server_version?: string | null;
+            /** Source Samples */
+            source_samples?: number | null;
+            stats?: components["schemas"]["RealFlightStats"];
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * RealFlightList
+         * @description Response of GET /api/real-flights. ``enabled`` is false when the feature is off.
+         */
+        RealFlightList: {
+            /** Enabled */
+            enabled: boolean;
+            /** Flights */
+            flights: components["schemas"]["RealFlightSummary"][];
+        };
+        /**
+         * RealFlightStats
+         * @description Headline numbers of a real flight (SI units, ``apogee_m`` above the pad).
+         */
+        RealFlightStats: {
+            /** Amax Ms2 */
+            amax_ms2?: number | null;
+            /** Apogee M */
+            apogee_m?: number | null;
+            /** Apogee T */
+            apogee_t?: number | null;
+            /** Landing T */
+            landing_t?: number | null;
+            /** Vmax Ms */
+            vmax_ms?: number | null;
+        };
+        /**
+         * RealFlightSummary
+         * @description One row of the real flight picker.
+         */
+        RealFlightSummary: {
+            /** Device Id */
+            device_id?: string | null;
+            /** Flight Id */
+            flight_id: string;
+            /** Launch Utc */
+            launch_utc?: string | null;
+            pad?: components["schemas"]["InteropSite"] | null;
+            /** Rocket */
+            rocket?: string | null;
+            stats?: components["schemas"]["RealFlightStats"];
+            /** Updated At */
+            updated_at?: string | null;
         };
         /**
          * ResultEnvelope
@@ -1792,6 +2075,57 @@ export interface operations {
             };
         };
     };
+    list_real_flights_api_real_flights_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RealFlightList"];
+                };
+            };
+        };
+    };
+    get_real_flight_api_real_flights__flight_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                flight_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RealFlightDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_result_api_results__run_id__get: {
         parameters: {
             query?: never;
@@ -1810,6 +2144,38 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ResultEnvelope"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    compare_run_with_real_flight_api_results__run_id__compare__flight_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                flight_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlightComparison"];
                 };
             };
             /** @description Validation Error */

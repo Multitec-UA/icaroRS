@@ -48,6 +48,7 @@ components/shell/                sidebar shared by every signed-in route (Workbe
 components/workbench/            the Workbench at /: rocket context, .ork import states, inputs, results
 components/flight/               flight replay, KPI cards, series panel, timeline, overlay chart
 components/runs/, components/results/  /runs (compare runs of one rocket), /results/[runId] (run report) and /results/mc/[runId] (dispersion report)
+components/results/RealFlightCard  "Real flight" under a run: compare it with a real MT1 flight (interop contract in apps/api/README.md)
 components/wizard/WizardProvider  the scenario draft store (export, rocket, site, time, rail, uncertainty, result)
 app/                             App Router pages (/history redirects to /runs)
 ```

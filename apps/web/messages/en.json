@@ -718,6 +718,68 @@
     }
   },
 
+  "realflight": {
+    "title": "Real flight",
+    "intro": "Compare this simulation with a flight recorded by the MT1 flight computer: altitude, vertical speed and acceleration over time, the flight events and the headline numbers.",
+    "empty": "No real flight has been published yet. Flights recorded by the MT1 show up here once the telemetry service publishes them.",
+    "pickerLabel": "Real flight to compare with",
+    "pickerPlaceholder": "Choose a real flight…",
+    "comparing": "Comparing with the real flight…",
+    "noData": "This run has no stored flight data to compare. Run the simulation again.",
+    "badDocument": "This real flight cannot be compared: its data does not follow the expected format.",
+    "errorFallback": "The comparison failed.",
+    "warningsTitle": "Read the comparison with care",
+    "warning": {
+      "sim_approximate": "This run was simulated before real-flight comparison existed: its vertical speed is estimated from the altitude and it has no acceleration. Run it again for a full comparison.",
+      "site_far": "The simulated launch site is {distance} from the real pad: wind, ground height and weather may differ.",
+      "pad_unknown": "The real flight has no pad position, so the launch sites could not be checked.",
+      "single_deploy": "The simulation opens its parachute in one step (trigger plus delay), while the real flight records the ejection and the opening separately. The deploy row compares the opening.",
+      "no_overlap": "The simulated and real data do not overlap in time.",
+      "real_ends_early": "The real recording stops at {time}, before the simulated apogee.",
+      "missing_alt_m": "One of the flights has no altitude data, so altitude is not compared.",
+      "missing_vz_ms": "One of the flights has no vertical speed data, so vertical speed is not compared.",
+      "missing_acc_ms2": "One of the flights has no acceleration data, so acceleration is not compared."
+    },
+    "kpisTitle": "Headline numbers",
+    "colQuantity": "Quantity",
+    "colSim": "Simulated",
+    "colReal": "Real",
+    "colDelta": "Difference",
+    "colEvent": "Event",
+    "colSimT": "Simulated time",
+    "colRealT": "Real time",
+    "colAltitude": "Altitude (sim / real)",
+    "kpi": {
+      "apogee_m": "Apogee",
+      "apogee_t": "Time to apogee",
+      "vmax_ms": "Maximum speed",
+      "landing_t": "Landing time",
+      "amax_ms2": "Peak acceleration"
+    },
+    "rmse": {
+      "alt_m": "altitude",
+      "vz_ms": "vertical speed",
+      "acc_ms2": "acceleration"
+    },
+    "rmseLine": "Typical gap (RMSE) from {start} to {end}: {values}",
+    "chartAltitude": "Altitude above the pad",
+    "chartVerticalSpeed": "Vertical speed",
+    "chartAcceleration": "Acceleration (what an accelerometer reads)",
+    "chartAria": "{quantity}: simulated peak {sim}, real peak {real}",
+    "legendSim": "Simulated",
+    "legendReal": "Real",
+    "eventsTitle": "Flight events",
+    "event": {
+      "rail_exit": "Rail exit",
+      "burnout": "Burnout",
+      "apogee": "Apogee",
+      "ejection": "Ejection",
+      "deploy": "Parachute open",
+      "landing": "Landing"
+    },
+    "altitudePair": "{sim} / {real}",
+    "deltaNote": "Differences are simulated minus real: a positive time means the simulation is later."
+  },
   "units": {
     "label": "Units",
     "metricShort": "m",

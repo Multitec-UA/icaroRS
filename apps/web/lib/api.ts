@@ -558,6 +558,32 @@ export function getSeries(runId: string): Promise<FlightSeries> {
   return request<FlightSeries>(`/api/results/${encodeURIComponent(runId)}/series`);
 }
 
+// ---------------------------------------------------------------------------
+// Real flight interop (MT1 telemetry, contract mt-interop schema v1)
+// ---------------------------------------------------------------------------
+
+/** GET /api/real-flights: `enabled` is false when the org is not part of the interop. */
+export type RealFlightList = components["schemas"]["RealFlightList"];
+/** One row of the real flight picker (id, rocket, launch date, pad, stats). */
+export type RealFlightSummary = components["schemas"]["RealFlightSummary"];
+/** GET /api/results/{run_id}/compare/{flight_id}: both flights on one grid, deltas, RMSE, warnings. */
+export type FlightComparison = components["schemas"]["FlightComparison"];
+export type ComparisonEvent = components["schemas"]["EventDeltaModel"];
+export type ComparisonKpi = components["schemas"]["KpiDeltaModel"];
+export type ComparisonWarning = components["schemas"]["ComparisonWarningModel"];
+
+/** The real MT1 flights the org can compare with, newest first. */
+export function getRealFlights(): Promise<RealFlightList> {
+  return request<RealFlightList>("/api/real-flights");
+}
+
+/** Compare a run with a real flight; 404 when the run has no stored flight data. */
+export function getFlightComparison(runId: string, flightId: string): Promise<FlightComparison> {
+  return request<FlightComparison>(
+    `/api/results/${encodeURIComponent(runId)}/compare/${encodeURIComponent(flightId)}`,
+  );
+}
+
 /**
  * Plot URLs in SimulateResult are already absolute paths under /api/results.
  * This helper exists for the rare case a caller needs to build one by hand.

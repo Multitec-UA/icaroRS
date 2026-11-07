@@ -718,6 +718,68 @@
     }
   },
 
+  "realflight": {
+    "title": "Vuelo real",
+    "intro": "Compara esta simulación con un vuelo registrado por el ordenador de vuelo MT1: altitud, velocidad vertical y aceleración en el tiempo, los eventos del vuelo y las cifras principales.",
+    "empty": "Todavía no se ha publicado ningún vuelo real. Los vuelos que registra el MT1 aparecen aquí cuando el servicio de telemetría los publica.",
+    "pickerLabel": "Vuelo real con el que comparar",
+    "pickerPlaceholder": "Elige un vuelo real…",
+    "comparing": "Comparando con el vuelo real…",
+    "noData": "Esta simulación no tiene datos de vuelo guardados para comparar. Vuelve a simularla.",
+    "badDocument": "Este vuelo real no se puede comparar: sus datos no siguen el formato esperado.",
+    "errorFallback": "La comparación ha fallado.",
+    "warningsTitle": "Lee la comparación con cuidado",
+    "warning": {
+      "sim_approximate": "Esta simulación es anterior a la comparación con vuelos reales: su velocidad vertical se estima a partir de la altitud y no tiene aceleración. Vuelve a simularla para una comparación completa.",
+      "site_far": "El lugar de lanzamiento simulado está a {distance} de la rampa real: el viento, la altura del terreno y el tiempo pueden ser distintos.",
+      "pad_unknown": "El vuelo real no tiene la posición de la rampa, así que no se han podido comparar los lugares de lanzamiento.",
+      "single_deploy": "La simulación abre el paracaídas en un solo paso (disparo más retardo), mientras que el vuelo real registra por separado la eyección y la apertura. La fila del paracaídas compara la apertura.",
+      "no_overlap": "Los datos simulados y reales no coinciden en el tiempo.",
+      "real_ends_early": "La grabación real termina en {time}, antes del apogeo simulado.",
+      "missing_alt_m": "Uno de los vuelos no tiene datos de altitud, así que la altitud no se compara.",
+      "missing_vz_ms": "Uno de los vuelos no tiene datos de velocidad vertical, así que la velocidad vertical no se compara.",
+      "missing_acc_ms2": "Uno de los vuelos no tiene datos de aceleración, así que la aceleración no se compara."
+    },
+    "kpisTitle": "Cifras principales",
+    "colQuantity": "Magnitud",
+    "colSim": "Simulado",
+    "colReal": "Real",
+    "colDelta": "Diferencia",
+    "colEvent": "Evento",
+    "colSimT": "Tiempo simulado",
+    "colRealT": "Tiempo real",
+    "colAltitude": "Altitud (sim. / real)",
+    "kpi": {
+      "apogee_m": "Apogeo",
+      "apogee_t": "Tiempo hasta el apogeo",
+      "vmax_ms": "Velocidad máxima",
+      "landing_t": "Tiempo de aterrizaje",
+      "amax_ms2": "Aceleración máxima"
+    },
+    "rmse": {
+      "alt_m": "altitud",
+      "vz_ms": "velocidad vertical",
+      "acc_ms2": "aceleración"
+    },
+    "rmseLine": "Diferencia típica (RMSE) de {start} a {end}: {values}",
+    "chartAltitude": "Altitud sobre la rampa",
+    "chartVerticalSpeed": "Velocidad vertical",
+    "chartAcceleration": "Aceleración (la que mide un acelerómetro)",
+    "chartAria": "{quantity}: pico simulado {sim}, pico real {real}",
+    "legendSim": "Simulado",
+    "legendReal": "Real",
+    "eventsTitle": "Eventos del vuelo",
+    "event": {
+      "rail_exit": "Salida de la guía",
+      "burnout": "Fin de la combustión",
+      "apogee": "Apogeo",
+      "ejection": "Eyección",
+      "deploy": "Paracaídas abierto",
+      "landing": "Aterrizaje"
+    },
+    "altitudePair": "{sim} / {real}",
+    "deltaNote": "Las diferencias son simulado menos real: un tiempo positivo significa que la simulación va más tarde."
+  },
   "units": {
     "label": "Unidades",
     "metricShort": "m",

@@ -143,6 +143,108 @@
         "title": "Body_post_convert_api_convert_post",
         "type": "object"
       },
+      "ComparisonSeries": {
+        "description": "Both flights on one uniform time grid ``t`` (s); ``null`` outside a side's range.",
+        "properties": {
+          "real": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Real",
+            "type": "object"
+          },
+          "sim": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Sim",
+            "type": "object"
+          },
+          "t": {
+            "items": {
+              "type": "number"
+            },
+            "title": "T",
+            "type": "array"
+          }
+        },
+        "required": [
+          "t",
+          "sim",
+          "real"
+        ],
+        "title": "ComparisonSeries",
+        "type": "object"
+      },
+      "ComparisonWarningModel": {
+        "description": "An advisory with a stable ``code`` the web translates.",
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ComparisonWarningModel",
+        "type": "object"
+      },
+      "ComparisonWindow": {
+        "description": "Time span (s) where both flights have data: RMSE is computed over it.",
+        "properties": {
+          "t_end": {
+            "title": "T End",
+            "type": "number"
+          },
+          "t_start": {
+            "title": "T Start",
+            "type": "number"
+          }
+        },
+        "required": [
+          "t_start",
+          "t_end"
+        ],
+        "title": "ComparisonWindow",
+        "type": "object"
+      },
       "ConvertResult": {
         "description": "Response body for POST /api/convert.",
         "properties": {
@@ -243,6 +345,102 @@
           "source"
         ],
         "title": "ElevationLookupResult",
+        "type": "object"
+      },
+      "EventDeltaModel": {
+        "description": "One event on both sides; deltas are simulated minus real.",
+        "properties": {
+          "delta_t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta T"
+          },
+          "delta_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Value"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "real_t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real T"
+          },
+          "real_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real Value"
+          },
+          "sim_t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sim T"
+          },
+          "sim_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sim Value"
+          },
+          "value_unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value Unit"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "EventDeltaModel",
         "type": "object"
       },
       "ExportDetail": {
@@ -395,6 +593,98 @@
         "title": "ExportSummary",
         "type": "object"
       },
+      "FlightComparison": {
+        "description": "Response of GET /api/results/{run_id}/compare/{flight_id}.",
+        "properties": {
+          "approximate": {
+            "title": "Approximate",
+            "type": "boolean"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/EventDeltaModel"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "flight_id": {
+            "title": "Flight Id",
+            "type": "string"
+          },
+          "kpis": {
+            "items": {
+              "$ref": "#/components/schemas/KpiDeltaModel"
+            },
+            "title": "Kpis",
+            "type": "array"
+          },
+          "real_flight": {
+            "$ref": "#/components/schemas/RealFlightSummary"
+          },
+          "rmse": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "title": "Rmse",
+            "type": "object"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "series": {
+            "$ref": "#/components/schemas/ComparisonSeries"
+          },
+          "site_distance_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Distance M"
+          },
+          "warnings": {
+            "items": {
+              "$ref": "#/components/schemas/ComparisonWarningModel"
+            },
+            "title": "Warnings",
+            "type": "array"
+          },
+          "window": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ComparisonWindow"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "run_id",
+          "flight_id",
+          "real_flight",
+          "approximate",
+          "series",
+          "events",
+          "kpis",
+          "rmse",
+          "warnings"
+        ],
+        "title": "FlightComparison",
+        "type": "object"
+      },
       "FlightSeries": {
         "description": "Response body for GET /api/results/{run_id}/series.",
         "properties": {
@@ -526,6 +816,134 @@
           "org_id"
         ],
         "title": "IdentityResponse",
+        "type": "object"
+      },
+      "InteropEvent": {
+        "description": "One flight event; ``t`` in s from liftoff. ``source`` is ``fsm`` or ``derived``.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "t": {
+            "title": "T",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "t",
+          "label"
+        ],
+        "title": "InteropEvent",
+        "type": "object"
+      },
+      "InteropSite": {
+        "description": "A launch site or pad: WGS-84 degrees, elevation in m above sea level.",
+        "properties": {
+          "elev_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Elev M"
+          },
+          "lat": {
+            "title": "Lat",
+            "type": "number"
+          },
+          "lon": {
+            "title": "Lon",
+            "type": "number"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ],
+        "title": "InteropSite",
+        "type": "object"
+      },
+      "KpiDeltaModel": {
+        "description": "One headline number on both sides; ``delta`` is simulated minus real.",
+        "properties": {
+          "delta": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta"
+          },
+          "delta_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delta Pct"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "real": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Real"
+          },
+          "sim": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sim"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "unit"
+        ],
+        "title": "KpiDeltaModel",
         "type": "object"
       },
       "LatLon": {
@@ -1349,6 +1767,294 @@
           "checks_ok"
         ],
         "title": "RailCandidateModel",
+        "type": "object"
+      },
+      "RealFlightDetail": {
+        "description": "Response of GET /api/real-flights/{flight_id}: the ``mt-interop/real-flight@1`` document.",
+        "properties": {
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/InteropEvent"
+            },
+            "title": "Events",
+            "type": "array"
+          },
+          "flight_id": {
+            "title": "Flight Id",
+            "type": "string"
+          },
+          "launch_utc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launch Utc"
+          },
+          "pad": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InteropSite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rate_hz": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Hz"
+          },
+          "rocket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rocket"
+          },
+          "schema": {
+            "title": "Schema",
+            "type": "string"
+          },
+          "series": {
+            "additionalProperties": {
+              "items": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "type": "array"
+            },
+            "title": "Series",
+            "type": "object"
+          },
+          "server_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Server Version"
+          },
+          "source_samples": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Samples"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RealFlightStats"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "flight_id",
+          "schema"
+        ],
+        "title": "RealFlightDetail",
+        "type": "object"
+      },
+      "RealFlightList": {
+        "description": "Response of GET /api/real-flights. ``enabled`` is false when the feature is off.",
+        "properties": {
+          "enabled": {
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "flights": {
+            "items": {
+              "$ref": "#/components/schemas/RealFlightSummary"
+            },
+            "title": "Flights",
+            "type": "array"
+          }
+        },
+        "required": [
+          "enabled",
+          "flights"
+        ],
+        "title": "RealFlightList",
+        "type": "object"
+      },
+      "RealFlightStats": {
+        "description": "Headline numbers of a real flight (SI units, ``apogee_m`` above the pad).",
+        "properties": {
+          "amax_ms2": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amax Ms2"
+          },
+          "apogee_m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apogee M"
+          },
+          "apogee_t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Apogee T"
+          },
+          "landing_t": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Landing T"
+          },
+          "vmax_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vmax Ms"
+          }
+        },
+        "title": "RealFlightStats",
+        "type": "object"
+      },
+      "RealFlightSummary": {
+        "description": "One row of the real flight picker.",
+        "properties": {
+          "device_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Device Id"
+          },
+          "flight_id": {
+            "title": "Flight Id",
+            "type": "string"
+          },
+          "launch_utc": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Launch Utc"
+          },
+          "pad": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InteropSite"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rocket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rocket"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/RealFlightStats"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "flight_id"
+        ],
+        "title": "RealFlightSummary",
         "type": "object"
       },
       "ResultEnvelope": {
@@ -2552,6 +3258,71 @@
         ]
       }
     },
+    "/api/real-flights": {
+      "get": {
+        "description": "Real MT1 flights published by the telemetry service, newest first.\n\n``enabled: false`` with no flights when the caller's organization is not\nin ``ICARO_INTEROP_ORGS`` (or the variable is unset). Documents without a\nvalid summary (no id) are skipped.",
+        "operationId": "list_real_flights_api_real_flights_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealFlightList"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Real Flights",
+        "tags": [
+          "real-flights"
+        ]
+      }
+    },
+    "/api/real-flights/{flight_id}": {
+      "get": {
+        "description": "One real flight: the full ``mt-interop/real-flight@1`` document.\n\n404 when the feature is off for the caller's organization or the flight\ndoes not exist.",
+        "operationId": "get_real_flight_api_real_flights__flight_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "flight_id",
+            "required": true,
+            "schema": {
+              "title": "Flight Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RealFlightDetail"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Real Flight",
+        "tags": [
+          "real-flights"
+        ]
+      }
+    },
     "/api/results/{run_id}": {
       "get": {
         "description": "Return the result for a completed run in forward-compat job-status shape.\n\nResponse shape: ``{run_id, status: \"done\", result}``\n\nThe shape is designed for forward-compat with an async/polling upgrade\n(ADR-6): when simulate becomes async, this endpoint will return\n``{run_id, status: \"running\"|\"done\"|\"error\", progress?, result?}`` and\nthe client polls \u2014 no contract break.\n\nFetches ``{result_prefix}result.json`` via the Storage seam (REQ-02.4),\nwhere ``result_prefix`` comes from the resolved SimRecord (issue #45).\nReturns 404 if the run is absent or not owned by the caller's org.",
@@ -2592,6 +3363,58 @@
         "summary": "Get Result",
         "tags": [
           "results"
+        ]
+      }
+    },
+    "/api/results/{run_id}/compare/{flight_id}": {
+      "get": {
+        "description": "Compare a run (the caller's org) with a real flight, from stored data only.\n\n404 when the feature is off for the organization, the run is not the\norganization's or does not exist, the flight does not exist, or the run\nhas no stored flight data. 422 when the real flight document does not\nfollow ``mt-interop/real-flight@1``. Runs simulated before the interop\nartefact existed compare approximately (``approximate: true`` plus a\n``sim_approximate`` warning).",
+        "operationId": "compare_run_with_real_flight_api_results__run_id__compare__flight_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "run_id",
+            "required": true,
+            "schema": {
+              "title": "Run Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "flight_id",
+            "required": true,
+            "schema": {
+              "title": "Flight Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FlightComparison"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Compare Run With Real Flight",
+        "tags": [
+          "real-flights"
         ]
       }
     },

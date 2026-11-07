@@ -21,6 +21,8 @@ import {
   getRocket,
   getSeries,
   getMonteCarlo,
+  getFlightComparison,
+  getRealFlights,
   listMonteCarlo,
   renameRocket,
   simulate,
@@ -40,6 +42,8 @@ import {
   type SimulationSummary,
   type RocketSummary,
   type FlightSeries,
+  type FlightComparison,
+  type RealFlightList,
 } from "./api";
 import { isMonteCarloActive, monteCarloPollInterval } from "./domain/montecarlo";
 
@@ -61,6 +65,10 @@ export const queryKeys = {
   monteCarlo: ["montecarlo"] as const,
   monteCarloRun: (runId: string) => ["montecarlo", "run", runId] as const,
   monteCarloList: (rocketId: string | null) => ["montecarlo", "list", rocketId ?? "all"] as const,
+  /** The real MT1 flights the org can compare with (interop). */
+  realFlights: ["real-flights"] as const,
+  /** One run compared with one real flight. */
+  flightComparison: (runId: string, flightId: string) => ["results", runId, "compare", flightId] as const,
 };
 
 /**
@@ -333,5 +341,31 @@ export function useMonteCarloRunQueries(runIds: string[]) {
       queryFn: () => getMonteCarlo(runId),
       staleTime: Infinity,
     })),
+  });
+}
+
+/**
+ * GET /api/real-flights: the real MT1 flights for the "Real flight" card.
+ * `enabled: false` means the org is not part of the interop: the card hides.
+ */
+export function useRealFlightsQuery() {
+  return useQuery<RealFlightList>({
+    queryKey: queryKeys.realFlights,
+    queryFn: () => getRealFlights(),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * GET /api/results/{runId}/compare/{flightId}. Idle until a flight is
+ * picked (`flightId` null). Both inputs are stored data, so the answer only
+ * changes when the telemetry service republishes the flight.
+ */
+export function useFlightComparisonQuery(runId: string, flightId: string | null) {
+  return useQuery<FlightComparison>({
+    queryKey: queryKeys.flightComparison(runId, flightId ?? "none"),
+    queryFn: () => getFlightComparison(runId, flightId as string),
+    enabled: flightId !== null,
+    staleTime: 60_000,
   });
 }

@@ -38,6 +38,7 @@ import { FadeSwap } from "@/components/motion";
 import { ReplayProvider } from "@/components/flight/ReplayContext";
 import { RunResults } from "@/components/results/RunResults";
 import { MonteCarloCard } from "@/components/results/MonteCarloCard";
+import { RealFlightCard } from "@/components/results/RealFlightCard";
 import { useT } from "@/components/i18n/LocaleProvider";
 import { unplacedErrors } from "./fieldErrors";
 import { InfoIcon } from "./icons";
@@ -169,7 +170,8 @@ export function ResultsColumn({
  * ResultsColumn so the series query only exists once there is a run to
  * fetch for (hooks cannot be conditional). The OpenRocket row reads the
  * manifest of the file the run simulated, kept with the run, not the file
- * active now.
+ * active now. The "Real flight" card follows (hidden unless the org takes
+ * part in the MT1 interop).
  */
 function DisplayedRunResults({ run }: { run: DisplayedRun }) {
   const series = useSeriesQuery(run.runId);
@@ -177,7 +179,12 @@ function DisplayedRunResults({ run }: { run: DisplayedRun }) {
     () => (run.manifest ? rocketSummaryFromManifest(run.manifest) : null),
     [run.manifest],
   );
-  return <RunResults runId={run.runId} result={run.result} exportSummary={exportSummary} series={series} />;
+  return (
+    <>
+      <RunResults runId={run.runId} result={run.result} exportSummary={exportSummary} series={series} />
+      <RealFlightCard runId={run.runId} />
+    </>
+  );
 }
 
 /**
