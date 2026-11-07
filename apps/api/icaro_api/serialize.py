@@ -71,10 +71,19 @@ _SCALAR_ATTR_MAP: list[tuple[str, str, str, str]] = [
     ("out_of_rail_stability_margin", "rail_departure_stability_margin", "Rail departure stability margin", "cal"),
 ]
 
+# Scalars taken from ``flight.wind_stability`` (an ``icaro.WindMarginResult``
+# attached by ``simulate_from_export``): the rail-exit margin with body lift at
+# the actual angle of attack — the one OpenRocket reports.
+# (result_attr, output_key, human_label, unit)
+_WIND_STABILITY_MAP: list[tuple[str, str, str, str]] = [
+    ("wind_cal", "rail_departure_stability_margin_wind", "Rail departure stability margin with wind", "cal"),
+    ("angle_of_attack_deg", "rail_departure_angle_of_attack_deg", "Rail departure angle of attack", "deg"),
+]
+
 # Static label map for template/UI use (key → {label, unit}).
 _SCALAR_LABEL_MAP: dict[str, dict[str, str]] = {
     output_key: {"label": label, "unit": unit}
-    for (_, output_key, label, unit) in _SCALAR_ATTR_MAP
+    for (_, output_key, label, unit) in _SCALAR_ATTR_MAP + _WIND_STABILITY_MAP
 }
 
 # ---------------------------------------------------------------------------
@@ -228,7 +237,26 @@ def _extract_scalars(flight: Any) -> dict[str, Any]:
         if elevation is not None:
             scalars["apogee_m"] -= elevation
 
+    scalars.update(_wind_stability_scalars(flight))
     return scalars
+
+
+def _wind_stability_scalars(flight: Any) -> dict[str, float]:
+    """The with-wind rail-exit margin and angle of attack, when available.
+
+    ``simulate_from_export`` attaches ``flight.wind_stability`` (``None`` when
+    it could not be computed). Anything else — absent, ``None``, or a stub —
+    yields no keys: the margin is reporting-only and never fails a run.
+    """
+    from icaro import WindMarginResult
+
+    margin = getattr(flight, "wind_stability", None)
+    if not isinstance(margin, WindMarginResult):
+        return {}
+    return {
+        output_key: float(getattr(margin, attr))
+        for attr, output_key, _label, _unit in _WIND_STABILITY_MAP
+    }
 
 
 def _env_elevation(flight: Any) -> float | None:

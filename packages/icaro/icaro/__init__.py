@@ -28,6 +28,10 @@ Launch day (SURT x SpainRocketry L1):
     LaunchLimits          — L1 limits (defaults from the competition guide)
     Wind                  — manual pad wind for a Scenario
 
+Stability:
+    wind_stability_margin — rail-exit margin with body lift (OpenRocket-equivalent)
+    WindMarginResult      — static and with-wind margins, AoA, CPs
+
 Phase D (Sensitivity) — forward stub, implemented in Phase D:
     run_sensitivity
 
@@ -56,6 +60,7 @@ from .montecarlo import MonteCarloResult, build_stochastic, run_monte_carlo
 from .scenario import Scenario, Wind, load_scenario
 from .series import extract_flight_series
 from .simulation import simulate_from_export
+from .stability import WindMarginResult, wind_stability_margin
 
 __all__ = [
     # Phase A
@@ -83,6 +88,9 @@ __all__ = [
     "RailCandidate",
     "LaunchCheck",
     "Wind",
+    # Stability (rail-exit margin with wind)
+    "wind_stability_margin",
+    "WindMarginResult",
     # Phase D — added when sensitivity.py is implemented
     # "run_sensitivity",
     # Phase E — added when comparison.py is implemented

@@ -12,7 +12,15 @@ icaro mc <export-dir> --scenario s.yaml -n 100 [--output PREFIX] [--parallel [--
 ```
 
 `simulate` calls `icaro.simulate_from_export(...)` and prints the flight
-summary.
+summary, followed by both rail-exit stability margins when available:
+
+```text
+Stability off the rail: 5.79 cal static · 4.54 cal with wind (AoA 6.3°)
+```
+
+"Static" is RocketPy's margin; "with wind" adds body lift at the angle of
+attack the wind causes at rail exit (what OpenRocket reports). With no wind
+both are equal.
 
 `mc` calls `icaro.run_monte_carlo(...)`: N stochastic flights within the
 scenario's `uncertainty` budget. A run takes minutes; live progress goes to

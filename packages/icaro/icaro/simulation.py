@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 
 from rocketpy import Environment, Flight, Rocket, SolidMotor
 
+from icaro.stability import WindMarginResult, wind_stability_margin
+
 if TYPE_CHECKING:
     from icaro.scenario import Scenario
 
@@ -483,7 +485,31 @@ def simulate_from_export(
     -------
     rocketpy.Flight
         The solved flight. Inspecting, printing or serializing it is the
-        caller's responsibility.
+        caller's responsibility. It also carries ``flight.wind_stability``:
+        the rail-exit :class:`~icaro.stability.WindMarginResult` (static and
+        with-wind margins), or ``None`` when it could not be computed.
     """
-    flight, *_ = build_nominal_flight(export_dir, scenario)
+    flight, rocket, _motor, _env, params = build_nominal_flight(export_dir, scenario)
+    flight.wind_stability = rail_exit_wind_margin(flight, rocket, params)
     return flight
+
+
+def rail_exit_wind_margin(
+    flight: Flight, rocket: Rocket, params: dict
+) -> WindMarginResult | None:
+    """Wind stability margin at rail exit, or ``None`` if it cannot be computed.
+
+    The margin is reporting-only, so a failure (an unusual export, a flight
+    that never left the rail) must never fail the simulation: it is turned
+    into a warning instead.
+    """
+    try:
+        return wind_stability_margin(flight, rocket, params)
+    except Exception as exc:  # noqa: BLE001 - reporting-only, never fatal.
+        warnings.warn(
+            f"The rail-exit stability margin with wind could not be computed "
+            f"({type(exc).__name__}: {exc}); only the static margin is reported.",
+            UserWarning,
+            stacklevel=2,
+        )
+        return None

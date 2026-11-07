@@ -1,0 +1,179 @@
+{
+    "body_segments": [
+        {
+            "aft_radius": 0.03,
+            "fore_radius": 0.0,
+            "kind": "nosecone",
+            "length": 0.18,
+            "name": "Ojiva",
+            "position": 0.0
+        },
+        {
+            "aft_radius": 0.03,
+            "fore_radius": 0.03,
+            "kind": "bodytube",
+            "length": 1.0,
+            "name": "Cuerpo",
+            "position": 0.18
+        },
+        {
+            "aft_radius": 0.03,
+            "fore_radius": 0.03,
+            "kind": "bodytube",
+            "length": 0.2,
+            "name": "Aletas",
+            "position": 1.18
+        },
+        {
+            "aft_radius": 0.03,
+            "fore_radius": 0.03,
+            "kind": "bodytube",
+            "length": 0.02,
+            "name": "Body Tube",
+            "position": 1.38
+        }
+    ],
+    "elliptical_fins": {},
+    "environment": {
+        "base_pressure": null,
+        "base_temperature": null,
+        "date": null,
+        "elevation": 233.0,
+        "geodetic_method": "spherical",
+        "latitude": 41.729922,
+        "longitude": 0.104161,
+        "wind_average": 2.0,
+        "wind_turbulence": 0.1
+    },
+    "flight": {
+        "heading": 90.0,
+        "inclination": 87.0,
+        "rail_length": 2.5
+    },
+    "freeform_fins": {
+        "0": {
+            "cant_angle": 0.0,
+            "name": "Aletas de forma libre",
+            "number": 4,
+            "position": 1.18,
+            "section": "airfoil",
+            "shape_points": [
+                [
+                    0.0,
+                    0.0
+                ],
+                [
+                    0.15,
+                    0.07
+                ],
+                [
+                    0.2,
+                    0.07
+                ],
+                [
+                    0.2,
+                    0.0
+                ]
+            ]
+        }
+    },
+    "id": {
+        "comment": null,
+        "creator": "OpenRocket 24.12",
+        "designer": null,
+        "filepath": "MT1-v1.7.1.ork",
+        "ork_format_version": "1.10",
+        "rocket_name": "Cohete Sin Nombre",
+        "serializer_version": "0.2.0"
+    },
+    "motors": {
+        "center_of_dry_mass_position": 0,
+        "coordinate_system_orientation": "nozzle_to_combustion_chamber",
+        "dry_inertia": [
+            0,
+            0,
+            0
+        ],
+        "dry_mass": 0,
+        "grain_density": 777.4524369901658,
+        "grain_initial_height": 0.186,
+        "grain_initial_inner_radius": 0.0095,
+        "grain_number": 1,
+        "grain_outer_radius": 0.019,
+        "grain_separation": 0,
+        "grains_center_of_mass_position": 0,
+        "identity": {
+            "burn_time_seconds": 1.939,
+            "config_id": "1bf20f9b-872b-4700-bef7-87c806d620e0",
+            "designation": "232H123-14A",
+            "impulse_check": "ok",
+            "impulse_class": "H",
+            "manufacturer": "Cesaroni Technology",
+            "motor_count": 1,
+            "ork_motor_type": "reload",
+            "total_impulse_newton_seconds": 234.24239550000001
+        },
+        "nozzle_position": -0.093,
+        "nozzle_radius": 0.014249999999999999,
+        "position": 1.2859672131147546,
+        "throat_radius": 0.0095,
+        "thrust_source": "thrust_source.csv"
+    },
+    "nosecones": {
+        "base_radius": 0.03,
+        "kind": "ellipsoid",
+        "length": 0.18,
+        "name": "Ojiva",
+        "position": 0.0
+    },
+    "parachutes": {
+        "0": {
+            "area": 1.1309733552923256,
+            "cd": 1.6,
+            "cds": 1.809557368467721,
+            "deploy_altitude": null,
+            "deploy_delay": 14.0,
+            "deploy_event": "launch",
+            "name": "Paraca\u00eddas"
+        }
+    },
+    "rail_buttons": {
+        "angular_position": 0.0,
+        "distance": 0.1200000000000001,
+        "lower_position": 1.365,
+        "name": "Rail Button medio",
+        "upper_position": 1.2449999999999999
+    },
+    "rocket": {
+        "center_of_mass_without_propellant": 0.725,
+        "coordinate_system_orientation": "nose_to_tail",
+        "drag_curve": "drag_curve.csv",
+        "inertia": [
+            0.001,
+            0.001,
+            0.491
+        ],
+        "mass": 1.679,
+        "radius": 0.03
+    },
+    "stored_results": {
+        "burnout_stability_margin": 6.336,
+        "config_id": "1bf20f9b-872b-4700-bef7-87c806d620e0",
+        "flight_time": 147.149,
+        "ground_hit_velocity": 4.123,
+        "launch_rod_velocity": 17.019,
+        "max_acceleration": 73.664,
+        "max_altitude": 566.247,
+        "max_mach": 0.33,
+        "max_stability_margin": 6.359,
+        "max_thrust": 148.377,
+        "max_velocity": 111.621,
+        "min_stability_margin": 0.0,
+        "selection": "uptodate_default",
+        "simulation_name": "Simulation 1",
+        "status": "uptodate",
+        "time_to_apogee": 11.089
+    },
+    "tails": {},
+    "trapezoidal_fins": {}
+}

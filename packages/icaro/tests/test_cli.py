@@ -411,3 +411,41 @@ def test_mc_reports_progress_on_stderr(tmp_path):
     assert "5/10 flights" in result.stderr
     assert "10/10 flights" in result.stderr
     assert "flights" not in result.stdout.split("Flights:")[0]
+
+
+# ---------------------------------------------------------------------------
+# Rail-exit stability: static and with-wind margins
+# ---------------------------------------------------------------------------
+
+
+def test_simulate_prints_static_and_wind_margins(tmp_path):
+    from icaro import WindMarginResult
+
+    mock_flight = MagicMock()
+    mock_flight.wind_stability = WindMarginResult(
+        static_cal=5.786,
+        wind_cal=4.541,
+        angle_of_attack_deg=6.31,
+        cp_static=1.105,
+        cp_wind=1.030,
+        used_fallback=False,
+    )
+    with patch("icaro_cli.main.simulate_from_export", return_value=mock_flight):
+        result = runner.invoke(app, ["simulate", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert (
+        "Stability off the rail: 5.79 cal static · 4.54 cal with wind (AoA 6.3°)"
+        in result.output
+    )
+
+
+def test_simulate_without_wind_margin_prints_no_margin_line(tmp_path):
+    mock_flight = MagicMock()
+    mock_flight.wind_stability = None
+    with patch("icaro_cli.main.simulate_from_export", return_value=mock_flight):
+        result = runner.invoke(app, ["simulate", str(tmp_path)])
+
+    assert result.exit_code == 0, result.output
+    assert "Stability off the rail" not in result.output
+    mock_flight.info.assert_called_once()
