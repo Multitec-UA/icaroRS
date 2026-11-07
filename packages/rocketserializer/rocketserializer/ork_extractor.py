@@ -1,6 +1,7 @@
 import logging
 
 from ._helpers import _dict_to_string
+from .components.body import search_body_segments
 from .components.drag_curve import save_drag_curve
 from .components.environment import search_environment
 from .components.fins import (
@@ -99,6 +100,7 @@ def ork_extractor(bs, filepath, output_folder, ork):
     elliptical_fins = search_elliptical_fins(bs, elements)
     freeform_fins = search_free_form_fins(bs, elements)
     transitions = search_transitions(bs, elements, ork)
+    body_segments = search_body_segments(bs, elements, rocket_radius)
     rail_buttons = search_rail_buttons(bs, elements)
     parachutes = search_parachutes(bs)
     stored_results = search_stored_results(
@@ -120,6 +122,7 @@ def ork_extractor(bs, filepath, output_folder, ork):
     settings["elliptical_fins"] = elliptical_fins
     settings["freeform_fins"] = freeform_fins
     settings["tails"] = transitions
+    settings["body_segments"] = body_segments
     settings["parachutes"] = parachutes
     settings["rail_buttons"] = rail_buttons
     settings["motors"] = motors

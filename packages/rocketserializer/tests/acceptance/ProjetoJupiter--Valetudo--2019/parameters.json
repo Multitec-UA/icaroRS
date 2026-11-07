@@ -55,6 +55,48 @@
     "elliptical_fins": {},
     "freeform_fins": {},
     "tails": {},
+    "body_segments": [
+        {
+            "kind": "nosecone",
+            "name": "Ogiva",
+            "position": 0.0,
+            "length": 0.274169,
+            "fore_radius": 0.0,
+            "aft_radius": 0.04045000000000001
+        },
+        {
+            "kind": "bodytube",
+            "name": "Main",
+            "position": 0.274169,
+            "length": 0.35700000000000004,
+            "fore_radius": 0.04045000000000001,
+            "aft_radius": 0.04045000000000001
+        },
+        {
+            "kind": "bodytube",
+            "name": "Eletrônica",
+            "position": 0.6311690000000001,
+            "length": 0.563,
+            "fore_radius": 0.04045000000000001,
+            "aft_radius": 0.04045000000000001
+        },
+        {
+            "kind": "bodytube",
+            "name": "Drogue",
+            "position": 1.194169,
+            "length": 0.34700000000000003,
+            "fore_radius": 0.04045000000000001,
+            "aft_radius": 0.04045000000000001
+        },
+        {
+            "kind": "bodytube",
+            "name": "Motor",
+            "position": 1.541169,
+            "length": 0.89,
+            "fore_radius": 0.04045000000000001,
+            "aft_radius": 0.04045000000000001
+        }
+    ],
     "parachutes": {
         "0": {
             "name": "Drogue_chute",

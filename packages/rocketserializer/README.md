@@ -142,6 +142,23 @@ component's front measured from the nose tip, as OpenRocket places it (for fin
 sets, the leading edge of the root chord). It does not depend on the sibling
 components that share the same parent tube.
 
+#### Body segments
+
+`body_segments` lists the outer body: every nose cone, body tube and
+transition that sits directly in a stage, in axial order. Inner tubes,
+couplers and rings are internal and are left out. Each entry has:
+
+| Key | Meaning |
+| --- | --- |
+| `kind` | `nosecone`, `bodytube` or `transition` |
+| `name` | component name in OpenRocket |
+| `position` | front of the component, m from the nose tip (same rule as above) |
+| `length` | axial length, m |
+| `fore_radius`, `aft_radius` | radius at the front and at the back, m; a nose cone runs from 0 to its base radius, a body tube has both equal |
+
+An `auto <value>` radius uses the value; a bare `auto` uses the rocket radius.
+The block is optional: exports made before it was added do not have it.
+
 #### Manifest keys for provenance and motor identity
 
 - `id.ork_format_version`: the `<openrocket version>` attribute, i.e. the

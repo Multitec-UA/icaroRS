@@ -63,6 +63,32 @@
             "position": 2.6276
         }
     },
+    "body_segments": [
+        {
+            "kind": "nosecone",
+            "name": "Ogiva",
+            "position": 0.0,
+            "length": 0.242,
+            "fore_radius": 0.0,
+            "aft_radius": 0.078
+        },
+        {
+            "kind": "bodytube",
+            "name": "Tubo do corpo",
+            "position": 0.242,
+            "length": 2.3856,
+            "fore_radius": 0.078,
+            "aft_radius": 0.078
+        },
+        {
+            "kind": "transition",
+            "name": "Cauda",
+            "position": 2.6276,
+            "length": 0.05,
+            "fore_radius": 0.078,
+            "aft_radius": 0.0675
+        }
+    ],
     "parachutes": {},
     "rail_buttons": {},
     "motors": {

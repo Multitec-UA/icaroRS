@@ -31,8 +31,11 @@ def test_ork_extractor(expected_results_file, fixture, request):
     # get the settings from the fixture
     settings = request.getfixturevalue(fixture)
 
-    # assert all the keys are equal
-    assert set(settings.keys()) == set(expected_results.keys())
+    # assert all the keys are equal; ``body_segments`` is an optional block
+    # added after these expected files were stored
+    optional = {"body_segments"}
+    assert set(settings.keys()) - optional == set(expected_results.keys()) - optional
+    assert isinstance(settings["body_segments"], list)
 
     # remove sensitive keys
     settings, expected_results = remove_sensitive_keys(settings, expected_results)
@@ -114,12 +117,11 @@ def test_mt1_has_freeform_fins(mt1_settings):
 
 
 MT1_V170_ORK = Path(__file__).parent / "MT1--2026" / "v1.7.0" / "MT1-v1.7.0.ork"
+MT1_V171_ORK = Path(__file__).parent / "MT1--2026" / "v1.7.1" / "MT1-v1.7.1.ork"
 
 
-@pytest.fixture(scope="module")
-def mt1_v170_export(tmp_path_factory):
-    """Convert MT1 v1.7.0 in a fresh process: conftest already shut its JVM."""
-    output = tmp_path_factory.mktemp("mt1_v170")
+def _convert_in_subprocess(ork_path, output):
+    """Convert in a fresh process: conftest already shut its JVM."""
     subprocess.run(
         [
             sys.executable,
@@ -128,7 +130,7 @@ def mt1_v170_export(tmp_path_factory):
             "import sys; from rocketserializer.cli import cli; cli(sys.argv[1:])",
             "ork2json",
             "--filepath",
-            str(MT1_V170_ORK),
+            str(ork_path),
             "--output",
             str(output),
             "--ork_jar",
@@ -138,6 +140,16 @@ def mt1_v170_export(tmp_path_factory):
         capture_output=True,
     )
     return output
+
+
+@pytest.fixture(scope="module")
+def mt1_v170_export(tmp_path_factory):
+    return _convert_in_subprocess(MT1_V170_ORK, tmp_path_factory.mktemp("mt1_v170"))
+
+
+@pytest.fixture(scope="module")
+def mt1_v171_export(tmp_path_factory):
+    return _convert_in_subprocess(MT1_V171_ORK, tmp_path_factory.mktemp("mt1_v171"))
 
 
 def test_mt1_v170_fins_ignore_preceding_subcomponents(mt1_v170_export):
@@ -161,3 +173,35 @@ def test_mt1_v170_rail_exit_margin_close_to_openrocket(mt1_v170_export):
         flight, *_ = simulation.build_nominal_flight(mt1_v170_export, None)
 
     assert flight.out_of_rail_stability_margin < 5
+
+
+def test_mt1_v171_body_segments(mt1_v171_export):
+    """The four stage-level components, in axial order; the inner tubes inside
+    "Cuerpo" and "Aletas" are not part of the outer body."""
+    params = json.loads((mt1_v171_export / "parameters.json").read_text())
+
+    expected = [
+        ("nosecone", "Ojiva", 0.0, 0.18, 0.0, 0.03),
+        ("bodytube", "Cuerpo", 0.18, 1.0, 0.03, 0.03),
+        ("bodytube", "Aletas", 1.18, 0.2, 0.03, 0.03),
+        ("bodytube", "Body Tube", 1.38, 0.02, 0.03, 0.03),
+    ]
+    segments = params["body_segments"]
+    assert [(s["kind"], s["name"]) for s in segments] == [e[:2] for e in expected]
+    for segment, (*_, position, length, fore, aft) in zip(segments, expected):
+        assert segment["position"] == pytest.approx(position, abs=1e-9)
+        assert segment["length"] == pytest.approx(length, abs=1e-9)
+        assert segment["fore_radius"] == pytest.approx(fore, abs=1e-9)
+        assert segment["aft_radius"] == pytest.approx(aft, abs=1e-9)
+
+
+def test_mt1_v171_keeps_the_existing_blocks(mt1_v171_export, mt1_v170_export):
+    """``body_segments`` is additive: the rest of the export has the same keys
+    as before and the same component positions as v1.7.0."""
+    v171 = json.loads((mt1_v171_export / "parameters.json").read_text())
+    v170 = json.loads((mt1_v170_export / "parameters.json").read_text())
+
+    assert set(v171) == set(v170)
+    assert v171["freeform_fins"]["0"]["position"] == pytest.approx(1.18)
+    assert v171["nosecones"]["position"] == pytest.approx(0.0)
+    assert v171["rail_buttons"] == v170["rail_buttons"]
