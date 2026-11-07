@@ -271,6 +271,15 @@
     "configRail": "Riel"
   },
 
+  "mcReport": {
+    "crumb": "dispersión {id}",
+    "loading": "Cargando la dispersión…",
+    "unavailableTitle": "Dispersión no disponible",
+    "backToRuns": "← Volver a simulaciones",
+    "boundaryMessage": "No pudimos mostrar esta dispersión.",
+    "noResult": "Esta ejecución terminó, pero sus resultados no están disponibles."
+  },
+
   "printReport": {
     "title": "Informe de simulación de vuelo",
     "metaRunId": "ID de la simulación",

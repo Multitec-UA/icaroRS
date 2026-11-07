@@ -149,3 +149,32 @@ describe("server-api — connections that never reached the API", () => {
     );
   });
 });
+
+describe("server-api — one Monte Carlo run (dispersion report)", () => {
+  it("reads GET /api/montecarlo/{run_id} with the request's cookies", async () => {
+    mockCookieJar("icaro_session=abc123");
+    const fetchMock = mockFetchResolve({ ok: true, status: 200, body: { run_id: "mc 1", status: "queued" } });
+
+    const { getMonteCarloServer } = await import("./server-api");
+    await expect(getMonteCarloServer("mc 1")).resolves.toMatchObject({ run_id: "mc 1" });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/montecarlo\/mc%201$/),
+      expect.objectContaining({ headers: { Cookie: "icaro_session=abc123" }, cache: "no-store" }),
+    );
+  });
+
+  it("rejects a run the API does not have with ApiError(404), like getResultServer", async () => {
+    mockCookieJar("");
+    mockFetchResolve({ ok: false, status: 404, body: "Monte Carlo run not found" });
+
+    const { getMonteCarloServer, getResultServer } = await import("./server-api");
+    const { ApiError } = await import("./api");
+
+    const mc = await getMonteCarloServer("gone").catch((e) => e);
+    const det = await getResultServer("gone").catch((e) => e);
+    expect(mc).toBeInstanceOf(ApiError);
+    expect(mc.status).toBe(404);
+    expect(mc.code).toBe(det.code);
+  });
+});

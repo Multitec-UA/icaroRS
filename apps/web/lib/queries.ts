@@ -267,12 +267,19 @@ export function useRocketLatestExportMutation() {
  * GET /api/montecarlo/{runId} (S12): polled every ~2 s while the run is
  * `queued` or `running`, never again once it is `done` or `error`, nor after
  * a failed poll (fetches already retry transient failures). `null` keeps it idle.
+ * `initialData` seeds it with a run read on the server (/results/mc/{id}).
  */
-export function useMonteCarloQuery(runId: string | null) {
+export function useMonteCarloQuery(runId: string | null, options?: { initialData?: MonteCarloRun }) {
   return useQuery<MonteCarloRun>({
     queryKey: queryKeys.monteCarloRun(runId ?? "none"),
     queryFn: () => getMonteCarlo(runId as string),
     enabled: runId !== null,
+    // A run the server already read (the dispersion report) is shown as is:
+    // refetched only while it can still change.
+    ...(options?.initialData && {
+      initialData: options.initialData,
+      staleTime: (query) => (isMonteCarloActive(query.state.data?.status) ? 0 : Infinity),
+    }),
     refetchInterval: (query) =>
       query.state.status === "error" ? false : monteCarloPollInterval(query.state.data?.status),
   });

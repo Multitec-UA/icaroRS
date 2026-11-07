@@ -271,6 +271,15 @@
     "configRail": "Rail"
   },
 
+  "mcReport": {
+    "crumb": "dispersion {id}",
+    "loading": "Loading the dispersion run…",
+    "unavailableTitle": "Dispersion run unavailable",
+    "backToRuns": "← Back to runs",
+    "boundaryMessage": "We couldn't display this dispersion run.",
+    "noResult": "This run finished but its results are not available."
+  },
+
   "printReport": {
     "title": "Flight simulation report",
     "metaRunId": "Run ID",

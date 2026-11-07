@@ -4,16 +4,18 @@
  * MonteCarloRunsTable — one rocket's Monte Carlo dispersion runs on /runs
  * (S12), newest first: when it started, its status (with `done / total`
  * flights while running), the flight count, the median apogee once done and
- * "Open in Workbench" (`/?file={export}&mc={id}`, which resumes or shows it).
+ * the row actions: "View report" (primary, `/results/mc/{id}`), "Open in
+ * Workbench" (`/?file={export}&mc={id}`, which resumes or shows it) and, on a
+ * finished run that wrote one, "Download KML".
  *
- * The list has no results, so the median apogee of each finished run is read
- * from its own GET (cached with the Workbench's). The list polls while any
- * run is still queued or running. The deterministic table and its compare
- * tools are not involved.
+ * The list has no results, so the median apogee and the KML flag of each
+ * finished run are read from its own GET (cached with the Workbench's). The
+ * list polls while any run is still queued or running. The deterministic
+ * table and its compare tools are not involved.
  */
 
 import Link from "next/link";
-import type { MonteCarloSummary } from "@/lib/api";
+import { monteCarloKmlUrl, type MonteCarloSummary } from "@/lib/api";
 import { useMonteCarloListQuery, useMonteCarloRunQueries } from "@/lib/queries";
 import { formatNumber } from "@/components/flight/flightMath";
 import { shortRunId } from "@/lib/domain/runs";
@@ -21,7 +23,7 @@ import { cn } from "@/lib/styles";
 import { Callout, Tooltip, buttonClass } from "@/components/ui";
 import { cardClass } from "@/components/ui/classes";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { PlayIcon } from "@/components/workbench/icons";
+import { EyeIcon, PlayIcon } from "@/components/workbench/icons";
 import { RunsSkeleton } from "./RunsSkeleton";
 import { workbenchMonteCarloHref } from "./OpenInWorkbenchButton";
 import { useRunFormatters } from "./useRunFormatters";
@@ -47,6 +49,7 @@ export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string
   const p50 = new Map(
     doneIds.map((id, index) => [id, details[index]?.data?.result?.apogee_stats?.p50 ?? null] as const),
   );
+  const hasKml = new Set(doneIds.filter((_id, index) => Boolean(details[index]?.data?.result?.files.kml)));
 
   if (list.isError) return <Callout tone="error">{t("runs.mcErrorLoad")}</Callout>;
   if (list.isPending) return <RunsSkeleton label={t("runs.mcLoading")} />;
@@ -78,7 +81,9 @@ export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string
         <tbody>
           {runs.map((run) => {
             const median = p50.get(run.run_id) ?? null;
-            const label = t("runs.openInWorkbench");
+            const openLabel = t("runs.openInWorkbench");
+            const reportLabel = t("runs.viewReport");
+            const kmlLabel = t("montecarlo.downloadKml");
             return (
               <tr key={run.run_id} className="border-b border-divider last:border-b-0 hover:bg-surface-2">
                 <th scope="row" className={cn(CELL, "text-left font-normal")}>
@@ -101,15 +106,38 @@ export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string
                   {median === null ? "—" : formatNumber(median, locale, 0)}
                 </td>
                 <td className={CELL}>
-                  <Tooltip label={label} align="end">
-                    <Link
-                      href={workbenchMonteCarloHref(run.export_id, run.run_id)}
-                      aria-label={label}
-                      className={buttonClass({ variant: "ghost", size: "icon" })}
-                    >
-                      <PlayIcon />
-                    </Link>
-                  </Tooltip>
+                  <span className="flex items-center justify-end gap-1">
+                    <Tooltip label={reportLabel}>
+                      <Link
+                        href={`/results/mc/${encodeURIComponent(run.run_id)}`}
+                        aria-label={reportLabel}
+                        className={buttonClass({ variant: "primary", size: "icon" })}
+                      >
+                        <EyeIcon />
+                      </Link>
+                    </Tooltip>
+                    <Tooltip label={openLabel} align="end">
+                      <Link
+                        href={workbenchMonteCarloHref(run.export_id, run.run_id)}
+                        aria-label={openLabel}
+                        className={buttonClass({ variant: "ghost", size: "icon" })}
+                      >
+                        <PlayIcon />
+                      </Link>
+                    </Tooltip>
+                    {hasKml.has(run.run_id) && (
+                      <Tooltip label={kmlLabel} align="end">
+                        <a
+                          href={monteCarloKmlUrl(run.run_id)}
+                          download
+                          aria-label={kmlLabel}
+                          className={buttonClass({ variant: "ghost", size: "icon" })}
+                        >
+                          <DownloadIcon />
+                        </a>
+                      </Tooltip>
+                    )}
+                  </span>
                 </td>
               </tr>
             );
@@ -117,5 +145,24 @@ export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Arrow into a tray: the KML download (same 24-grid, 2px line style as workbench/icons.tsx). */
+function DownloadIcon() {
+  return (
+    <svg
+      aria-hidden
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+    </svg>
   );
 }

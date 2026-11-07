@@ -96,6 +96,27 @@ describe("RunsView — dispersion runs (S12)", () => {
     expect(links[1]).toHaveAttribute("href", "/?file=exp-1&mc=mc-run");
   });
 
+  it("opens each run's report as the primary row action", async () => {
+    const table = await renderDispersion();
+    const links = table.getAllByRole("link", { name: "View report" });
+    expect(links.map((link) => link.getAttribute("href"))).toEqual([
+      "/results/mc/mc-done",
+      "/results/mc/mc-run",
+      "/results/mc/mc-err",
+    ]);
+  });
+
+  it("offers the KML download on finished runs only", async () => {
+    const table = await renderDispersion();
+    const rows = table.getAllByRole("row").slice(1);
+    expect(await within(rows[0]).findByRole("link", { name: "Download KML" })).toHaveAttribute(
+      "href",
+      "/api/montecarlo/mc-done/kml",
+    );
+    expect(within(rows[1]).queryByRole("link", { name: "Download KML" })).toBeNull();
+    expect(within(rows[2]).queryByRole("link", { name: "Download KML" })).toBeNull();
+  });
+
   it("says when the rocket has no dispersion runs", async () => {
     vi.mocked(useSearchParams).mockReturnValue(
       new URLSearchParams("rocket_id=r2") as unknown as ReturnType<typeof useSearchParams>,

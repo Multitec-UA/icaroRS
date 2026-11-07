@@ -33,6 +33,7 @@ import { cookies } from "next/headers";
 import {
   ApiError,
   parseApiResponse,
+  type MonteCarloRun,
   type ResultEnvelope,
   type RocketSummary,
   type SimulationSummary,
@@ -88,4 +89,9 @@ export function getHistoryServer(
 /** GET /api/results/{run_id} — server-side counterpart to getResult. */
 export function getResultServer(runId: string): Promise<ResultEnvelope> {
   return serverRequest(`/api/results/${encodeURIComponent(runId)}`);
+}
+
+/** GET /api/montecarlo/{run_id} — server-side counterpart to getMonteCarlo (the dispersion report). */
+export function getMonteCarloServer(runId: string): Promise<MonteCarloRun> {
+  return serverRequest(`/api/montecarlo/${encodeURIComponent(runId)}`);
 }
