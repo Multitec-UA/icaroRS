@@ -1,4 +1,9 @@
+import contextlib
+import io
 import json
+import subprocess
+import sys
+from pathlib import Path
 
 import pytest
 
@@ -106,3 +111,53 @@ def test_mt1_has_freeform_fins(mt1_settings):
     assert shape[1][0] > 0, (
         f"Second shape point x must be positive (no negation), got {shape[1]}"
     )
+
+
+MT1_V170_ORK = Path(__file__).parent / "MT1--2026" / "v1.7.0" / "MT1-v1.7.0.ork"
+
+
+@pytest.fixture(scope="module")
+def mt1_v170_export(tmp_path_factory):
+    """Convert MT1 v1.7.0 in a fresh process: conftest already shut its JVM."""
+    output = tmp_path_factory.mktemp("mt1_v170")
+    subprocess.run(
+        [
+            sys.executable,
+            "-I",
+            "-c",
+            "import sys; from rocketserializer.cli import cli; cli(sys.argv[1:])",
+            "ork2json",
+            "--filepath",
+            str(MT1_V170_ORK),
+            "--output",
+            str(output),
+            "--ork_jar",
+            str(Path("OpenRocket-23.09.jar").resolve()),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return output
+
+
+def test_mt1_v170_fins_ignore_preceding_subcomponents(mt1_v170_export):
+    """The fin set sits after two rail buttons and two inner tubes inside the
+    "Aletas" tube (1.18-1.38 m). Its leading edge is at 1.18 m, as in
+    OpenRocket; the old converter stacked the inner tube lengths and put it at
+    1.396 m, inflating the rail-exit stability margin to 7.54 cal."""
+    params = json.loads((mt1_v170_export / "parameters.json").read_text())
+
+    fins = params["freeform_fins"]["0"]
+    assert fins["position"] == pytest.approx(1.18)
+    assert params["rail_buttons"]["upper_position"] == pytest.approx(1.245)
+    assert params["rail_buttons"]["lower_position"] == pytest.approx(1.365)
+
+
+def test_mt1_v170_rail_exit_margin_close_to_openrocket(mt1_v170_export):
+    """OpenRocket's stored simulation reports 3.08 cal at rail exit."""
+    simulation = pytest.importorskip("icaro.simulation")
+
+    with contextlib.redirect_stdout(io.StringIO()):
+        flight, *_ = simulation.build_nominal_flight(mt1_v170_export, None)
+
+    assert flight.out_of_rail_stability_margin < 5
