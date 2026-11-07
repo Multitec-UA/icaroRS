@@ -95,17 +95,54 @@ export interface EllipseLayer {
   fillOpacity: number;
 }
 
+/** Polygons ordered like `sigmas` as layers, the inner (1σ) one most opaque. */
+function sigmaLayers(sigmas: readonly number[], polygons: readonly (readonly (readonly number[])[])[]): EllipseLayer[] {
+  return sigmas
+    .map((sigma, index) => ({
+      sigma,
+      positions: ellipsePositions(polygons[index] ?? []),
+      fillOpacity: Math.max(0.08, 0.36 / (index + 1)),
+    }))
+    .filter((layer) => layer.positions.length >= 3);
+}
+
 /** The landing ellipses with their sigma, the inner (1σ) one most opaque. */
 export function ellipseLayers(
   result: Pick<MonteCarloRunResult, "ellipse_sigmas" | "landing_ellipses">,
 ): EllipseLayer[] {
-  return result.ellipse_sigmas
-    .map((sigma, index) => ({
-      sigma,
-      positions: ellipsePositions(result.landing_ellipses[index] ?? []),
-      fillOpacity: Math.max(0.08, 0.36 / (index + 1)),
-    }))
-    .filter((layer) => layer.positions.length >= 3);
+  return sigmaLayers(result.ellipse_sigmas, result.landing_ellipses);
+}
+
+/** The apogee ellipses (where the rockets peak), same sigmas and opacities as the landing ones. */
+export function apogeeEllipseLayers(
+  result: Pick<MonteCarloRunResult, "ellipse_sigmas" | "apogee_ellipses">,
+): EllipseLayer[] {
+  return sigmaLayers(result.ellipse_sigmas, result.apogee_ellipses);
+}
+
+/** Mean Earth radius (m) of the local flat-Earth conversion. */
+const EARTH_RADIUS_M = 6_371_000;
+
+/**
+ * Every landing point as `[lat, lon]`: `impact_x` (east) and `impact_y`
+ * (north), metres from the launch site, offset from `origin` on a local
+ * spherical approximation (exact enough within a few km). Pairs past the
+ * shorter array and non-finite pairs are dropped.
+ */
+export function impactPositions(
+  result: Pick<MonteCarloRunResult, "origin" | "impact_x" | "impact_y">,
+): [number, number][] {
+  const { latitude, longitude } = result.origin;
+  const toDeg = 180 / Math.PI;
+  const cosLat = Math.cos(latitude / toDeg);
+  const positions: [number, number][] = [];
+  for (let i = 0; i < Math.min(result.impact_x.length, result.impact_y.length); i++) {
+    const x = result.impact_x[i];
+    const y = result.impact_y[i];
+    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
+    positions.push([latitude + (y / EARTH_RADIUS_M) * toDeg, longitude + (x / (EARTH_RADIUS_M * cosLat)) * toDeg]);
+  }
+  return positions;
 }
 
 export function flightCounts(result: Pick<MonteCarloRunResult, "n_requested" | "n_succeeded" | "n_failed">) {

@@ -9,9 +9,20 @@ import { MC_DONE, mcRun as base } from "./monteCarloFixtures";
 
 // Leaflet needs `window` at import time; the map is checked through its props.
 vi.mock("@/components/map/LandingEllipseMap", () => ({
-  LandingEllipseMap: ({ layers, origin }: { layers: { sigma: number }[]; origin: { latitude: number } }) => (
+  LandingEllipseMap: ({
+    layers,
+    apogeeLayers,
+    impacts,
+    origin,
+  }: {
+    layers: { sigma: number }[];
+    apogeeLayers: { sigma: number }[];
+    impacts: [number, number][];
+    origin: { latitude: number };
+  }) => (
     <div data-testid="ellipse-map">
-      {layers.map((layer) => `${layer.sigma}σ`).join(",")} @ {origin.latitude}
+      {layers.map((layer) => `${layer.sigma}σ`).join(",")} @ {origin.latitude} | apogee{" "}
+      {apogeeLayers.map((layer) => `${layer.sigma}σ`).join(",")} | {impacts.length} points
     </div>
   ),
 }));
@@ -96,6 +107,22 @@ describe("MonteCarloCard (S12) — a finished run's results", () => {
 
     expect(screen.getByTestId("ellipse-map")).toHaveTextContent("1σ,2σ,3σ @ 38.2655");
     expect(screen.getByRole("link", { name: "Download KML" })).toHaveAttribute("href", "/api/montecarlo/mc-1/kml");
+  });
+
+  it("draws the apogee ellipses and every landing point on the map, each with its legend entry", () => {
+    wrap(<MonteCarloCard runId="mc-1" run={MC_DONE} loading={false} error={null} onDismiss={() => {}} />);
+
+    expect(screen.getByTestId("ellipse-map")).toHaveTextContent("apogee 1σ,2σ,3σ | 2 points");
+    expect(screen.getByText("Apogee ellipses")).toBeInTheDocument();
+    expect(screen.getByText("Landing points")).toBeInTheDocument();
+  });
+
+  it("a run without apogee ellipses has no apogee legend entry", () => {
+    const result = { ...MC_DONE.result!, apogee_ellipses: [] };
+    wrap(<MonteCarloCard runId="mc-1" run={{ ...MC_DONE, result }} loading={false} error={null} onDismiss={() => {}} />);
+
+    expect(screen.getByTestId("ellipse-map")).toHaveTextContent("apogee | 2 points");
+    expect(screen.queryByText("Apogee ellipses")).toBeNull();
   });
 
   it("without a KML (fewer than 3 flights) has no download link and no ellipse", () => {

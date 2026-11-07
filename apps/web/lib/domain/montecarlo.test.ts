@@ -3,6 +3,7 @@ import {
   MC_DEFAULT_FLIGHTS,
   MC_MAX_FLIGHTS,
   MC_MIN_FLIGHTS,
+  apogeeEllipseLayers,
   apogeeHistogram,
   budgetItemIn,
   budgetItems,
@@ -13,6 +14,7 @@ import {
   ellipsePositions,
   estimateMinutes,
   flightCounts,
+  impactPositions,
   isMonteCarloActive,
   monteCarloPollInterval,
   progressFraction,
@@ -113,6 +115,55 @@ describe("ellipses", () => {
     expect(layers.map((layer) => layer.sigma)).toEqual([1, 2]);
     expect(layers[0].positions).toEqual([[1, 1], [1, 2], [2, 2]]);
     expect(layers[0].fillOpacity).toBeGreaterThan(layers[1].fillOpacity);
+  });
+});
+
+describe("apogee ellipses — drawn in green beside the landing ones", () => {
+  it("pairs each apogee polygon with its sigma, in order, fainter as sigma grows", () => {
+    const layers = apogeeEllipseLayers({
+      ellipse_sigmas: [1, 2, 3],
+      apogee_ellipses: [
+        [[1, 1], [1, 2], [2, 2]],
+        [[0, 0], [0, 3], [3, 3]],
+        [[-1, -1], [-1, 4], [4, 4]],
+      ],
+    });
+    expect(layers.map((layer) => layer.sigma)).toEqual([1, 2, 3]);
+    expect(layers[0].positions).toEqual([[1, 1], [1, 2], [2, 2]]);
+    expect(layers.map((layer) => layer.fillOpacity)).toEqual(
+      ellipseLayers({ ellipse_sigmas: [1, 2, 3], landing_ellipses: [[[1, 1], [1, 2], [2, 2]], [[0, 0], [0, 3], [3, 3]], [[-1, -1], [-1, 4], [4, 4]]] }).map(
+        (layer) => layer.fillOpacity,
+      ),
+    );
+  });
+
+  it("is empty when the run has no apogee ellipses", () => {
+    expect(apogeeEllipseLayers({ ellipse_sigmas: [1, 2, 3], apogee_ellipses: [] })).toEqual([]);
+  });
+});
+
+describe("impact positions — every landing point as [lat, lon]", () => {
+  const origin = { latitude: 0, longitude: 10 };
+
+  it("puts 111,195 m north about one degree of latitude up", () => {
+    const [[lat, lon]] = impactPositions({ origin, impact_x: [0], impact_y: [111_195] });
+    expect(lat).toBeCloseTo(1, 4);
+    expect(lon).toBeCloseTo(10, 10);
+  });
+
+  it("scales east offsets by the cosine of the launch latitude", () => {
+    const [[lat, lon]] = impactPositions({ origin: { latitude: 60, longitude: 0 }, impact_x: [55_597.5], impact_y: [0] });
+    expect(lat).toBeCloseTo(60, 10);
+    expect(lon).toBeCloseTo(1, 4);
+  });
+
+  it("returns the launch site for a (0, 0) impact", () => {
+    expect(impactPositions({ origin, impact_x: [0], impact_y: [0] })).toEqual([[0, 10]]);
+  });
+
+  it("has one point per impact and uses the shorter array when they differ", () => {
+    expect(impactPositions({ origin, impact_x: [1, 2, 3], impact_y: [1, 2, 3] })).toHaveLength(3);
+    expect(impactPositions({ origin, impact_x: [1, 2, 3], impact_y: [1] })).toHaveLength(1);
   });
 });
 
