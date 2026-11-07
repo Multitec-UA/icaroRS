@@ -47,7 +47,7 @@ lib/theme.ts, components/theme/  pastel light / soft dark themes (icaro-theme co
 components/shell/                sidebar shared by every signed-in route (Workbench · Rockets · Runs)
 components/workbench/            the Workbench at /: rocket context, .ork import states, inputs, results
 components/flight/               flight replay, KPI cards, series panel, timeline, overlay chart
-components/runs/, components/results/  /runs (compare runs of one rocket) and /results/[runId] (run report)
+components/runs/, components/results/  /runs (compare runs of one rocket), /results/[runId] (run report) and /results/mc/[runId] (dispersion report)
 components/wizard/WizardProvider  the scenario draft store (export, rocket, site, time, rail, uncertainty, result)
 app/                             App Router pages (/history redirects to /runs)
 ```
