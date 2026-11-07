@@ -270,4 +270,10 @@ def get_montecarlo_kml(
         data = storage.open_blob(f"{rec.result_prefix}{name}")
     except KeyError:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No KML for Monte Carlo run '{run_id}'.")
-    return Response(content=data, media_type=KML_MEDIA_TYPE)
+    return Response(
+        content=data,
+        media_type=KML_MEDIA_TYPE,
+        # Name the download: without it browsers save the last URL segment, "kml",
+        # with no extension and Google Earth does not recognise the file.
+        headers={"Content-Disposition": f'attachment; filename="montecarlo-{run_id}.kml"'},
+    )
