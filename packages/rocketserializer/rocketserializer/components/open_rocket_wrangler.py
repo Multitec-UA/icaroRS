@@ -5,62 +5,28 @@ from .._helpers import _dict_to_string
 logger = logging.getLogger(__name__)
 
 
-def is_sub_component(ork):
-    """Determines whether the given object `ork` is a sub-component of another
-    object in a hierarchical structure.
+def calculate_distance_to_the_nose_tip(ork, parent_position: float):
+    """Axial distance from the nose tip (0) to the front of ``ork``.
 
-    Parameters:
-    -----------
-    ork: net.sf.openrocket.rocketcomponent
-        The object to be checked.
-
-    Returns:
-    --------
-    bool
-        True if `ork` is a sub-component (at least two levels below the root
-        object), False otherwise.
+    OpenRocket's ``getPosition().x`` is the component's front relative to its
+    parent's front, with the axial method (top, middle, bottom, absolute,
+    after) already applied. Adding it to the parent's absolute front gives the
+    same value as OpenRocket's ``getComponentLocations()``. For fin sets that
+    front is the leading edge of the root chord.
     """
-    level = 0
-    root = ork.getRoot()
-    while ork != root:
-        ork = ork.getParent()
-        level += 1
-    return level > 1
-
-
-def parent_is_a_stage(ork) -> bool:
-    # Verify if the parent of the object is a Stage or not.
-    try:
-        parent = ork.getParent()
-    except AttributeError:
-        return False
-
-    return parent.getClass().getSimpleName() in ["Stage", "AxialStage"]
-
-
-def calculate_distance_to_the_nose_tip(ork, top_position: float):
-    # NOTE: Always considering the nose tip as the reference point, it's the 0.
-
     if ork.getClass().getSimpleName() in ["Rocket"]:
-        return 0
-
-    if is_sub_component(ork) is True:
-        try:
-            distance_to_nose = top_position + ork.getPositionValue()
-        except AttributeError:
-            # "object has no attribute 'getPositionValue'"
-            if parent_is_a_stage(ork):
-                distance_to_nose = top_position
-            else:
-                distance_to_nose = top_position + ork.getPosition().x
-    else:
-        distance_to_nose = top_position + ork.getLength()
-    return float(distance_to_nose)
+        return 0.0
+    return float(parent_position + ork.getPosition().x)
 
 
 def process_elements_position(
     ork, elements, center_of_dry_mass, rocket_mass, top_position=0
 ):
+    """Collect every component with its axial position from the nose tip.
+
+    ``top_position`` is the absolute front of ``ork``'s parent (0 for the
+    rocket itself).
+    """
     if ork.getClass().getSimpleName() in ["Parachute", "MassComponent"]:
         # These classes are irrelevant for our work
         return elements
@@ -71,6 +37,9 @@ def process_elements_position(
         "length": float(ork.getLength()),
         "position": calculate_distance_to_the_nose_tip(ork, top_position),
     }
+    # Children are positioned relative to this component, never to their
+    # siblings: rail buttons, inner tubes and fin sets share the same parent.
+    own_position = element["position"]
     logger.info(
         "Starting to process element '%s' of type '%s'",
         ork.getName(),
@@ -88,12 +57,10 @@ def process_elements_position(
         try:
             child = ork.getChild(i)
             new_elements = process_elements_position(
-                child, {}, center_of_dry_mass, rocket_mass, top_position
+                child, {}, center_of_dry_mass, rocket_mass, own_position
             )
             elements.update(new_elements)
             logger.info("Child '%s' processed", child.getName())
-
-            top_position += child.getLength()
 
             i += 1
             logger.info("Moving to the next child")
