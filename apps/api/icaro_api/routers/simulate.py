@@ -14,7 +14,10 @@ Workflow:
 5. Release lock.
 6. Upload results via Storage.upload_dir (AFTER lock release — REQ-07.1).
 7. Save SimRecord via Db (AFTER lock release — REQ-07.3).
-8. Return {run_id, scalars, plot_urls, warnings}.
+8. Real flight interop: when the caller's org is in ``ICARO_INTEROP_ORGS``,
+   publish the run to ``interop_simulations`` (a failure is logged, never
+   returned).
+9. Return {run_id, scalars, plot_urls, warnings}.
 
 Design §6 (simulate lock), §2 (serialization), §11 (forward-compat run_id).
 Spec REQ-01.3, REQ-02.2, REQ-02.3, REQ-03.2, REQ-07.1, REQ-07.3.
@@ -22,6 +25,7 @@ Spec REQ-01.3, REQ-02.2, REQ-02.3, REQ-03.2, REQ-07.1, REQ-07.3.
 
 from __future__ import annotations
 
+import json
 import logging
 import tempfile
 import warnings as _warnings_module
@@ -36,9 +40,15 @@ from icaro import simulate_from_export
 from icaro.scenario import Scenario
 from icaro_api.auth import Identity, require_auth
 from icaro_api.config import Settings, get_settings
-from icaro_api.runs import get_db, get_storage, make_run_id
+from icaro_api.runs import get_db, get_interop_store, get_storage, make_run_id
 from icaro_api.serialize import serialize_flight
-from icaro_api.services.db import Db, SimRecord
+from icaro_api.services.db import Db, ExportRecord, SimRecord
+from icaro_api.services.interop import (
+    INTEROP_ARTIFACT,
+    InteropStore,
+    motor_label_from_dir,
+    publish_simulation_safely,
+)
 from icaro_api.services.storage import Storage
 from icaro_api.simulate_lock import _SIMULATE_LOCK
 
@@ -76,6 +86,7 @@ def run_simulate(
     storage: Storage = Depends(get_storage),
     db: Db = Depends(get_db),
     identity: Identity = Depends(require_auth),
+    interop: InteropStore = Depends(get_interop_store),
 ) -> dict[str, Any]:
     """Run a deterministic 6-DOF simulation and return serialized results.
 
@@ -117,11 +128,13 @@ def run_simulate(
             detail=f"Export '{body.export_id}' not found.",
         )
     export_prefix = export.export_prefix
+    motor: str | None = None
 
     with tempfile.TemporaryDirectory() as tmp_str:
         tmp_export = Path(tmp_str) / "export"
         tmp_export.mkdir()
         storage.download_dir(export_prefix, tmp_export)
+        motor = motor_label_from_dir(tmp_export)
 
         # --- 3–4. Simulate + serialize under lock (protects matplotlib state) ---
         try:
@@ -187,6 +200,8 @@ def run_simulate(
         "result_json": f"{result_prefix}result.json",
         "series_json": f"{result_prefix}series.json",
     }
+    if (result_dir / INTEROP_ARTIFACT).exists():
+        artifact_refs["interop_json"] = f"{result_prefix}{INTEROP_ARTIFACT}"
     for name in plot_names:
         artifact_refs[name] = f"{result_prefix}{name}"
 
@@ -215,5 +230,36 @@ def run_simulate(
             exc_info=True,
         )
 
-    # --- 8. Return result (run_id always present — ADR-6) ---
+    # --- 8. Real flight interop (never fails the run) ---
+    if settings.interop_enabled_for(identity.org_id):
+        _publish_interop(interop, db, sim_rec, export, result_dir, motor)
+
+    # --- 9. Return result (run_id always present, ADR-6) ---
     return result
+
+
+def _publish_interop(
+    interop: InteropStore,
+    db: Db,
+    sim_rec: SimRecord,
+    export: ExportRecord,
+    result_dir: Path,
+    motor: str | None,
+) -> None:
+    """Publish the run to ``interop_simulations``; log, never raise."""
+    try:
+        payload = json.loads((result_dir / INTEROP_ARTIFACT).read_text())
+        rocket = db.get_rocket(export.rocket_id, org_id=sim_rec.org_id)
+    except Exception:  # noqa: BLE001
+        logger.warning(
+            "No interop payload for run_id=%s; not published.", sim_rec.simulation_id, exc_info=True
+        )
+        return
+    publish_simulation_safely(
+        interop,
+        payload,
+        sim=sim_rec,
+        rocket_name=rocket.name if rocket is not None else export.name,
+        export_label=export.ork_filename or export.name,
+        motor=motor,
+    )

@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     montecarlo_min_n, montecarlo_max_n : int
         Inclusive bounds on ``n`` for ``POST /api/montecarlo`` (default
         10..500, ≈ 4–16 min per run). The CLI has no limit.
+    interop_orgs : str
+        ``ICARO_INTEROP_ORGS``: comma-separated organisation ids allowed to
+        exchange flights with the MT1 telemetry service (real flight interop,
+        see ``apps/api/README.md``). Their simulations are published to
+        ``interop_simulations`` and their users see ``interop_real_flights``.
+        Empty (the default) turns the feature off.
     """
 
     results_dir: Path = Path(".icaro_runs")
@@ -74,6 +80,13 @@ class Settings(BaseSettings):
     firestore_database: str = "(default)"
     montecarlo_min_n: int = 10
     montecarlo_max_n: int = 500
+    interop_orgs: str = ""
+
+    def interop_enabled_for(self, org_id: str | None) -> bool:
+        """Whether *org_id* takes part in the real flight interop."""
+        from icaro_api.services.interop import interop_org_ids
+
+        return bool(org_id) and org_id in interop_org_ids(self.interop_orgs)
 
     model_config = SettingsConfigDict(
         env_prefix="ICARO_",

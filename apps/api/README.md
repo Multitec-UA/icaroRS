@@ -48,6 +48,9 @@ interactive API docs.
 | `GET` | `/api/montecarlo?rocket_id=&limit=` | The org's Monte Carlo runs, newest first (status + progress, no result) |
 | `GET` | `/api/montecarlo/{run_id}` | `{status, progress: {done, total}, queue_position, result, error, …}`; `result` (the dispersed `uncertainty` budget, apogee distribution, impact points, landing/apogee ellipses as `[lat, lon]` polygons) once `done` |
 | `GET` | `/api/montecarlo/{run_id}/kml` | The ellipses as KML, served as a download named `montecarlo-{run_id}.kml` (`404` until done, or with < 3 successful flights) |
+| `GET` | `/api/real-flights` | `{enabled, flights}`: real MT1 flights from the shared interop collection, newest first (summaries: id, rocket, launch date, pad, stats); `enabled: false` and no flights when the org is not in `ICARO_INTEROP_ORGS` |
+| `GET` | `/api/real-flights/{flight_id}` | One real flight, the full `mt-interop/real-flight@1` document (`404` when off for the org) |
+| `GET` | `/api/results/{run_id}/compare/{flight_id}` | Simulated vs real: both flights on one time grid (`alt_m`, `vz_ms`, `acc_ms2`), event deltas, KPI deltas, RMSE, warnings. From stored artefacts only, no re-simulation; runs older than the interop payload compare approximately (`approximate: true`). `404` when off, `422` when the real document does not follow the schema |
 | `POST` | `/api/launchday` | `{export_id, scenario?, inclinations?, headings?}` → `{wind, current, best, candidates, skipped, limits, checks_current, checks_best}`; recommends the rail setting (synchronous, up to ~1 min) |
 
 `/api/simulate` `scalars` include `rail_departure_stability_margin` (cal,
@@ -76,6 +79,7 @@ its dev proxy.
 | `ICARO_ALLOW_FORECAST` | `false` | Allow real GFS forecast fetches (else suggest standard atmosphere) |
 | `ICARO_MONTECARLO_MIN_N` | `10` | Smallest `n` accepted by `POST /api/montecarlo` |
 | `ICARO_MONTECARLO_MAX_N` | `500` | Largest `n` accepted by `POST /api/montecarlo` (the CLI has no limit) |
+| `ICARO_INTEROP_ORGS` | empty (off) | Comma-separated org ids that take part in the real flight interop: their simulations are published to `interop_simulations`, their users see `interop_real_flights`. See "Real flight interop" below |
 
 ## Design notes
 
@@ -125,6 +129,88 @@ its dev proxy.
   (`firestore.indexes.json`). Cloud Run must run with `--no-cpu-throttling`
   (see `DEPLOY.md`).
 
+## Real flight interop (contract `mt-interop` schema v1)
+
+Ícaro and the MT1 flight-telemetry service (Multitec-UA/multi-rocket-avionica)
+share the Firestore `(default)` database of the project in
+`ICARO_FIRESTORE_PROJECT` (`multitecweb` in production). They never call each
+other: each publishes one compact, versioned document per flight into a
+collection it owns and reads the other's collection.
+
+| Collection | Writer | Reader |
+| --- | --- | --- |
+| `interop_simulations/{simulation_id}` | icaro-api (this service) | rocket-flight-telemetry |
+| `interop_real_flights/{flight_id}` | rocket-flight-telemetry | icaro-api (this service) |
+
+Common rules: SI units; `t` in seconds with `t = 0` at liftoff (RocketPy's
+t = 0 for a simulation); `series` is a map of flat number arrays of equal
+length (Firestore forbids nested arrays), at most 2000 points, uniform grid;
+`alt_m` is the height above the launch pad; `acc_ms2` is the magnitude of the
+specific force, what an accelerometer measures (simulation:
+`|a_inertial - g|`; real: `|(ax, ay, az)|`); events are `{id, t, label}` with
+`id` in `liftoff, rail_exit, burnout, apogee, ejection, deploy, landing`.
+Extra ids and extra fields are allowed; readers ignore what they do not know.
+
+`interop_real_flights/{flight_id}`:
+
+```
+schema: "mt-interop/real-flight@1"
+flight_id, device_id, rocket            # "MT1"
+launch_utc: ISO-8601 | null
+pad: {lat, lon, elev_m} | null          # from the recovery data when known
+events: [{id, t, label, source}]        # source: "fsm" | "derived"
+stats: {apogee_m, apogee_t, vmax_ms, amax_ms2, landing_t}
+series: {t, alt_m, vz_ms, acc_ms2}
+rate_hz, source_samples, server_version, updated_at
+```
+
+`interop_simulations/{simulation_id}`:
+
+```
+schema: "mt-interop/simulation@1"
+simulation_id, org_id, rocket_id, rocket_name, export_id, export_label
+site: {lat, lon, elev_m}, launch_date | null, motor | null
+events: [{id, t, label}]                # liftoff 0, rail_exit, burnout, apogee, deploy (one per parachute), landing
+stats: {apogee_m, apogee_t, vmax_ms, amax_ms2, flight_time_s}
+series: {t, alt_m, vz_ms, speed_ms, acc_ms2, x_m, y_m}
+created_at, updated_at
+```
+
+How Ícaro fills it: `site`, `events`, `stats` and `series` come from the
+domain (`icaro.interop_simulation_payload`); `deploy` is the parachute's
+trigger time plus its lag, labelled with the parachute's name; `launch_date`
+is the scenario's UTC date and hour (`YYYY-MM-DDTHH:00:00Z`) or null; `motor`
+is the export's motor (`"Cesaroni Technology 232H123-14A"`) or null;
+`export_label` is the `.ork` file name. Simulations published by the backfill
+script from runs older than this feature carry `approximate: true`: their
+`vz_ms` is derived from the altitude and they have no `acc_ms2`, no `burnout`
+and no `deploy`.
+
+Access boundary: Ícaro publishes a simulation only when its `org_id` is in
+`ICARO_INTEROP_ORGS`, and shows real flights only to users of those orgs.
+Unset means the feature is off (nothing published, `GET /api/real-flights`
+answers `enabled: false`). The telemetry service lists only the simulations
+whose `org_id` equals its own `MT1_INTEROP_ICARO_ORG`.
+
+Runtime details:
+
+- `POST /api/simulate` writes the domain payload as `interop.json` next to
+  `result.json` (and records it in `artifact_refs.interop_json`), then
+  upserts the document. A publishing failure is logged and never fails the
+  simulation.
+- The real flight list orders by `updated_at` only and selects the summary
+  fields, so it needs no composite index; documents without `updated_at` are
+  not listed.
+- Both service accounts already hold `roles/datastore.user` on the project:
+  no new IAM, secret or network path is needed. Each published document holds
+  up to 2000 x 7 numbers (about 110 KB); a single-field index exemption on
+  `series` in both collections would save index writes, but is not required.
+- Backfill of runs made before the feature:
+  `uv run python -m icaro_api.scripts.publish_interop_simulations` (dry run;
+  `--apply` writes; `--org-id` repeatable, `--limit N`). Same `ICARO_*`
+  environment as the API; idempotent (document id = run id, content from the
+  stored artefacts, never a re-simulation).
+
 ## Ops scripts
 
 - `icaro_api/scripts/backfill_org_id.py` — idempotent backfill that stamps
@@ -135,6 +221,9 @@ its dev proxy.
   `exports` (converted files), and `export_id` on simulations; the legacy
   fields stay on the rocket documents until `--drop-legacy-fields`. See
   [`DEPLOY.md` → Migrate rockets](../../DEPLOY.md#migrate-rockets--rockets--exports).
+- `icaro_api/scripts/publish_interop_simulations.py`: idempotent publish of the
+  existing simulations of the `ICARO_INTEROP_ORGS` orgs to
+  `interop_simulations`; dry run unless `--apply`. See "Real flight interop".
 
 ## Tests
 

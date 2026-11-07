@@ -54,6 +54,7 @@ from icaro_api.config import Settings, get_settings
 
 if TYPE_CHECKING:
     from icaro_api.services.db import Db
+    from icaro_api.services.interop import InteropStore
     from icaro_api.services.montecarlo_jobs import MonteCarloJobQueue
     from icaro_api.services.storage import Storage
 
@@ -117,6 +118,9 @@ def resolve_run_dir(base_dir: Path, run_id: str) -> Path | None:
 # module load; lazily initialised on first get_db() call without firestore.
 # Reset to None in tests that exercise the real get_db() to keep isolation.
 _inmemory_db: "Db | None" = None
+
+# Process-wide in-memory interop store (dev/CI), same reason as _inmemory_db.
+_inmemory_interop: "InteropStore | None" = None
 
 # Process-wide Monte Carlo job queue (one worker thread per process, S9).
 _job_queue: "MonteCarloJobQueue | None" = None
@@ -198,6 +202,28 @@ def get_db(settings: Settings = Depends(get_settings)) -> "Db":
     if _inmemory_db is None:
         _inmemory_db = InMemoryDb()
     return _inmemory_db
+
+
+def get_interop_store(settings: Settings = Depends(get_settings)) -> "InteropStore":
+    """FastAPI dependency: the real flight interop store (shared collections).
+
+    Selected like ``get_db``: ``Settings.firestore_project`` set →
+    ``FirestoreInteropStore`` (same project and database as the metadata, the
+    database the MT1 telemetry service shares); otherwise the process-wide
+    ``InMemoryInteropStore``. The Firestore client is created on first use,
+    so resolving this dependency costs nothing while the feature is off.
+    """
+    global _inmemory_interop
+    from icaro_api.services.interop import FirestoreInteropStore, InMemoryInteropStore
+
+    if settings.firestore_project:
+        return FirestoreInteropStore(
+            project=settings.firestore_project,
+            database=settings.firestore_database,
+        )
+    if _inmemory_interop is None:
+        _inmemory_interop = InMemoryInteropStore()
+    return _inmemory_interop
 
 
 def get_job_queue(settings: Settings = Depends(get_settings)) -> "MonteCarloJobQueue":

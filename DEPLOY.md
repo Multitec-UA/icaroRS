@@ -239,6 +239,24 @@ ICARO_FIRESTORE_PROJECT=PROJECT \
   uv run python -m icaro_api.scripts.migrate_rocket_exports --drop-legacy-fields
 ```
 
+### Real flight interop (MT1 telemetry)
+
+The API shares the Firestore `(default)` database with the MT1 flight-telemetry
+service: it writes `interop_simulations` and reads `interop_real_flights`
+(contract in [`apps/api/README.md` → Real flight interop](apps/api/README.md#real-flight-interop-contract-mt-interop-schema-v1)).
+It is off until `ICARO_INTEROP_ORGS` lists the org ids allowed to take part
+(comma-separated), set on the API service with the rest of its environment
+(in production, by the Terraform that owns the service). The runtime service
+account's `roles/datastore.user` already covers both collections, and no
+composite index is needed. To publish the runs made before it was turned on:
+
+```bash
+ICARO_FIRESTORE_PROJECT=PROJECT ICARO_GCS_BUCKET=PROJECT-icaro-runs ICARO_INTEROP_ORGS=<org id> \
+  uv run python -m icaro_api.scripts.publish_interop_simulations          # dry run
+ICARO_FIRESTORE_PROJECT=PROJECT ICARO_GCS_BUCKET=PROJECT-icaro-runs ICARO_INTEROP_ORGS=<org id> \
+  uv run python -m icaro_api.scripts.publish_interop_simulations --apply  # writes
+```
+
 ---
 
 ## Build the images

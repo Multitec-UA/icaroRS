@@ -171,6 +171,12 @@ def serialize_flight(
     # Series are a bonus — a failure here never fails the run.
     _write_series(flight, output_dir)
 
+    # The real flight interop payload (mt-interop schema v1): finer and richer
+    # than the chart series (vertical speed, specific force, parachute
+    # events), so the comparison and the interop document never need the
+    # Flight again. Also a bonus: a failure only means no interop.json.
+    _write_interop(flight, output_dir)
+
     return result
 
 
@@ -200,6 +206,17 @@ def _write_series(flight: Any, output_dir: Path) -> None:
             json.dumps(series, ensure_ascii=False)
         )
     except Exception:  # noqa: BLE001
+        return
+
+
+def _write_interop(flight: Any, output_dir: Path) -> None:
+    """Persist the domain's interop payload as ``interop.json`` (never fatal)."""
+    from icaro import interop_simulation_payload
+
+    try:
+        payload = interop_simulation_payload(flight)
+        (output_dir / "interop.json").write_text(json.dumps(payload, ensure_ascii=False))
+    except Exception:  # noqa: BLE001 - the interop copy is a bonus, never fatal.
         return
 
 
