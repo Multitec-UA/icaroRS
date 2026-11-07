@@ -263,6 +263,14 @@ function SummarySection({
       icaro: value("rail_departure_stability_margin"),
       openRocket: null,
     },
+    // Only runs that carry it: body lift at the rail-exit angle of attack (S5).
+    {
+      key: "rail_departure_stability_margin_wind",
+      label: t("scalars.rail_departure_stability_margin_wind"),
+      kind: "stability",
+      icaro: value("rail_departure_stability_margin_wind"),
+      openRocket: null,
+    },
     {
       key: "landing",
       label: t("printReport.landingDistance"),

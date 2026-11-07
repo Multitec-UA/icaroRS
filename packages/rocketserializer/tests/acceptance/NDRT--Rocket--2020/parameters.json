@@ -114,6 +114,48 @@
             "position": 1.1938
         }
     },
+    "body_segments": [
+        {
+            "kind": "nosecone",
+            "name": "Nose cone",
+            "position": 0.0,
+            "length": 0.6095999999999999,
+            "fore_radius": 0.0,
+            "aft_radius": 0.1016
+        },
+        {
+            "kind": "bodytube",
+            "name": "Payload Bay",
+            "position": 0.6095999999999999,
+            "length": 0.5841999999999999,
+            "fore_radius": 0.1016,
+            "aft_radius": 0.1016
+        },
+        {
+            "kind": "transition",
+            "name": "Transition",
+            "position": 1.1938,
+            "length": 0.127,
+            "fore_radius": 0.1016,
+            "aft_radius": 0.0776224
+        },
+        {
+            "kind": "bodytube",
+            "name": "Recovery tube",
+            "position": 1.3208,
+            "length": 0.9144,
+            "fore_radius": 0.0776224,
+            "aft_radius": 0.0776224
+        },
+        {
+            "kind": "bodytube",
+            "name": "Fin Can",
+            "position": 2.2352,
+            "length": 1.1176000000000001,
+            "fore_radius": 0.0776224,
+            "aft_radius": 0.0776224
+        }
+    ],
     "parachutes": {
         "0": {
             "name": "Iris120Comp",

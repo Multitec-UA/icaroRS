@@ -68,6 +68,40 @@
         }
     },
     "tails": {},
+    "body_segments": [
+        {
+            "kind": "nosecone",
+            "name": "Ojiva",
+            "position": 0.0,
+            "length": 0.17400000000000002,
+            "fore_radius": 0.0,
+            "aft_radius": 0.03
+        },
+        {
+            "kind": "bodytube",
+            "name": "Cuerpo",
+            "position": 0.17400000000000002,
+            "length": 1.0,
+            "fore_radius": 0.03,
+            "aft_radius": 0.03
+        },
+        {
+            "kind": "bodytube",
+            "name": "Aletas",
+            "position": 1.174,
+            "length": 0.2,
+            "fore_radius": 0.03,
+            "aft_radius": 0.03
+        },
+        {
+            "kind": "bodytube",
+            "name": "Body Tube",
+            "position": 1.3739999999999999,
+            "length": 0.003,
+            "fore_radius": 0.03,
+            "aft_radius": 0.03
+        }
+    ],
     "parachutes": {
         "0": {
             "name": "Paracaídas",

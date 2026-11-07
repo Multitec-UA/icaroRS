@@ -5,13 +5,17 @@
  * Stability off rail and Landing (distance from the pad, √(x² + y²)). Each
  * card counts its number up (CountUp), carries a one-line caption from the
  * related scalar and, when the series is there, a small sparkline that
- * draws itself in on mount. Missing scalars render "—", never NaN.
+ * draws itself in on mount. Missing scalars render "—", never NaN. Runs that
+ * carry the rail-exit margin "with wind" add it under the static one, with
+ * an InfoTip, and the angle of attack to the caption; older runs render the
+ * card exactly as before.
  */
 
 import { useEffect, useMemo, useRef } from "react";
 import { useReducedMotion } from "motion/react";
 import type { FlightSeries } from "@/lib/api";
 import { CountUp, Reveal } from "@/components/motion";
+import { InfoTip } from "@/components/InfoTip";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { useUnits } from "@/components/units/UnitsProvider";
 import type { MeasureKind } from "@/lib/units";
@@ -107,6 +111,8 @@ interface KpiCard {
   title: string;
   value: { amount: number; unit: string } | null;
   caption: string | null;
+  /** A second, smaller reading under the value (the margin with wind). */
+  secondary?: { text: string; term: string } | null;
   spark: number[] | null;
   strokeClass: string;
 }
@@ -135,6 +141,14 @@ export function KpiCards({
   const maxMach = num("max_mach");
   const railSpeed = num("rail_departure_velocity_ms");
   const impactSpeed = num("impact_velocity_ms");
+  const windMargin = num("rail_departure_stability_margin_wind");
+  const angleOfAttack = num("rail_departure_angle_of_attack_deg");
+  const railCaption = [
+    railSpeed === null ? null : t("flight.kpiOffRail", { speed: formatMeasureQuantity(railSpeed, "speed", system, locale) }),
+    angleOfAttack === null
+      ? null
+      : t("flight.kpiAngleOfAttack", { angle: `${formatNumber(angleOfAttack, locale)}°` }),
+  ].filter((part): part is string => part !== null);
   const distance = landingDistance(num("impact_x_m"), num("impact_y_m"));
 
   const cards: KpiCard[] = [
@@ -158,8 +172,14 @@ export function KpiCards({
       key: "stability",
       title: t("flight.kpiStability"),
       value: quantity("rail_departure_stability_margin", "stability"),
-      caption:
-        railSpeed === null ? null : t("flight.kpiOffRail", { speed: formatMeasureQuantity(railSpeed, "speed", system, locale) }),
+      caption: railCaption.length === 0 ? null : railCaption.join(" · "),
+      secondary:
+        windMargin === null
+          ? null
+          : {
+              text: t("flight.kpiStabilityWind", { value: formatMeasureQuantity(windMargin, "stability", system, locale) }),
+              term: "stability_margin_wind",
+            },
       spark: series?.mach ?? series?.acceleration ?? null,
       strokeClass: "stroke-ok",
     },
@@ -201,6 +221,12 @@ export function KpiCards({
                   <span className="tabular-readout">—</span>
                 )}
               </div>
+              {card.secondary && (
+                <div className="mt-1.5 flex items-center gap-1.5 text-sm font-medium text-ink-2">
+                  <span className="tabular-readout">{card.secondary.text}</span>
+                  <InfoTip term={card.secondary.term} />
+                </div>
+              )}
               <div className="mt-2 min-h-4 text-xs text-muted">{card.caption}</div>
               {card.spark && <Sparkline values={card.spark} strokeClass={card.strokeClass} />}
             </div>

@@ -36,6 +36,9 @@ export const SCALAR_SPECS: ScalarSpec[] = [
   { key: "rail_departure_velocity_ms", unit: "m/s", kind: "speed", term: "rail_departure" },
   { key: "rail_departure_time_s", unit: "s", kind: "time" },
   { key: "rail_departure_stability_margin", unit: "cal", kind: "stability", term: "stability_margin" },
+  // With body lift at the rail-exit angle of attack (OpenRocket's number); runs stored before it lack both.
+  { key: "rail_departure_stability_margin_wind", unit: "cal", kind: "stability", term: "stability_margin_wind" },
+  { key: "rail_departure_angle_of_attack_deg", unit: "°", kind: "angle" },
   { key: "impact_velocity_ms", unit: "m/s", kind: "speed" },
   { key: "apogee_x_m", unit: "m", kind: "length" },
   { key: "apogee_y_m", unit: "m", kind: "length" },

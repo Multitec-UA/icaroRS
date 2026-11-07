@@ -307,3 +307,47 @@ class TestApogeeAboveGroundLevel:
         flight.env = SimpleNamespace(elevation=None)
         result = serialize_flight(flight, tmp_path, "run-agl-5", [])
         assert result["scalars"]["apogee_m"] == pytest.approx(500.0)
+
+
+# ---------------------------------------------------------------------------
+# Rail-exit stability margin with wind (body lift at the angle of attack)
+# ---------------------------------------------------------------------------
+
+
+class TestWindStabilityScalars:
+    def _flight_with_margin(self):
+        from icaro import WindMarginResult
+
+        flight = FakeFlight()
+        flight.wind_stability = WindMarginResult(
+            static_cal=5.79,
+            wind_cal=4.54,
+            angle_of_attack_deg=6.3,
+            cp_static=1.105,
+            cp_wind=1.030,
+            used_fallback=False,
+        )
+        return flight
+
+    def test_new_scalars_present(self, tmp_path):
+        result = serialize_flight(self._flight_with_margin(), tmp_path, "run-wind-1", [])
+        assert result["scalars"]["rail_departure_stability_margin_wind"] == 4.54
+        assert result["scalars"]["rail_departure_angle_of_attack_deg"] == 6.3
+
+    def test_existing_scalars_unchanged(self, tmp_path):
+        baseline = serialize_flight(FakeFlight(), tmp_path, "run-wind-2", [])["scalars"]
+        with_wind = serialize_flight(self._flight_with_margin(), tmp_path, "run-wind-3", [])[
+            "scalars"
+        ]
+        new_keys = {"rail_departure_stability_margin_wind", "rail_departure_angle_of_attack_deg"}
+        assert set(with_wind) - set(baseline) == new_keys
+        assert {k: with_wind[k] for k in baseline} == baseline
+
+    @pytest.mark.parametrize("value", [None, "not-a-result"])
+    def test_absent_or_unusable_margin_is_skipped(self, tmp_path, value):
+        flight = FakeFlight()
+        flight.wind_stability = value
+        scalars = serialize_flight(flight, tmp_path, "run-wind-4", [])["scalars"]
+        assert "rail_departure_stability_margin_wind" not in scalars
+        assert "rail_departure_angle_of_attack_deg" not in scalars
+        assert "rail_departure_stability_margin" in scalars

@@ -26,6 +26,16 @@ export const SCALARS: Record<string, number> = {
   rail_departure_velocity_ms: 27.3,
 };
 
+/**
+ * A run with the rail-exit margin "with wind" (body lift at the angle of
+ * attack the wind causes at rail exit). Runs stored before it lack both keys.
+ */
+export const WIND_SCALARS: Record<string, number> = {
+  ...SCALARS,
+  rail_departure_stability_margin_wind: 1.42,
+  rail_departure_angle_of_attack_deg: 6.97,
+};
+
 export const SERIES: FlightSeries = {
   t: [0, 1, 2, 3],
   altitude: [0, 100, 300, 200],

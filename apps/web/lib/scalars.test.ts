@@ -84,3 +84,31 @@ describe("formatScalarIn — the scalar in the unit system in effect", () => {
     expect(formatScalarIn(null, spec("apogee_m"), "imperial", "en")).toBe("—");
   });
 });
+
+describe("SCALAR_SPECS — rail-exit margin with wind and angle of attack", () => {
+  const spec = (key: string) => SCALAR_SPECS.find((s) => s.key === key)!;
+
+  it("formats the margin with wind in calibres in both systems and links its glossary term", () => {
+    const wind = spec("rail_departure_stability_margin_wind");
+    expect(wind.term).toBe("stability_margin_wind");
+    expect(formatScalarIn(4.423, wind, "metric", "en")).toBe("4.42 cal");
+    expect(formatScalarIn(4.423, wind, "imperial", "en")).toBe("4.42 cal");
+    expect(formatScalarIn(4.423, wind, "metric", "es")).toBe("4,42 cal");
+  });
+
+  it("formats the angle of attack in degrees in both systems", () => {
+    const aoa = spec("rail_departure_angle_of_attack_deg");
+    expect(formatScalarIn(6.97, aoa, "metric", "en")).toBe("6.97 °");
+    expect(formatScalarIn(6.97, aoa, "imperial", "en")).toBe("6.97 °");
+  });
+
+  it("lists the margin with wind right after the static margin", () => {
+    const keys = SCALAR_SPECS.map((s) => s.key);
+    const at = keys.indexOf("rail_departure_stability_margin");
+    expect(keys.slice(at, at + 3)).toEqual([
+      "rail_departure_stability_margin",
+      "rail_departure_stability_margin_wind",
+      "rail_departure_angle_of_attack_deg",
+    ]);
+  });
+});

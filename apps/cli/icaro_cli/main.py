@@ -22,6 +22,7 @@ import typer
 
 from icaro import (
     ConvertUnavailableError,
+    WindMarginResult,
     convert_ork,
     load_scenario,
     run_monte_carlo,
@@ -96,6 +97,16 @@ def simulate(
 
     flight = simulate_from_export(export_dir, scenario=loaded_scenario)
     flight.info()
+
+    # Static margin (RocketPy) next to the OpenRocket-equivalent one, which
+    # adds body lift at the angle of attack the wind causes at rail exit.
+    margin = getattr(flight, "wind_stability", None)
+    if isinstance(margin, WindMarginResult):
+        typer.echo(
+            f"Stability off the rail: {margin.static_cal:.2f} cal static · "
+            f"{margin.wind_cal:.2f} cal with wind "
+            f"(AoA {margin.angle_of_attack_deg:.1f}°)"
+        )
 
     if report:
         flight.plots.trajectory_3d()

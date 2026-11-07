@@ -50,6 +50,13 @@ interactive API docs.
 | `GET` | `/api/montecarlo/{run_id}/kml` | The ellipses as KML, served as a download named `montecarlo-{run_id}.kml` (`404` until done, or with < 3 successful flights) |
 | `POST` | `/api/launchday` | `{export_id, scenario?, inclinations?, headings?}` → `{wind, current, best, candidates, skipped, limits, checks_current, checks_best}`; recommends the rail setting (synchronous, up to ~1 min) |
 
+`/api/simulate` `scalars` include `rail_departure_stability_margin` (cal,
+RocketPy's static margin) and, when computable,
+`rail_departure_stability_margin_wind` (cal, with body lift at the rail-exit
+angle of attack — the margin OpenRocket reports) and
+`rail_departure_angle_of_attack_deg` (deg). Stored runs without the two new
+keys keep working; a failure to compute them never fails the run.
+
 ## Auth
 
 Every route is behind **HTTP Basic** (`ICARO_BASIC_USER` / `ICARO_BASIC_PASS`).

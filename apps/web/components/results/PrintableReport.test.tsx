@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AppProviders } from "@/test/test-providers";
-import { SCALARS } from "@/components/flight/fixtures";
+import { SCALARS, WIND_SCALARS } from "@/components/flight/fixtures";
 import { PrintableReport, usePrintReport } from "./PrintableReport";
 
 const { getRunSummaryMock, getExportMock } = vi.hoisted(() => ({
@@ -59,10 +59,10 @@ function PrintButton() {
   );
 }
 
-function renderPrintable(units: "metric" | "imperial" = "metric") {
+function renderPrintable(units: "metric" | "imperial" = "metric", result = RESULT) {
   return render(
     <AppProviders units={units}>
-      <PrintableReport runId="20261024T123200Z-run1" result={RESULT}>
+      <PrintableReport runId="20261024T123200Z-run1" result={result}>
         <PrintButton />
       </PrintableReport>
     </AppProviders>,
@@ -137,8 +137,8 @@ describe("PrintableReport — Download PDF", () => {
 });
 
 describe("PrintReport — a formal technical document with everything expanded", () => {
-  async function openDocument() {
-    renderPrintable();
+  async function openDocument(result = RESULT) {
+    renderPrintable("metric", result);
     fireEvent.click(await screen.findByRole("button", { name: "Download PDF" }));
     // Both the run summary and the export's manifest have arrived.
     await waitFor(() => expect(within(documentRoot()).getByText(/simulation stored in the file/)).toBeInTheDocument());
@@ -183,6 +183,30 @@ describe("PrintReport — a formal technical document with everything expanded",
     const speed = within(summary).getByRole("row", { name: /^Maximum speed/ });
     expect(within(speed).getAllByRole("cell").map((c) => c.textContent)).toEqual(["m/s", "287", "279", "+8"]);
     expect(doc.getByText(/simulation stored in the file \(Simulation 1\)/)).toBeInTheDocument();
+  });
+
+  it("lists the static rail-exit margin alone for runs without the margin with wind", async () => {
+    const doc = await openDocument();
+    const summary = doc.getByRole("table", { name: "1. Summary" });
+    expect(within(summary).getByRole("row", { name: /^Rail departure stability margin cal/ })).toHaveTextContent("1.93");
+    expect(within(summary).queryByRole("row", { name: /with wind/ })).toBeNull();
+  });
+
+  it("lists the rail-exit margin with wind next to the static one when the run has it", async () => {
+    const doc = await openDocument({ ...RESULT, scalars: WIND_SCALARS });
+    const summary = doc.getByRole("table", { name: "1. Summary" });
+    const names = within(summary)
+      .getAllByRole("row")
+      .map((row) => row.querySelector("th")?.textContent);
+    const at = names.indexOf("Rail departure stability margin");
+    expect(names.slice(at, at + 2)).toEqual([
+      "Rail departure stability margin",
+      "Rail departure stability margin (with wind)",
+    ]);
+    const wind = within(summary).getByRole("row", { name: /with wind/ });
+    expect(within(wind).getAllByRole("cell").map((c) => c.textContent)).toEqual(["cal", "1.42", "—", "—"]);
+    const results = doc.getByRole("table", { name: "5. Complete results" });
+    expect(within(results).getByRole("row", { name: /^Angle of attack at rail departure/ })).toHaveTextContent("6.97");
   });
 
   it("states the launch conditions, the warnings and every scalar", async () => {
