@@ -16,12 +16,14 @@ Forecast: ~900 authored changed lines (T1 ~250 core, T2 ~400 outputs, T3 ~250 in
 
 ## Tasks
 
-- [ ] T1 — S2, S3, S7 — route: inline — `lib/units.ts`, `UnitsProvider`, `UnitsToggle`, cookie in root layout, i18n.
-- [ ] T2 — S4, S7 — route: delegated writer (parallel with T3, disjoint surfaces) — outputs: scalars/KPI, charts, replay, results, report, runs deltas, rocket summary, Monte Carlo.
-- [ ] T3 — S5, S6, S7 — route: delegated writer (parallel with T2) — inputs (wind, elevation, rail) and launch-day card/checklist.
+- [x] T1 — S2, S3, S7 — route: inline — `lib/units.ts`, `UnitsProvider`, `UnitsToggle`, cookie in root layout, i18n — commit f40e6e8 (RED 2 files unresolved → GREEN 10/10; web suite 73 files / 631 tests, tsc, lint, i18n 617 keys; Risk: none — additive provider, metric default byte-identical)
+- [x] T2 — S4, S7 — route: delegated writer (writer reason: parallel units; T3 ended up sequential because both own `messages/**`) — outputs: scalars/KPI, charts, replay, results, report, runs deltas, rocket summary, Monte Carlo — commit 45c0795 (writer: RED 22 imperial tests → GREEN; `useUnits()` falls back to metric outside a provider (parent decision) so 9 existing test files stay untouched; parent spot check: tsc clean, 73 files / 654 tests; ~830 lines over the heuristic: 15 surfaces each with its imperial test; Risk: item 3 — shared helpers gained optional args, defaults keep metric byte-identical)
+- [x] T3 — S5, S6, S7 — route: delegated writer (after T2: shared `messages/**`) — inputs (wind, elevation, rail) and launch-day card/checklist — commit 4f6a90b (writer: RED 15 → GREEN; parent spot check: tsc clean, 74 files / 673 tests; Risk: none — draft/body unchanged, conversions identity in metric)
 
 ## Log
 
 - L1 (2026-11-07, user): "Claudio, hazme un favor, ponme un botón para poder cambiar todas las medidas a sistema imperial."
 - L2 (2026-11-07, user): "pies y ft/s y viento en mph, respetemos el reglamento"
 - L3 (2026-11-07): exploration: `lib/scalars.ts` centralises KPI units, but 82 hard-coded unit literals live across 14 files (charts, flight, results, workbench, lib/domain/*); theme/locale persist via cookie read by the root layout — the units preference follows the same pattern.
+- L4 (2026-11-07): parallel launch of T2+T3 rejected (both surfaces include `messages/**`); T3 runs after T2. Decision (parent): `useUnits()` returns metric outside a provider instead of throwing — the provider is always mounted in the app, and it avoids editing nine unrelated test wrappers. Left unconverted on purpose: overlay chart y-axis ticks have no unit label in either system; the glossary `mach` copy ("~343 m/s") is fixed explanatory text.
+- L5 (2026-11-07): independent verifier (item 3): PASS, no blockers. 621 baseline test renders diffed against the candidate: only AccountMenu differs (the new toggle). Scenario body identical typing 20 mph/100 ft/10 ft vs metric equivalents; toggling units with a filled draft leaves the body byte-identical. Cookie read server-side, no metric flash. Advisory A1 fixed in 8011b92 (`FT_PER_M = 1/0.3048`, exact). A2 (angle kind renders "85 °") unused by any surface, left. Visual suite 35/35 unchanged. RDD assess (escalated item 3): high → native review next.
