@@ -23,6 +23,7 @@ import { useId, useMemo, type ComponentProps } from "react";
 import type { RocketSummary, StoredResultsStatus } from "@/lib/domain/rocket";
 import { StatusPill } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { cn } from "@/lib/styles";
 import { RocketIcon } from "./icons";
 
@@ -51,6 +52,7 @@ export function RocketSummaryCard({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system, display, label } = useUnits();
   const headingId = useId();
   const fmt = useMemo(() => {
     const make = (digits: number) =>
@@ -58,10 +60,13 @@ export function RocketSummaryCard({
     return { fixed2: new Intl.NumberFormat(locale, { maximumFractionDigits: 2, minimumFractionDigits: 2 }), d0: make(0), d1: make(1), d2: make(2) };
   }, [locale]);
 
-  const kg = (v: number | null) => (v === null ? DASH : `${fmt.fixed2.format(v)} kg`);
+  // Same precision in both systems (two decimals for masses and the rail);
+  // the diameter gains two decimals in inches, where whole units say too little.
+  const kg = (v: number | null) => (v === null ? DASH : `${fmt.fixed2.format(display(v, "mass"))} ${label("mass")}`);
+  const diameterFmt = system === "imperial" ? fmt.d2 : fmt.d0;
   const rail = summary.railDefaults;
   const railParts = [
-    rail.length === null ? DASH : `${fmt.d2.format(rail.length)} m`,
+    rail.length === null ? DASH : `${fmt.d2.format(display(rail.length, "length"))} ${label("length")}`,
     rail.inclination === null ? DASH : `${fmt.d1.format(rail.inclination)}°`,
     rail.heading === null ? DASH : `${fmt.d1.format(rail.heading)}°`,
   ];
@@ -91,7 +96,10 @@ export function RocketSummaryCard({
     {
       key: "diameter",
       term: t("workbench.cardDiameter"),
-      value: summary.diameterMm === null ? DASH : `${fmt.d0.format(summary.diameterMm)} mm`,
+      value:
+        summary.diameterMm === null
+          ? DASH
+          : `${diameterFmt.format(display(summary.diameterMm, "diameter"))} ${label("diameter")}`,
       mono: true,
     },
     {
@@ -146,9 +154,9 @@ export function RocketSummaryCard({
   const stale = stored?.status === "outdated" || stored?.status === "loaded";
   const storedItems = stored
     ? [
-        { key: "apogee", label: t("workbench.cardApogee"), value: stored.apogeeM, unit: "m" },
-        { key: "speed", label: t("workbench.cardMaxSpeed"), value: stored.maxVelocityMs, unit: "m/s" },
-        { key: "time", label: t("workbench.cardFlightTime"), value: stored.flightTimeS, unit: "s" },
+        { key: "apogee", label: t("workbench.cardApogee"), value: stored.apogeeM, kind: "length" as const },
+        { key: "speed", label: t("workbench.cardMaxSpeed"), value: stored.maxVelocityMs, kind: "speed" as const },
+        { key: "time", label: t("workbench.cardFlightTime"), value: stored.flightTimeS, kind: "time" as const },
       ]
     : [];
 
@@ -194,7 +202,7 @@ export function RocketSummaryCard({
             <span key={item.key}>
               {item.label}{" "}
               <b className="font-mono text-[15px] font-semibold tabular-nums text-ink">
-                {item.value === null ? DASH : `${fmt.d0.format(item.value)} ${item.unit}`}
+                {item.value === null ? DASH : `${fmt.d0.format(display(item.value, item.kind))} ${label(item.kind)}`}
               </b>
             </span>
           ))}

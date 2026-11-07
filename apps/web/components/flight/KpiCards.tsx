@@ -13,13 +13,16 @@ import { useReducedMotion } from "motion/react";
 import type { FlightSeries } from "@/lib/api";
 import { CountUp, Reveal } from "@/components/motion";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
+import type { MeasureKind } from "@/lib/units";
 import {
+  formatMeasureQuantity,
   formatNumber,
-  formatQuantity,
   formatSeconds,
   groundTrack,
   isFiniteNumber,
   landingDistance,
+  measureQuantity,
   splitDistance,
 } from "./flightMath";
 
@@ -117,14 +120,15 @@ export function KpiCards({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system } = useUnits();
 
   const num = (key: string): number | null => {
     const v = scalars[key];
     return isFiniteNumber(v) ? v : null;
   };
-  const quantity = (key: string, unit: string) => {
+  const quantity = (key: string, kind: MeasureKind) => {
     const v = num(key);
-    return v === null ? null : { amount: v, unit };
+    return v === null ? null : measureQuantity(v, kind, system);
   };
 
   const apogeeTime = num("apogee_time_s");
@@ -137,7 +141,7 @@ export function KpiCards({
     {
       key: "apogee",
       title: t("flight.kpiApogee"),
-      value: quantity("apogee_m", "m"),
+      value: quantity("apogee_m", "length"),
       caption: apogeeTime === null ? null : t("flight.kpiAtTime", { time: formatSeconds(apogeeTime, locale) }),
       spark: series?.altitude ?? null,
       strokeClass: "stroke-accent",
@@ -145,7 +149,7 @@ export function KpiCards({
     {
       key: "maxSpeed",
       title: t("flight.kpiMaxSpeed"),
-      value: quantity("max_velocity_ms", "m/s"),
+      value: quantity("max_velocity_ms", "speed"),
       caption: maxMach === null ? null : t("flight.kpiMach", { mach: formatNumber(maxMach, locale, 2) }),
       spark: series?.speed ?? null,
       strokeClass: "stroke-peach",
@@ -153,18 +157,18 @@ export function KpiCards({
     {
       key: "stability",
       title: t("flight.kpiStability"),
-      value: quantity("rail_departure_stability_margin", "cal"),
+      value: quantity("rail_departure_stability_margin", "stability"),
       caption:
-        railSpeed === null ? null : t("flight.kpiOffRail", { speed: formatQuantity(railSpeed, "m/s", locale) }),
+        railSpeed === null ? null : t("flight.kpiOffRail", { speed: formatMeasureQuantity(railSpeed, "speed", system, locale) }),
       spark: series?.mach ?? series?.acceleration ?? null,
       strokeClass: "stroke-ok",
     },
     {
       key: "landing",
       title: t("flight.kpiLanding"),
-      value: distance === null ? null : splitDistance(distance),
+      value: distance === null ? null : splitDistance(distance, system),
       caption:
-        impactSpeed === null ? null : t("flight.kpiImpact", { speed: formatQuantity(impactSpeed, "m/s", locale) }),
+        impactSpeed === null ? null : t("flight.kpiImpact", { speed: formatMeasureQuantity(impactSpeed, "speed", system, locale) }),
       spark: series?.path3d ? groundTrack(series.path3d) : null,
       strokeClass: "stroke-accent",
     },

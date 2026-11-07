@@ -26,7 +26,7 @@ import { useMemo } from "react";
 import type { SimulationSummary } from "@/lib/api";
 import {
   RUN_METRIC_KEYS,
-  RUN_METRIC_UNITS,
+  RUN_METRIC_KINDS,
   runDeltas,
   runMetrics,
   scenarioFacts,
@@ -36,6 +36,8 @@ import {
 } from "@/lib/domain/runs";
 import { cn } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
+import type { MeasureKind } from "@/lib/units";
 import { cardClass } from "@/components/ui/classes";
 import { RUN_COLORS } from "./colors";
 import { MAX_OVERLAY } from "./colors";
@@ -50,7 +52,7 @@ const METRIC_LABEL_KEYS: Record<RunMetricKey, string> = {
   landing: "runs.colLanding",
 };
 
-/** One precision per column: whole metres and m/s; tenths of a second and of a metre. */
+/** One precision per column: whole metres (feet) and m/s (ft/s); tenths of a second and of a metre (foot). */
 const METRIC_DECIMALS: Record<RunMetricKey, number> = {
   apogee: 0,
   maxSpeed: 0,
@@ -81,6 +83,7 @@ export function RunsTable({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { display, label } = useUnits();
   const { dateTime, modelLabel } = useRunFormatters();
   const limitReached = selectedIds.length >= MAX_OVERLAY;
 
@@ -113,7 +116,7 @@ export function RunsTable({
             {RUN_METRIC_KEYS.map((key) => (
               <th key={key} scope="col" className={cn(HEAD_CELL, "text-right")}>
                 {t(METRIC_LABEL_KEYS[key])}{" "}
-                <span className="whitespace-nowrap font-normal">({RUN_METRIC_UNITS[key]})</span>
+                <span className="whitespace-nowrap font-normal">({label(RUN_METRIC_KINDS[key])})</span>
               </th>
             ))}
             <th scope="col" className={cn(HEAD_CELL, "w-px")}>
@@ -208,6 +211,8 @@ export function RunsTable({
                     delta={deltas?.[key] ?? null}
                     decimals={METRIC_DECIMALS[key]}
                     locale={locale}
+                    kind={RUN_METRIC_KINDS[key]}
+                    display={display}
                   />
                 ))}
                 <td className={cn(CELL, "w-px whitespace-nowrap text-right")}>
@@ -235,14 +240,19 @@ function MetricCell({
   delta,
   decimals,
   locale,
+  kind,
+  display,
 }: {
   value: number | null;
   delta: number | null;
   decimals: number;
   locale: "en" | "es";
+  /** What the column measures; value and delta show in the unit system in effect. */
+  kind: MeasureKind;
+  display: (value: number, kind: MeasureKind) => number;
 }) {
   const fixed = { minimumFractionDigits: decimals, maximumFractionDigits: decimals };
-  const shown = value === null || !Number.isFinite(value) ? "—" : value.toLocaleString(locale, fixed);
+  const shown = value === null || !Number.isFinite(value) ? "—" : display(value, kind).toLocaleString(locale, fixed);
   return (
     <td className={cn(CELL, "whitespace-nowrap text-right tabular-nums")}>
       <span className="flex flex-col items-end gap-0.5">
@@ -251,7 +261,7 @@ function MetricCell({
           // Neutral on purpose: a lower apogee is a difference, not an error,
           // and red stays for the brand and for failures.
           <span className="text-xs tabular-nums text-muted">
-            {new Intl.NumberFormat(locale, { ...fixed, signDisplay: "exceptZero" }).format(delta)}
+            {new Intl.NumberFormat(locale, { ...fixed, signDisplay: "exceptZero" }).format(display(delta, kind))}
           </span>
         )}
       </span>

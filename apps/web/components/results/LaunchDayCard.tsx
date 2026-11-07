@@ -11,6 +11,9 @@
  *   done     the headline with the best setting, the wind used, the 8
  *            closest settings, "Apply to rail", and the L1 checklist for the
  *            current and the recommended setting
+ *
+ * Every measurement follows the unit system (units S6): distances in m or ft,
+ * speeds in m/s or ft/s, the wind in km/h or mph.
  */
 
 import { ApiError } from "@/lib/api";
@@ -27,7 +30,8 @@ import { cn } from "@/lib/styles";
 import { Button, Callout, InfoTip, Spinner } from "@/components/ui";
 import { cardClass } from "@/components/ui/classes";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
-import { LaunchChecklist, formatMeasure } from "./LaunchChecklist";
+import { useUnits } from "@/components/units/UnitsProvider";
+import { LaunchChecklist, formatLaunchMeasure } from "./LaunchChecklist";
 
 export type LaunchDayStatus = "idle" | "running" | "error" | "done";
 
@@ -101,8 +105,11 @@ function LaunchDayResults({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system, label } = useUnits();
   const best = result.best;
-  const words = best ? headline(best) : null;
+  const words = best ? headline(best, system) : null;
+  const measure = (value: number, kind: Parameters<typeof formatLaunchMeasure>[1]) =>
+    formatLaunchMeasure(value, kind, system, locale);
   const point = (key: string) => t(`launchday.point.${key}`);
   const top = topCandidates(result.candidates);
 
@@ -115,7 +122,7 @@ function LaunchDayResults({
               inclination: words.inclination,
               heading: words.heading,
               headingPoint: point(words.headingPoint),
-              distance: new Intl.NumberFormat(locale).format(words.distance),
+              distance: `${new Intl.NumberFormat(locale).format(words.distance)} ${label("length")}`,
               landingPoint: point(words.landingPoint),
             })}
           </strong>
@@ -126,7 +133,7 @@ function LaunchDayResults({
 
       <p className="text-xs text-muted">
         {t("launchday.windUsed", {
-          speed: new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(msToKmh(result.wind.speed)),
+          speed: measure(msToKmh(result.wind.speed), "windSpeed"),
           direction: Math.round(result.wind.direction_from),
           source: t(result.wind.source === "manual" ? "launchday.windMeasured" : "launchday.windForecast"),
         })}
@@ -165,12 +172,12 @@ function LaunchDayResults({
               <tbody>
                 {top.map((c) => (
                   <tr key={`${c.inclination}-${c.heading}`} className="border-t border-divider text-ink">
-                    <td className="py-1.5 pr-3">{formatMeasure(c.inclination, "°", locale)}</td>
-                    <td className="py-1.5 pr-3">{`${formatMeasure(c.heading, "°", locale)} (${point(compassPoint(c.heading))})`}</td>
-                    <td className="py-1.5 pr-3">{formatMeasure(c.landing_distance, "m", locale)}</td>
-                    <td className="py-1.5 pr-3">{formatMeasure(c.apogee_agl, "m", locale)}</td>
-                    <td className="py-1.5 pr-3">{formatMeasure(c.out_of_rail_velocity, "m/s", locale)}</td>
-                    <td className="py-1.5 pr-3">{formatMeasure(c.stability_margin_min, "cal", locale)}</td>
+                    <td className="py-1.5 pr-3">{measure(c.inclination, "angle")}</td>
+                    <td className="py-1.5 pr-3">{`${measure(c.heading, "angle")} (${point(compassPoint(c.heading))})`}</td>
+                    <td className="py-1.5 pr-3">{measure(c.landing_distance, "length")}</td>
+                    <td className="py-1.5 pr-3">{measure(c.apogee_agl, "length")}</td>
+                    <td className="py-1.5 pr-3">{measure(c.out_of_rail_velocity, "speed")}</td>
+                    <td className="py-1.5 pr-3">{measure(c.stability_margin_min, "stability")}</td>
                     <td className={cn("py-1.5", c.checks_ok ? "text-ok-ink" : "text-bad-ink")}>
                       <span aria-hidden="true">{c.checks_ok ? "✓" : "✗"}</span>
                       <span className="sr-only">{t(c.checks_ok ? "launchday.checksPass" : "launchday.checksFail")}</span>

@@ -6,6 +6,7 @@
  */
 
 import type { Locale } from "@/lib/i18n";
+import { fromSi, unitLabel, type MeasureKind, type UnitSystem } from "@/lib/units";
 
 export function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -93,7 +94,7 @@ export interface FlightEvent {
   labelKey: string;
   /** Simulated time of the event, seconds. Always finite. */
   time: number;
-  /** The event's headline quantity, when the scalar is present. */
+  /** The event's headline quantity in the unit system asked for, when the scalar is present. */
   value: { amount: number; unit: string } | null;
 }
 
@@ -102,44 +103,48 @@ const EVENT_SPECS: {
   labelKey: string;
   timeKey: string;
   valueKey: string;
-  unit: string;
+  kind: MeasureKind;
 }[] = [
   {
     key: "rail",
     labelKey: "flight.eventRail",
     timeKey: "rail_departure_time_s",
     valueKey: "rail_departure_velocity_ms",
-    unit: "m/s",
+    kind: "speed",
   },
   {
     key: "maxAcceleration",
     labelKey: "flight.eventMaxAcceleration",
     timeKey: "max_acceleration_time_s",
     valueKey: "max_acceleration_ms2",
-    unit: "m/s²",
+    kind: "acceleration",
   },
   {
     key: "maxSpeed",
     labelKey: "flight.eventMaxSpeed",
     timeKey: "max_velocity_time_s",
     valueKey: "max_velocity_ms",
-    unit: "m/s",
+    kind: "speed",
   },
-  { key: "apogee", labelKey: "flight.eventApogee", timeKey: "apogee_time_s", valueKey: "apogee_m", unit: "m" },
+  { key: "apogee", labelKey: "flight.eventApogee", timeKey: "apogee_time_s", valueKey: "apogee_m", kind: "length" },
   {
     key: "landing",
     labelKey: "flight.eventLanding",
     timeKey: "flight_time_s",
     valueKey: "impact_velocity_ms",
-    unit: "m/s",
+    kind: "speed",
   },
 ];
 
 /**
  * The flight's events, in time order. Only events whose time is a finite
- * number are included — a missing scalar never invents an event.
+ * number are included — a missing scalar never invents an event. Values are
+ * converted to `system` (metric by default, the API's own units).
  */
-export function flightEvents(scalars: Record<string, number | null | undefined>): FlightEvent[] {
+export function flightEvents(
+  scalars: Record<string, number | null | undefined>,
+  system: UnitSystem = "metric",
+): FlightEvent[] {
   const events: FlightEvent[] = [];
   for (const spec of EVENT_SPECS) {
     const time = scalars[spec.timeKey];
@@ -149,7 +154,7 @@ export function flightEvents(scalars: Record<string, number | null | undefined>)
       key: spec.key,
       labelKey: spec.labelKey,
       time,
-      value: isFiniteNumber(amount) ? { amount, unit: spec.unit } : null,
+      value: isFiniteNumber(amount) ? measureQuantity(amount, spec.kind, system) : null,
     });
   }
   return events.sort((a, b) => a.time - b.time);
@@ -195,7 +200,31 @@ export function formatSeconds(value: number, locale: Locale): string {
   return formatQuantity(value, "s", locale);
 }
 
-/** Metres under a kilometre, kilometres past it (`500 m`, `1.5 km`). */
-export function splitDistance(metres: number): { amount: number; unit: string } {
+/** An SI value as an amount and label in `system` (`{ amount: 10309, unit: "ft" }`). */
+export function measureQuantity(
+  value: number,
+  kind: MeasureKind,
+  system: UnitSystem,
+): { amount: number; unit: string } {
+  return { amount: fromSi(value, kind, system), unit: unitLabel(kind, system) };
+}
+
+/** `formatQuantity` of an SI value in `system`: `3,142 m` / `10,309 ft`. */
+export function formatMeasureQuantity(value: number, kind: MeasureKind, system: UnitSystem, locale: Locale): string {
+  const { amount, unit } = measureQuantity(value, kind, system);
+  return formatQuantity(amount, unit, locale);
+}
+
+const FT_PER_MILE = 5280;
+
+/**
+ * Metres under a kilometre, kilometres past it (`500 m`, `1.5 km`); in
+ * imperial, feet under a mile, miles past it (`1,640 ft`, `3.11 mi`).
+ */
+export function splitDistance(metres: number, system: UnitSystem = "metric"): { amount: number; unit: string } {
+  if (system === "imperial") {
+    const feet = fromSi(metres, "length", system);
+    return feet >= FT_PER_MILE ? measureQuantity(metres / 1000, "distance", system) : { amount: feet, unit: unitLabel("length", system) };
+  }
   return metres >= 1000 ? { amount: metres / 1000, unit: "km" } : { amount: metres, unit: "m" };
 }

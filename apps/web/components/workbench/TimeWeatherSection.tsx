@@ -24,7 +24,9 @@
  * Wind on the pad (launch-day S6a): a switch between the atmosphere model's
  * wind and the wind measured on the pad, typed in km/h (0–60) and the
  * direction it comes FROM (0–359°, with its compass point). The draft keeps
- * km/h; `buildScenarioBody` sends `wind: {speed (m/s), direction_from}` to
+ * km/h; with imperial units the field shows and accepts mph (0–37) and
+ * converts at the input (units S5), so the body is the same either way;
+ * `buildScenarioBody` sends `wind: {speed (m/s), direction_from}` to
  * /simulate, /montecarlo and /launchday, and nothing while the switch is off.
  */
 
@@ -38,12 +40,16 @@ import {
   type FieldError,
 } from "@/lib/api";
 import {
+  inputNumber,
   launchDateToIso,
   needsDate,
   outsideForecastWindow,
   resolveTimeZone,
+  sameNumber,
   toLaunchDate,
 } from "@/lib/domain/scenario";
+import type { UnitSystem } from "@/lib/units";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { Callout, Field, InfoTip, SegmentedControl, TextInput } from "@/components/ui";
@@ -71,6 +77,7 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
   const { state, setLaunchDatetime, setAtmosphere, setWind } = useWizardDraft();
   const wind = state.wind;
   const { logout } = useAuth();
+  const units = useUnits();
   const [suggestion, setSuggestion] = useState<AtmosphereSuggestion | null>(null);
 
   const model = state.atmosphere.model;
@@ -176,17 +183,24 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
       {wind && (
         <div className="grid grid-cols-2 gap-3">
           <Field
-            label={t("workbench.windSpeed")}
+            label={t("workbench.windSpeed", { unit: units.label("windSpeed") })}
             htmlFor="wind-speed"
-            hint={t("workbench.windSpeedHint", { max: WIND_MAX_KMH })}
+            hint={t("workbench.windSpeedHint", {
+              // Whole units, never above the limit: 60 km/h, 37 mph.
+              max: Math.floor(units.display(WIND_MAX_KMH, "windSpeed") + 1e-9),
+              unit: units.label("windSpeed"),
+            })}
             error={errorFor(errors, "wind.speed")}
           >
             <WindInput
               id="wind-speed"
               name="wind-speed"
-              max={WIND_MAX_KMH}
-              value={wind.speedKmh}
-              onValue={(speedKmh) => setWind({ ...wind, speedKmh })}
+              system={units.system}
+              max={units.display(WIND_MAX_KMH, "windSpeed")}
+              value={units.display(wind.speedKmh, "windSpeed")}
+              onValue={(speed) =>
+                setWind({ ...wind, speedKmh: Math.min(WIND_MAX_KMH, units.si(speed, "windSpeed")) })
+              }
             />
           </Field>
           <Field
@@ -227,22 +241,26 @@ export function TimeWeatherSection({ errors }: { errors: FieldError[] }) {
 /**
  * A number input clamped to 0–`max`: every parseable value is stored at once
  * (clamped), the typed text is kept while it agrees, and leaving the field
- * shows the stored value (an empty field keeps the previous one).
+ * shows the stored value (an empty field keeps the previous one). `value`,
+ * `max` and `onValue` are in the display unit; `system` only rounds what is
+ * shown (imperial to the hundredth).
  */
 function WindInput({
   value,
   max,
   onValue,
+  system = "metric",
   ...props
 }: {
   id: string;
   name: string;
   max: number;
   value: number;
+  system?: UnitSystem;
   onValue: (value: number) => void;
 }) {
   const [editing, setEditing] = useState<string | null>(null);
-  const typing = editing !== null && (editing.trim() === "" || Number(editing) === value);
+  const typing = editing !== null && (editing.trim() === "" || sameNumber(Number(editing), value));
   return (
     <TextInput
       {...props}
@@ -250,10 +268,10 @@ function WindInput({
       inputMode="decimal"
       autoComplete="off"
       min={0}
-      max={max}
+      max={inputNumber(max, system)}
       step="any"
       className="h-9"
-      value={typing ? editing : String(value)}
+      value={typing ? editing : String(inputNumber(value, system))}
       onChange={(e) => {
         const text = e.target.value;
         setEditing(text);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { rocketSummaryFromManifest } from "@/lib/domain/rocket";
 import { RocketSummaryCard } from "./RocketSummaryCard";
 
@@ -148,5 +149,27 @@ describe("RocketSummaryCard (S4) — stored-results provenance", () => {
     renderCard(enriched({}, null));
     expect(screen.queryByRole("status")).toBeNull();
     expect(screen.getByText("its own conditions, saved in the file")).toBeInTheDocument();
+  });
+});
+
+describe("RocketSummaryCard — imperial units", () => {
+  it("shows masses in lb, the diameter in in, the rail length and stored apogee in ft", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <RocketSummaryCard summary={rocketSummaryFromManifest(MANIFEST)} name="Icarus Mk II" file="icarus-mk2-v3.ork" />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    // 7.84 kg = 17.28 lb; 8.69 kg = 19.16 lb (two decimals, like kg); 127 mm = 5 in; 5.2 m = 17.06 ft.
+    expect(valueOf("Dry mass")).toHaveTextContent("17.28 lb");
+    expect(valueOf("Liftoff mass")).toHaveTextContent(/^19\.1\d lb/);
+    expect(valueOf("Diameter")).toHaveTextContent("5 in");
+    expect(valueOf("Motor")).toHaveTextContent(/1\.8\d lb propellant/);
+    expect(valueOf("Rail defaults")).toHaveTextContent("17.06 ft · 85° · 90°");
+    // Stored results: 1,832.4 m = 6,012 ft; 291.7 m/s = 957 ft/s; time unchanged.
+    expect(screen.getByText("6,012 ft")).toBeInTheDocument();
+    expect(screen.getByText("957 ft/s")).toBeInTheDocument();
+    expect(screen.getByText("128 s")).toBeInTheDocument();
   });
 });

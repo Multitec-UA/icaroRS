@@ -22,9 +22,11 @@ import type { FlightSeries } from "@/lib/api";
 import { SegmentedControl, Spinner } from "@/components/ui";
 import { cn, focusRing } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { PauseIcon, PlayIcon } from "@/components/workbench/icons";
 import {
   formatFixed,
+  formatMeasureQuantity,
   formatQuantity,
   isFiniteNumber,
   landingDistance,
@@ -37,7 +39,7 @@ import { useThemeTokens } from "./useThemeTokens";
 
 const CANVAS_CLASS = "h-[340px] w-full";
 
-/** Live readout precision: whole metres, tenths of m/s and of a second. */
+/** Live readout precision: whole metres (feet), tenths of m/s (ft/s) and of a second. */
 const ALTITUDE_DECIMALS = 0;
 const SPEED_DECIMALS = 1;
 const TIME_DECIMALS = 1;
@@ -61,6 +63,7 @@ const Trajectory3D = dynamic(
 function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSeries }) {
   const t = useT();
   const { locale } = useLocale();
+  const { display, label } = useUnits();
   const time = useReplayTime(engine);
   const { duration, playing, speed } = engine;
 
@@ -80,8 +83,8 @@ function ReplayHud({ engine, series }: { engine: ReplayEngine; series: FlightSer
   const maxAltitude = Math.max(0, ...(series.altitude ?? []).filter(isFiniteNumber));
   const maxSpeed = Math.max(0, ...(series.speed ?? []).filter(isFiniteNumber));
   const live = {
-    altitude: (v: number) => formatFixed(v, ALTITUDE_DECIMALS, locale, "m"),
-    speed: (v: number) => formatFixed(v, SPEED_DECIMALS, locale, "m/s"),
+    altitude: (v: number) => formatFixed(display(v, "length"), ALTITUDE_DECIMALS, locale, label("length")),
+    speed: (v: number) => formatFixed(display(v, "speed"), SPEED_DECIMALS, locale, label("speed")),
     time: (v: number) => formatFixed(v, TIME_DECIMALS, locale, "s"),
   };
   const clock = (v: number) => formatFixed(v, TIME_DECIMALS, locale);
@@ -179,6 +182,7 @@ export function FlightReplay({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system } = useUnits();
   const reduceMotion = useReducedMotion() === true;
   const engine = useReplayEngine(series.t, { startAtEnd: reduceMotion });
   useRegisterReplay(engine.seek);
@@ -190,8 +194,8 @@ export function FlightReplay({
   const summary =
     isFiniteNumber(apogee) && distance !== null
       ? t("flight.replaySummary", {
-          apogee: formatQuantity(apogee, "m", locale),
-          distance: (({ amount, unit }) => formatQuantity(amount, unit, locale))(splitDistance(distance)),
+          apogee: formatMeasureQuantity(apogee, "length", system, locale),
+          distance: (({ amount, unit }) => formatQuantity(amount, unit, locale))(splitDistance(distance, system)),
         })
       : null;
 

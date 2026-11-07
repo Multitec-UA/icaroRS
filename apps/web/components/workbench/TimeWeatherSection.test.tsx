@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect } from "react";
 import { AppProviders } from "@/test/test-providers";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
@@ -25,9 +25,9 @@ function Probe() {
   return null;
 }
 
-async function renderSection() {
+async function renderSection(units: "metric" | "imperial" = "metric") {
   render(
-    <AppProviders>
+    <AppProviders units={units}>
       <Probe />
       <div data-testid="section">
         <TimeWeatherSection errors={[]} />
@@ -144,5 +144,43 @@ describe("TimeWeatherSection — wind on the pad (launch-day S6a)", () => {
     expect(speed()).toHaveValue(60);
     expect(direction()).toHaveValue(359);
     expect(draft?.state.wind).toEqual({ speedKmh: 60, directionFrom: 359 });
+  });
+});
+
+describe("TimeWeatherSection — wind in imperial units (units S5)", () => {
+  async function windBody(units: "metric" | "imperial", label: string, value: string) {
+    await renderSection(units);
+    fireEvent.click(screen.getByRole("button", { name: "Measured on the pad" }));
+    fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    fireEvent.change(screen.getByLabelText("From (°)"), { target: { value: "270" } });
+    return draft?.scenarioBody();
+  }
+
+  it("shows and accepts mph, and the body still carries m/s", async () => {
+    const body = await windBody("imperial", "Speed (mph)", "20");
+    expect(screen.getByText("0–37 mph, as read on the anemometer")).toBeInTheDocument();
+    const wind = body?.wind as { speed: number; direction_from: number };
+    expect(wind.speed).toBeCloseTo(8.94, 2);
+    expect(wind.direction_from).toBe(270);
+    // The draft stays in km/h whatever the display unit.
+    expect(draft?.state.wind?.speedKmh).toBeCloseTo(32.187, 3);
+    fireEvent.blur(screen.getByLabelText("Speed (mph)"));
+    expect(screen.getByLabelText("Speed (mph)")).toHaveValue(20);
+  });
+
+  it("sends the same SI body as typing the equivalent km/h", async () => {
+    const imperial = await windBody("imperial", "Speed (mph)", "20");
+    cleanup();
+    const metric = await windBody("metric", "Speed (km/h)", "32.18688");
+    expect(imperial).toEqual(metric);
+  });
+
+  it("clamps to the same 60 km/h limit when typed in mph", async () => {
+    await renderSection("imperial");
+    fireEvent.click(screen.getByRole("button", { name: "Measured on the pad" }));
+    fireEvent.change(screen.getByLabelText("Speed (mph)"), { target: { value: "90" } });
+    fireEvent.blur(screen.getByLabelText("Speed (mph)"));
+    expect(draft?.state.wind?.speedKmh).toBe(60);
+    expect(screen.getByLabelText("Speed (mph)")).toHaveValue(37.28);
   });
 });

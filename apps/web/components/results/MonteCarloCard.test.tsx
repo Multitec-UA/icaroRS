@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { ApiError } from "@/lib/api";
 import { MonteCarloCard } from "./MonteCarloCard";
 import { MC_DONE, mcRun as base } from "./monteCarloFixtures";
@@ -185,5 +186,49 @@ describe("MonteCarloCard (S15) — explaining a finished run", () => {
   it("offers a collapsed 'How to read these results' explanation", () => {
     wrap(<MonteCarloCard runId="mc-1" run={MC_DONE} loading={false} error={null} onDismiss={() => {}} />);
     expect(screen.getByText("How to read these results").closest("details")).not.toHaveAttribute("open");
+  });
+});
+
+describe("MonteCarloCard — imperial units", () => {
+  const done = (patch: Partial<NonNullable<typeof MC_DONE.result>>) => ({ ...MC_DONE, result: { ...MC_DONE.result!, ...patch } });
+  const wrapImperial = (node: ReactNode) =>
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">{node}</UnitsProvider>
+      </LocaleProvider>,
+    );
+
+  it("shows the apogee stats, the reading and the histogram axis in ft", () => {
+    wrapImperial(<MonteCarloCard runId="mc-1" run={MC_DONE} loading={false} error={null} onDismiss={() => {}} />);
+    // 793.3 ± 45.9 m = 2,603 ± 151 ft; median 795 m = 2,608 ft.
+    expect(screen.getByText("2,603 ft ± 151 ft")).toBeInTheDocument();
+    expect(screen.getByText("2,608 ft")).toBeInTheDocument();
+    expect(
+      screen.getByText("9 out of 10 flights reached between 2,362 ft and 2,789 ft (median 2,608 ft)."),
+    ).toBeInTheDocument();
+    // The mean landing point is 120 m = 394 ft away, read "about" to the nearest 10 ft.
+    expect(
+      screen.getByText(
+        "The most likely landing point is about 390 ft to the east of the launch site; 99 % of landings fall inside the outer ellipse.",
+      ),
+    ).toBeInTheDocument();
+    // Bins are computed on the feet values: the axis reads 700 m = 2,297 ft to 860 m = 2,822 ft.
+    const figure = screen.getByRole("img", { name: "Apogee distribution of 8 flights" }).closest("figure")!;
+    expect(figure.querySelector("figcaption")).toHaveTextContent(/^2,297\sft2,822\sft$/);
+    expect(figure.querySelector("rect title")?.textContent).toMatch(/^2,297–2,340\sft: 1 flights$/);
+    expect(screen.queryByText(/\d m\b/)).toBeNull();
+  });
+
+  it("states an absolute mass or rail-length spread in lb and ft", () => {
+    wrapImperial(
+      <MonteCarloCard
+        runId="mc-1"
+        run={done({ uncertainty: { mass: { std: 0.2, kind: "absolute" }, rail_length: { std: 0.05, kind: "absolute" } } })}
+        loading={false}
+        error={null}
+        onDismiss={() => {}}
+      />,
+    );
+    expect(screen.getByText(/mass \(±0\.44 lb\) and rail length \(±0\.16 ft\)/)).toBeInTheDocument();
   });
 });

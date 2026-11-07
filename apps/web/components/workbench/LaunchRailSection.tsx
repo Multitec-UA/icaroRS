@@ -15,11 +15,17 @@
  * Typing the file's own value back is not an override (WizardProvider drops
  * it, S12b). The inclination hint has a second line with the same angle in
  * OpenRocket's convention: "= {90 − value}° from vertical in OpenRocket".
+ *
+ * The length shows and accepts the selected length unit (m or ft, units S5);
+ * the file's value and the override stay in metres in the draft.
  */
 
 import { useState, type ReactNode } from "react";
 import type { FieldError } from "@/lib/api";
+import { inputNumber, sameNumber } from "@/lib/domain/scenario";
+import type { MeasureKind, UnitSystem } from "@/lib/units";
 import { useWizardDraft, type RailField } from "@/components/wizard/WizardProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { Field, TextInput } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
 import { cn } from "@/lib/styles";
@@ -35,16 +41,17 @@ const RAIL_FIELDS: ReadonlyArray<{
   name: string;
   labelKey: MessageKey;
   hintKey?: MessageKey;
-  unit: string;
+  /** Converted with the unit system; angles are degrees in both. */
+  kind: MeasureKind;
 }> = [
-  { field: "length", id: "rl", name: "rail-length", labelKey: "workbench.railLength", unit: " m" },
+  { field: "length", id: "rl", name: "rail-length", labelKey: "workbench.railLength", kind: "length" },
   {
     field: "inclination",
     id: "ri",
     name: "rail-inclination",
     labelKey: "workbench.railInclination",
     hintKey: "workbench.railInclinationHint",
-    unit: "°",
+    kind: "angle",
   },
   {
     field: "heading",
@@ -52,7 +59,7 @@ const RAIL_FIELDS: ReadonlyArray<{
     name: "rail-heading",
     labelKey: "workbench.railHeading",
     hintKey: "workbench.railHeadingHint",
-    unit: "°",
+    kind: "angle",
   },
 ];
 
@@ -62,16 +69,21 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
   const t = useT();
   const { locale } = useLocale();
   const { state, setRailOverride, resetRailOverride } = useWizardDraft();
+  const units = useUnits();
   const defaults = state.railDefaults;
   const hasFile = state.exportId !== null;
 
   return (
     <Section title={t("workbench.launchRail")} index={2}>
-      {RAIL_FIELDS.map(({ field, id, name, labelKey, hintKey, unit }) => {
+      {RAIL_FIELDS.map(({ field, id, name, labelKey, hintKey, kind }) => {
         const override = state.railOverrides[field];
         const fileValue = defaults?.[field] ?? null;
         const overridden = override !== undefined;
-        const label = t(labelKey);
+        const unitLabel = units.label(kind);
+        const label = t(labelKey, { unit: unitLabel });
+        // Angles keep the bare "°"; lengths read "5.2 m" / "17.06 ft".
+        const unit = kind === "angle" ? unitLabel : ` ${unitLabel}`;
+        const shownFile = fileValue === null ? null : inputNumber(units.display(fileValue, kind), units.system);
         const value = hasFile ? (override ?? fileValue) : null;
         let hint: ReactNode = hintKey ? t(hintKey) : undefined;
         // OpenRocket measures the rail angle from vertical (S12d): a second
@@ -100,7 +112,7 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
                 <>
                   <span className={cn(badge, "bg-accent-soft text-accent-ink")}>{t("workbench.railOverridden")}</span>
                   <button type="button" className={textLink} onClick={() => resetRailOverride(field)}>
-                    {t("workbench.railReset", { value: fileValue === null ? "—" : `${fileValue}${unit}` })}
+                    {t("workbench.railReset", { value: shownFile === null ? "—" : `${shownFile}${unit}` })}
                   </button>
                 </>
               ) : (
@@ -113,9 +125,10 @@ export function LaunchRailSection({ errors }: { errors: FieldError[] }) {
               name={name}
               disabled={!hasFile}
               placeholder={hasFile ? undefined : t("workbench.railPlaceholder")}
-              value={value}
+              value={value === null ? null : units.display(value, kind)}
+              system={units.system}
               overridden={overridden}
-              onValue={(value) => setRailOverride(field, value)}
+              onValue={(value) => setRailOverride(field, units.si(value, kind))}
               onClear={() => resetRailOverride(field)}
             />
           </Field>
@@ -135,13 +148,16 @@ function RailInput({
   overridden,
   onValue,
   onClear,
+  system,
   ...props
 }: {
   id: string;
   name: string;
   disabled: boolean;
   placeholder?: string;
+  /** In the display unit; `system` only rounds what is shown. */
   value: number | null;
+  system: UnitSystem;
   overridden: boolean;
   onValue: (value: number) => void;
   onClear: () => void;
@@ -149,8 +165,8 @@ function RailInput({
   const [editing, setEditing] = useState<string | null>(null);
   // The typed text wins only while it still agrees with the value (or is
   // being cleared); a Reset or a file switch shows the new value at once.
-  const typing = editing !== null && (editing.trim() === "" || Number(editing) === value);
-  const shown = typing ? editing : value === null ? "" : String(value);
+  const typing = editing !== null && (editing.trim() === "" || (value !== null && sameNumber(Number(editing), value)));
+  const shown = typing ? editing : value === null ? "" : String(inputNumber(value, system));
 
   return (
     <TextInput

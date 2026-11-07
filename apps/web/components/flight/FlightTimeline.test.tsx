@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { ReplayProvider } from "./ReplayContext";
 import { FlightReplay } from "./FlightReplay";
 import { FlightTimeline } from "./FlightTimeline";
@@ -79,5 +80,27 @@ describe("FlightTimeline — events derived from the scalars", () => {
     expect(screen.getByRole("slider", { name: "Scrub flight timeline" })).toHaveValue("21.8");
     expect(screen.getByText("21.8 / 30.0 s")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+  });
+});
+
+describe("FlightTimeline — imperial units", () => {
+  it("shows every event value in ft, ft/s and ft/s²; times stay in seconds", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <ReplayProvider>
+            <FlightTimeline scalars={SCALARS} />
+          </ReplayProvider>
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    const rows = within(screen.getByRole("list", { name: "Flight timeline" })).getAllByRole("listitem");
+    expect(rows.map((row) => row.textContent)).toEqual([
+      expect.stringMatching(/^0\.41\ss.*Leaves rail.*89\.6\sft\/s$/),
+      expect.stringMatching(/^0\.9\ss.*Max acceleration.*313\sft\/s²$/),
+      expect.stringMatching(/^3\.1\ss.*Max speed.*943\sft\/s$/),
+      expect.stringMatching(/^21\.8\ss.*Apogee.*10,309\sft$/),
+      expect.stringMatching(/^142\ss.*Landing.*27\.6\sft\/s$/),
+    ]);
   });
 });

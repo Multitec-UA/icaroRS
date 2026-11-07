@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Atmosphere } from "@/lib/api";
 import { mockBrowserTimeZone } from "@/test/mock-time-zone";
 import {
+  inputNumber,
+  sameNumber,
   buildScenarioBody,
   FALLBACK_TIME_ZONE,
   canRun,
@@ -452,5 +454,21 @@ describe("manual wind on the pad (launch-day S6a)", () => {
       directionFrom: 270,
     });
     expect(draftFromScenario({}).wind).toBeUndefined();
+  });
+});
+
+describe("inputNumber / sameNumber (units S5)", () => {
+  it("shows metric values untouched and imperial ones to the hundredth", () => {
+    expect(inputNumber(30.123456, "metric")).toBe(30.123456);
+    expect(inputNumber(5.2 * 3.28084, "imperial")).toBe(17.06);
+    expect(inputNumber((100 / 3.28084) * 3.28084, "imperial")).toBe(100);
+    expect(inputNumber(-0.001, "imperial")).toBe(0);
+  });
+
+  it("treats a unit round trip as the same number, a real edit as different", () => {
+    expect(sameNumber(10, (10 / 3.28084) * 3.28084)).toBe(true);
+    expect(sameNumber(84, 84)).toBe(true);
+    expect(sameNumber(10, 10.01)).toBe(false);
+    expect(sameNumber(0, 1e-12)).toBe(true);
   });
 });

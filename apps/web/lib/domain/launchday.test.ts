@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { LaunchCandidate, LaunchCheck } from "@/lib/api/launchday";
 import {
+  CHECK_KIND,
   DEFAULT_FLIGHT_COUNT,
   approxDistance,
+  measureDecimals,
   checkStatus,
   compassPoint,
   headline,
@@ -89,6 +91,37 @@ describe("headline — the best setting in words", () => {
 
   it("says when the closest setting fails a hard check", () => {
     expect(headline(candidate({ checks_ok: false })).passes).toBe(false);
+  });
+
+  it("rounds the distance in feet for imperial (123.4 m ≈ 405 ft → about 400)", () => {
+    expect(headline(candidate(), "imperial").distance).toBe(400);
+    expect(headline(candidate(), "metric")).toEqual(headline(candidate()));
+  });
+});
+
+describe("CHECK_KIND / measureDecimals (units S6)", () => {
+  it("measures every check with its kind", () => {
+    expect(CHECK_KIND).toEqual({
+      apogee_max: "length",
+      apogee_recommended: "length",
+      tilt_max: "angle",
+      static_margin_min: "stability",
+      descent_max: "speed",
+      descent_recommended: "speed",
+      landing_radius: "length",
+      rail_exit_min: "speed",
+      wind_max: "windSpeed",
+    });
+  });
+
+  it("keeps the metric decimals and gives mph a tenth", () => {
+    expect(measureDecimals("length", "metric")).toBe(0);
+    expect(measureDecimals("speed", "metric")).toBe(1);
+    expect(measureDecimals("angle", "metric")).toBe(1);
+    expect(measureDecimals("stability", "metric")).toBe(2);
+    expect(measureDecimals("windSpeed", "metric")).toBe(0);
+    expect(measureDecimals("windSpeed", "imperial")).toBe(1);
+    expect(measureDecimals("length", "imperial")).toBe(0);
   });
 });
 

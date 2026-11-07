@@ -23,10 +23,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { ApiError, type FlightSeries, type SimulateResult } from "@/lib/api";
 import type { RocketSummary } from "@/lib/domain/rocket";
-import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
+import { SCALAR_SPECS, formatScalarIn } from "@/lib/scalars";
 import { plural } from "@/lib/i18n";
 import { Callout, Disclosure } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { FlightReplay } from "@/components/flight/FlightReplay";
 import { FlightSkeleton } from "@/components/flight/FlightSkeleton";
 import { FlightTimeline } from "@/components/flight/FlightTimeline";
@@ -34,7 +35,7 @@ import { KpiCards } from "@/components/flight/KpiCards";
 import { PlotGallery } from "@/components/flight/PlotGallery";
 import { SeriesPanel } from "@/components/flight/SeriesPanel";
 import { WarningsBanner } from "@/components/flight/WarningsBanner";
-import { formatQuantity } from "@/components/flight/flightMath";
+import { formatMeasureQuantity } from "@/components/flight/flightMath";
 
 export type RunResultData = Pick<SimulateResult, "scalars" | "warnings" | "plot_urls">;
 
@@ -139,12 +140,12 @@ export function RunResults({ runId, result, exportSummary, series }: RunResultsP
 function OpenRocketRow({ stored }: { stored: NonNullable<RocketSummary["storedResults"]> }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system } = useUnits();
+  const q = (value: number, kind: "length" | "speed" | "time") => formatMeasureQuantity(value, kind, system, locale);
   const parts = [
-    stored.apogeeM !== null && t("flight.openRocketApogee", { value: formatQuantity(stored.apogeeM, "m", locale) }),
-    stored.maxVelocityMs !== null &&
-      t("flight.openRocketMaxSpeed", { value: formatQuantity(stored.maxVelocityMs, "m/s", locale) }),
-    stored.flightTimeS !== null &&
-      t("flight.openRocketFlightTime", { value: formatQuantity(stored.flightTimeS, "s", locale) }),
+    stored.apogeeM !== null && t("flight.openRocketApogee", { value: q(stored.apogeeM, "length") }),
+    stored.maxVelocityMs !== null && t("flight.openRocketMaxSpeed", { value: q(stored.maxVelocityMs, "speed") }),
+    stored.flightTimeS !== null && t("flight.openRocketFlightTime", { value: q(stored.flightTimeS, "time") }),
   ].filter((part): part is string => typeof part === "string");
   const outdated = stored.status === "outdated";
 
@@ -185,6 +186,7 @@ function OpenRocketRow({ stored }: { stored: NonNullable<RocketSummary["storedRe
 function ScalarDisclosure({ scalars }: { scalars: Record<string, number | null> }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system } = useUnits();
   const specs = SCALAR_SPECS.filter((spec) => spec.key in scalars);
   if (specs.length === 0) return null;
   const title = t("flight.allResultsTitle");
@@ -207,7 +209,7 @@ function ScalarDisclosure({ scalars }: { scalars: Record<string, number | null> 
               className="flex items-baseline justify-between gap-4 border-t border-divider py-2 first:border-t-0"
             >
               <dt className="text-ink-2">{t(`scalars.${spec.key}`)}</dt>
-              <dd className="font-medium tabular-nums text-ink">{formatScalar(scalars[spec.key], spec.unit, locale)}</dd>
+              <dd className="font-medium tabular-nums text-ink">{formatScalarIn(scalars[spec.key], spec, system, locale)}</dd>
             </div>
           ))}
         </dl>

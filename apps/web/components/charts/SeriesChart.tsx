@@ -26,6 +26,8 @@ import type { FlightSeries } from "@/lib/api";
 import type { Locale, TranslateFn } from "@/lib/i18n";
 import { cn, focusRing } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
+import type { MeasureKind } from "@/lib/units";
 import { mergePalette, useChartTokens } from "./themeDefaults";
 
 export type MetricKey = "altitude" | "speed" | "mach" | "acceleration";
@@ -50,12 +52,21 @@ function tokenPalette(tokens: ReturnType<typeof useChartTokens>): Required<Serie
   };
 }
 
-const METRICS: { key: MetricKey; labelKey: string; unit: string }[] = [
-  { key: "altitude", labelKey: "chart.altitude", unit: "m" },
-  { key: "speed", labelKey: "chart.speed", unit: "m/s" },
-  { key: "mach", labelKey: "chart.mach", unit: "" },
-  { key: "acceleration", labelKey: "chart.acceleration", unit: "m/s²" },
+const METRICS: { key: MetricKey; labelKey: string; kind: MeasureKind }[] = [
+  { key: "altitude", labelKey: "chart.altitude", kind: "length" },
+  { key: "speed", labelKey: "chart.speed", kind: "speed" },
+  { key: "mach", labelKey: "chart.mach", kind: "none" },
+  { key: "acceleration", labelKey: "chart.acceleration", kind: "acceleration" },
 ];
+
+/** The metric's samples in the unit system in effect (ft, ft/s… in imperial). */
+function metricValues(
+  series: FlightSeries,
+  metric: (typeof METRICS)[number],
+  display: (value: number, kind: MeasureKind) => number,
+): number[] {
+  return ((series[metric.key] ?? []) as number[]).map((v) => display(v, metric.kind));
+}
 
 /** `#rrggbb` + alpha byte; any other colour notation is returned untouched. */
 function withAlpha(color: string, alphaHex: string): string {
@@ -70,14 +81,19 @@ function buildOption(
     format,
     reduceMotion,
     colors,
+    display,
+    unit,
   }: {
     t: TranslateFn;
     format: Intl.NumberFormat;
     reduceMotion: boolean;
     colors: Required<SeriesChartPalette>;
+    display: (value: number, kind: MeasureKind) => number;
+    /** The metric's unit label in the system in effect ("" for Mach). */
+    unit: string;
   },
 ): echarts.EChartsCoreOption {
-  const ys = (series[metric.key] ?? []) as number[];
+  const ys = metricValues(series, metric, display);
   const data = series.t.map((t, i) => [t, ys[i]]);
   const label = t(metric.labelKey);
   const lineColor = colors[metric.key];
@@ -97,7 +113,7 @@ function buildOption(
       axisPointer: { lineStyle: { color: axisColor } },
       formatter: (params: unknown) => {
         const p = (params as { value: [number, number] }[])[0];
-        const u = metric.unit ? ` ${metric.unit}` : "";
+        const u = unit ? ` ${unit}` : "";
         return `t = ${format.format(p.value[0])} s<br/><b>${label}: ${format.format(p.value[1])}${u}</b>`;
       },
     },
@@ -113,7 +129,7 @@ function buildOption(
     },
     yAxis: {
       type: "value",
-      name: metric.unit ? `${label} (${metric.unit})` : label,
+      name: unit ? `${label} (${unit})` : label,
       nameTextStyle: { color: muted },
       scale: true,
       axisLine: { lineStyle: { color: axisColor } },
@@ -183,6 +199,7 @@ export function SeriesChart({
   const t = useT();
   const { locale } = useLocale();
   const reduceMotion = useReducedMotion() === true;
+  const { display, label: unitLabel } = useUnits();
   const format = useMemo(() => makeNumberFormat(locale), [locale]);
   const tokens = useChartTokens();
   const colors = useMemo(
@@ -219,15 +236,18 @@ export function SeriesChart({
   useEffect(() => {
     const metric = METRICS.find((m) => m.key === active);
     if (!chartRef.current || !metric) return;
-    chartRef.current.setOption(buildOption(series, metric, { t, format, reduceMotion, colors }), true);
-  }, [active, series, t, format, reduceMotion, colors]);
+    chartRef.current.setOption(
+      buildOption(series, metric, { t, format, reduceMotion, colors, display, unit: unitLabel(metric.kind) }),
+      true,
+    );
+  }, [active, series, t, format, reduceMotion, colors, display, unitLabel]);
 
   if (available.length === 0) return null;
 
   const activeMetric = METRICS.find((m) => m.key === active) ?? available[0];
   const chartName = t("chart.ariaLabel", {
     metric: t(activeMetric.labelKey),
-    max: formatPeak((series[activeMetric.key] ?? []) as number[], format),
+    max: formatPeak(metricValues(series, activeMetric, display), format),
   });
 
   return (

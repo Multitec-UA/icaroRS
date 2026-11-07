@@ -2,6 +2,8 @@ import { useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
+import type { UnitSystem } from "@/lib/units";
 import { WizardProvider } from "@/components/wizard/WizardProvider";
 import { AuthGate } from "@/components/auth/AuthGate";
 
@@ -20,7 +22,14 @@ import { AuthGate } from "@/components/auth/AuthGate";
  * singleton from lib/query-client.ts) so tests never share cached data with
  * each other, and retries are off so a mocked rejection surfaces immediately.
  */
-export function AppProviders({ children }: { children: ReactNode }) {
+export function AppProviders({
+  children,
+  units = "metric",
+}: {
+  children: ReactNode;
+  /** Unit system to render with; metric keeps every existing assertion valid. */
+  units?: UnitSystem;
+}) {
   const [client] = useState(
     () =>
       new QueryClient({
@@ -32,9 +41,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       <LocaleProvider initialLocale="en">
         <ThemeProvider initialPreference="light">
-          <WizardProvider>
-            <AuthGate>{children}</AuthGate>
-          </WizardProvider>
+          <UnitsProvider initialSystem={units}>
+            <WizardProvider>
+              <AuthGate>{children}</AuthGate>
+            </WizardProvider>
+          </UnitsProvider>
         </ThemeProvider>
       </LocaleProvider>
     </QueryClientProvider>

@@ -145,3 +145,33 @@ describe("RunResults (S7) — replay states", () => {
     expect(screen.getByRole("list", { name: "Flight timeline" })).toBeInTheDocument();
   });
 });
+
+describe("RunResults — imperial units", () => {
+  it("shows the OpenRocket row and every length/speed scalar in ft and ft/s", async () => {
+    render(
+      <AppProviders units="imperial">
+        <ReplayProvider>
+          <RunResults
+            runId="run-1"
+            result={{ scalars: SCALARS, warnings: [], plot_urls: PLOTS }}
+            exportSummary={rocketSummaryFromManifest({
+              stored_results: { max_altitude: 1790, max_velocity: 279, flight_time: 142 },
+            })}
+            series={NO_SERIES}
+          />
+        </ReplayProvider>
+      </AppProviders>,
+    );
+    await screen.findByRole("region", { name: "Key results" });
+
+    expect(screen.getByTestId("openrocket-row")).toHaveTextContent(
+      "apogee 5,873 ft · max speed 915 ft/s · flight time 142 s",
+    );
+    const all = screen.getByRole("region", { name: "All results" });
+    expect(all).toHaveTextContent("10,309 ft");
+    expect(all).toHaveTextContent("943 ft/s");
+    expect(all).toHaveTextContent("313 ft/s²");
+    expect(all).toHaveTextContent("1.93 cal");
+    expect(all).not.toHaveTextContent(/\d m\b/);
+  });
+});

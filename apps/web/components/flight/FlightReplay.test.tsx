@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { ReplayProvider } from "./ReplayContext";
 import { FlightReplay } from "./FlightReplay";
 import { SCALARS, SERIES } from "./fixtures";
@@ -163,5 +164,32 @@ describe("FlightReplay — play/pause, scrubber and speed", () => {
 
     // The clock reserves the width of "3.0 / 3.0 s" (11 characters).
     expect(screen.getByText("0.5 / 3.0 s")).toHaveStyle({ minWidth: "11ch" });
+  });
+});
+
+describe("FlightReplay — imperial units", () => {
+  it("reads out altitude in ft and speed in ft/s, and summarises in ft", async () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <ReplayProvider>
+            <FlightReplay series={SERIES} scalars={SCALARS} />
+          </ReplayProvider>
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    await screen.findByTestId("orbit");
+
+    expect(
+      screen.getByText(/^Flight from the pad to apogee at 10,309\sft, landing 4,921\sft from it\.$/),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByRole("slider", { name: "Scrub flight timeline" }), {
+      target: { value: "2" },
+    });
+    const readout = screen.getByRole("group", { name: "Flight state at the current time" });
+    // 300 m = 984 ft; 30 m/s = 98.4 ft/s.
+    expect(readout).toHaveTextContent(/984\sft/);
+    expect(readout).toHaveTextContent(/98\.4\sft\/s/);
   });
 });

@@ -9,6 +9,7 @@
  */
 
 import type { MonteCarloRunResult, MonteCarloStatus } from "@/lib/api";
+import { fromSi, unitLabel, type MeasureKind, type UnitSystem } from "@/lib/units";
 
 export const MC_MIN_FLIGHTS = 10;
 export const MC_MAX_FLIGHTS = 500;
@@ -171,18 +172,32 @@ export function budgetItems(uncertainty: UncertaintyBudget | null | undefined): 
   return items;
 }
 
+/** The metric units of an absolute spread that convert with the unit system. */
+const BUDGET_UNIT_KINDS: Record<string, MeasureKind> = { kg: "mass", m: "length" };
+
+/**
+ * A budget item in `system`: an absolute mass or rail-length spread converted
+ * (kg → lb, m → ft) with the same two-decimal tidying; %, ° and N unchanged.
+ */
+export function budgetItemIn(item: BudgetItem, system: UnitSystem): BudgetItem {
+  const kind = BUDGET_UNIT_KINDS[item.unit];
+  if (!kind || system === "metric") return item;
+  return { ...item, amount: tidy(fromSi(item.amount, kind, system)), unit: unitLabel(kind, system) };
+}
+
 export const COMPASS_POINTS = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"] as const;
 export type CompassPoint = (typeof COMPASS_POINTS)[number];
 
 /**
  * The mean impact point as a distance and an 8-point compass direction from
- * the launch site (`impact_x` east, `impact_y` north, metres). Distances are
- * whole metres, rounded to 10 m from 100 m up ("about 120 m"). Null without
- * a finite impact.
+ * the launch site (`impact_x` east, `impact_y` north, metres). The distance
+ * is in the length unit of `system` (m or ft), whole units, rounded to 10
+ * from 100 up ("about 120 m", "about 390 ft"). Null without a finite impact.
  */
 export function landingSummary(
   impactX: readonly number[],
   impactY: readonly number[],
+  system: UnitSystem = "metric",
 ): { distance: number; direction: CompassPoint } | null {
   let sumX = 0;
   let sumY = 0;
@@ -196,7 +211,7 @@ export function landingSummary(
   if (count === 0) return null;
   const x = sumX / count;
   const y = sumY / count;
-  const raw = Math.hypot(x, y);
+  const raw = fromSi(Math.hypot(x, y), "length", system);
   const distance = raw >= 100 ? Math.round(raw / 10) * 10 : Math.round(raw);
   const bearing = ((Math.atan2(x, y) * 180) / Math.PI + 360) % 360;
   return { distance, direction: COMPASS_POINTS[Math.round(bearing / 45) % 8] };

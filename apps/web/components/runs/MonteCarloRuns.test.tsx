@@ -42,7 +42,7 @@ afterEach(() => {
   vi.mocked(useSearchParams).mockReturnValue(new URLSearchParams() as unknown as ReturnType<typeof useSearchParams>);
 });
 
-async function renderDispersion() {
+async function renderDispersion(units: "metric" | "imperial" = "metric") {
   vi.mocked(useSearchParams).mockReturnValue(
     new URLSearchParams("rocket_id=r2") as unknown as ReturnType<typeof useSearchParams>,
   );
@@ -50,7 +50,7 @@ async function renderDispersion() {
   api.listMonteCarlo.mockResolvedValue(LIST);
   api.getMonteCarlo.mockImplementation(async (id: string) => ({ ...MC_DONE, run_id: id }));
   render(
-    <AppProviders>
+    <AppProviders units={units}>
       <RunsView />
     </AppProviders>,
   );
@@ -132,5 +132,14 @@ describe("RunsView — dispersion runs (S12)", () => {
     expect(
       await screen.findByText("No dispersion runs for this rocket yet. Launch one from the Workbench."),
     ).toBeInTheDocument();
+  });
+});
+
+describe("RunsView — dispersion runs in imperial units", () => {
+  it("heads the median apogee column in ft and converts it (795 m = 2,608 ft)", async () => {
+    const table = await renderDispersion("imperial");
+    expect(table.getByRole("columnheader", { name: "Apogee P50 (ft)" })).toBeInTheDocument();
+    const rows = table.getAllByRole("row").slice(1);
+    await waitFor(() => expect(within(rows[0]).getByText("2,608")).toBeInTheDocument());
   });
 });

@@ -14,6 +14,7 @@ import type { SimulationSummary } from "@/lib/api";
 import { shortRunId, whatChanged, type ChangeGroup, type RunChange } from "@/lib/domain/runs";
 import { cn } from "@/lib/styles";
 import { useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { RUN_COLORS } from "./colors";
 import { useRunFormatters } from "./useRunFormatters";
 import { fileLabel } from "@/lib/domain/exports";
@@ -41,7 +42,16 @@ export function WhatChanged({
   const { dateTime, modelLabel } = useRunFormatters();
   const others = baseline ? compared.filter((run) => run.simulation_id !== baseline.simulation_id) : [];
 
+  const { system, format, label } = useUnits();
   const unset = t("runs.unset");
+  /** A stored length (`"12"`, metres) as the run recorded it; converted only in imperial. */
+  const length = (raw: string | null) => {
+    if (!raw) return unset;
+    // Metric keeps the stored text untouched ("12 m", never re-rounded).
+    if (system === "metric") return `${raw} ${label("length")}`;
+    const metres = Number(raw);
+    return Number.isFinite(metres) ? format(metres, "length") : `${raw} ${label("length")}`;
+  };
   const describe = (change: RunChange): string => {
     const from = change.from ?? unset;
     const to = change.to ?? unset;
@@ -49,10 +59,7 @@ export function WhatChanged({
       case "site":
         return t("runs.changeSite", { from, to });
       case "elevation":
-        return t("runs.changeElevation", {
-          from: change.from ? `${change.from} m` : unset,
-          to: change.to ? `${change.to} m` : unset,
-        });
+        return t("runs.changeElevation", { from: length(change.from), to: length(change.to) });
       case "launchDate":
         return t("runs.changeLaunchDate", {
           from: change.from ? dateTime.format(new Date(change.from)) : unset,
@@ -71,10 +78,7 @@ export function WhatChanged({
       case "station":
         return t("runs.changeStation", { from, to });
       case "railLength":
-        return t("runs.changeRailLength", {
-          from: change.from ? `${change.from} m` : unset,
-          to: change.to ? `${change.to} m` : unset,
-        });
+        return t("runs.changeRailLength", { from: length(change.from), to: length(change.to) });
       case "railInclination":
         return t("runs.changeRailInclination", {
           from: change.from ? `${change.from}°` : unset,

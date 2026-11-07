@@ -242,7 +242,7 @@
     "mcColStarted": "Inicio",
     "mcColStatus": "Estado",
     "mcColFlights": "Vuelos",
-    "mcColApogee": "Apogeo P50 (m)",
+    "mcColApogee": "Apogeo P50 ({unit})",
     "mcEmpty": "Este cohete aún no tiene ejecuciones de dispersión. Lanza una desde el Workbench.",
     "mcErrorLoad": "No se pudieron cargar las ejecuciones de dispersión.",
     "mcLoading": "Cargando ejecuciones de dispersión…"
@@ -352,13 +352,13 @@
     "windMode": "Viento en la rampa",
     "windForecast": "Viento de la previsión",
     "windManual": "Medido en la rampa",
-    "windSpeed": "Velocidad (km/h)",
-    "windSpeedHint": "0–{max} km/h, según el anemómetro",
+    "windSpeed": "Velocidad ({unit})",
+    "windSpeedHint": "0–{max} {unit}, según el anemómetro",
     "windDirection": "Dirección (°)",
     "windDirectionHint": "{value}° = desde el {direction}",
     "fieldLatitude": "Latitud",
     "fieldLongitude": "Longitud",
-    "fieldElevation": "Elevación (m)",
+    "fieldElevation": "Elevación ({unit})",
     "elevationLookingUp": "Buscando elevación…",
     "elevationAutoFilled": "Elevación completada automáticamente ({source}).",
     "elevationEnterManually": "Introduce la elevación manualmente.",
@@ -454,7 +454,7 @@
     "panelOthers": "Otros cohetes",
     "panelNewRocket": "+ Cohete nuevo desde un .ork",
     "panelClose": "Cerrar el panel del cohete",
-    "railLength": "Longitud del riel (m)",
+    "railLength": "Longitud del riel ({unit})",
     "railInclination": "Inclinación (°)",
     "railHeading": "Rumbo (°)",
     "railFromOrk": "Del .ork",
@@ -653,10 +653,10 @@
     "running": "Simulando {count} vuelos… unos 1–2 minutos",
     "errorFallback": "No se pudo calcular la recomendación.",
     "missing": "Este archivo ya no está disponible.",
-    "best": "Inclinación {inclination}°, rumbo {heading}° ({headingPoint}): cae a unos {distance} m al {landingPoint} de la rampa.",
-    "noPass": "Ningún ajuste cumple todos los límites obligatorios; el más cercano es inclinación {inclination}°, rumbo {heading}° ({headingPoint}), que cae a unos {distance} m al {landingPoint} de la rampa.",
+    "best": "Inclinación {inclination}°, rumbo {heading}° ({headingPoint}): cae a unos {distance} al {landingPoint} de la rampa.",
+    "noPass": "Ningún ajuste cumple todos los límites obligatorios; el más cercano es inclinación {inclination}°, rumbo {heading}° ({headingPoint}), que cae a unos {distance} al {landingPoint} de la rampa.",
     "noCandidates": "No se pudo simular ningún ajuste de la rampa.",
-    "windUsed": "Viento usado: {speed} km/h desde {direction}° ({source})",
+    "windUsed": "Viento usado: {speed} desde {direction}° ({source})",
     "windMeasured": "medido",
     "windForecast": "previsión",
     "skipped": {
@@ -711,6 +711,13 @@
     }
   },
 
+  "units": {
+    "label": "Unidades",
+    "metricShort": "m",
+    "imperialShort": "ft",
+    "switchToImperial": "Cambiar a unidades imperiales",
+    "switchToMetric": "Cambiar a unidades métricas"
+  },
   "theme": {
     "label": "Tema",
     "switchToDark": "Cambiar al modo oscuro",

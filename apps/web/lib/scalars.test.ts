@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { formatScalar } from "./scalars";
+import { unitLabel } from "./units";
+import { SCALAR_SPECS, formatScalar, formatScalarIn } from "./scalars";
 
 describe("formatScalar — null / non-finite handling", () => {
   it("renders null as an em dash", () => {
@@ -61,5 +62,25 @@ describe("formatScalar — unit suffix and locale", () => {
   it("groups thousands per the given locale", () => {
     expect(formatScalar(12345.678, "", "en")).toBe("12,346");
     expect(formatScalar(12345.678, "", "es")).toBe("12.346");
+  });
+});
+
+describe("formatScalarIn — the scalar in the unit system in effect", () => {
+  it("every spec's metric label is its historical unit, so metric output is unchanged", () => {
+    for (const spec of SCALAR_SPECS) {
+      expect(unitLabel(spec.kind, "metric")).toBe(spec.unit);
+      expect(formatScalarIn(1234.4, spec, "metric", "en")).toBe(formatScalar(1234.4, spec.unit, "en"));
+    }
+  });
+
+  it("converts lengths, speeds and accelerations to imperial and keeps the rest", () => {
+    const spec = (key: string) => SCALAR_SPECS.find((s) => s.key === key)!;
+    expect(formatScalarIn(816.4, spec("apogee_m"), "imperial", "en")).toBe("2,678 ft");
+    expect(formatScalarIn(10.7, spec("impact_velocity_ms"), "imperial", "en")).toBe("35.1 ft/s");
+    expect(formatScalarIn(95.3, spec("max_acceleration_ms2"), "imperial", "en")).toBe("313 ft/s²");
+    expect(formatScalarIn(1.93, spec("rail_departure_stability_margin"), "imperial", "en")).toBe("1.93 cal");
+    expect(formatScalarIn(21.8, spec("apogee_time_s"), "imperial", "en")).toBe("21.8 s");
+    expect(formatScalarIn(0.84, spec("max_mach"), "imperial", "en")).toBe("0.84");
+    expect(formatScalarIn(null, spec("apogee_m"), "imperial", "en")).toBe("—");
   });
 });

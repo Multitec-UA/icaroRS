@@ -30,11 +30,11 @@ afterEach(() => {
   for (const mock of Object.values(api)) mock.mockReset();
 });
 
-function renderReport(run: MonteCarloRun) {
+function renderReport(run: MonteCarloRun, units: "metric" | "imperial" = "metric") {
   api.getMonteCarlo.mockResolvedValue(run);
   api.getRocket.mockResolvedValue({ rocket_id: run.rocket_id, name: "Icarus-2", exports: [] });
   return render(
-    <AppProviders>
+    <AppProviders units={units}>
       <MonteCarloReport runId={run.run_id} initialRun={run} />
     </AppProviders>,
   );
@@ -68,5 +68,14 @@ describe("MonteCarloReport — a run without results yet", () => {
     expect(screen.queryByTestId("ellipse-map")).toBeNull();
     expect(screen.queryByRole("link", { name: "Download KML" })).toBeNull();
     expect(screen.getByRole("link", { name: "Open in Workbench" })).toHaveAttribute("href", "/?file=exp-1&mc=mc-1");
+  });
+});
+
+describe("MonteCarloReport — imperial units", () => {
+  it("renders the apogee statistics in ft", async () => {
+    renderReport(MC_DONE, "imperial");
+    expect(await screen.findByRole("heading", { level: 1, name: "Dispersion · 100 flights" })).toBeInTheDocument();
+    expect(screen.getByText("2,603 ft ± 151 ft")).toBeInTheDocument();
+    expect(screen.getByText("2,608 ft")).toBeInTheDocument();
   });
 });

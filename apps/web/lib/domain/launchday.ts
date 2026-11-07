@@ -5,6 +5,7 @@
  */
 
 import type { LaunchCandidate, LaunchCheck, LaunchCheckId } from "@/lib/api/launchday";
+import { fromSi, type MeasureKind, type UnitSystem } from "@/lib/units";
 import { COMPASS_POINTS, type CompassPoint } from "./montecarlo";
 
 /** The sweep the API runs when the request names no grid (S3). */
@@ -55,13 +56,16 @@ export interface Headline {
   passes: boolean;
 }
 
-/** The recommended setting as the pieces of its sentence. */
-export function headline(best: LaunchCandidate): Headline {
+/**
+ * The recommended setting as the pieces of its sentence. `distance` is in the
+ * length unit of `system` (m or ft), rounded like `approxDistance`.
+ */
+export function headline(best: LaunchCandidate, system: UnitSystem = "metric"): Headline {
   return {
     inclination: best.inclination,
     heading: best.heading,
     headingPoint: compassPoint(best.heading),
-    distance: approxDistance(best.landing_distance),
+    distance: approxDistance(fromSi(best.landing_distance, "length", system)),
     landingPoint: compassPoint(best.landing_bearing),
     passes: best.checks_ok,
   };
@@ -93,15 +97,30 @@ export function requirementLabel(source: string): string | null {
   return /^[A-Z]+-\d+$/.test(source) ? `SURTSR-L1-${source}` : source;
 }
 
-/** The unit each check's value and limit are in. */
-export const CHECK_UNIT: Record<LaunchCheckId, string> = {
-  apogee_max: "m",
-  apogee_recommended: "m",
-  tilt_max: "°",
-  static_margin_min: "cal",
-  descent_max: "m/s",
-  descent_recommended: "m/s",
-  landing_radius: "m",
-  rail_exit_min: "m/s",
-  wind_max: "km/h",
+/**
+ * What each check's value and limit measure (the API sends them in SI: m,
+ * m/s, km/h for the wind, degrees, calibres); the unit system converts them.
+ */
+export const CHECK_KIND: Record<LaunchCheckId, MeasureKind> = {
+  apogee_max: "length",
+  apogee_recommended: "length",
+  tilt_max: "angle",
+  static_margin_min: "stability",
+  descent_max: "speed",
+  descent_recommended: "speed",
+  landing_radius: "length",
+  rail_exit_min: "speed",
+  wind_max: "windSpeed",
 };
+
+/**
+ * Decimals shown for a launch-day measure: calibres to the hundredth, speeds
+ * and angles to the tenth, lengths and km/h whole; mph to the tenth so the
+ * 32 km/h wind limit reads 19.9 mph, not a rounded-up 20.
+ */
+export function measureDecimals(kind: MeasureKind, system: UnitSystem): number {
+  if (kind === "stability") return 2;
+  if (kind === "speed" || kind === "angle") return 1;
+  if (kind === "windSpeed") return system === "imperial" ? 1 : 0;
+  return 0;
+}

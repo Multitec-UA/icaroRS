@@ -12,6 +12,7 @@ import { useId } from "react";
 import { Reveal } from "@/components/motion";
 import { cn, focusRing } from "@/lib/styles";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { flightEvents, formatQuantity, formatSeconds } from "./flightMath";
 import { useReplaySeek } from "./ReplayContext";
 
@@ -20,9 +21,10 @@ const ROW_CLASS = "flex w-full items-baseline gap-3 py-2 text-sm";
 export function FlightTimeline({ scalars }: { scalars: Record<string, number | null> }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system } = useUnits();
   const id = useId();
   const { hasReplay, seek } = useReplaySeek();
-  const events = flightEvents(scalars);
+  const events = flightEvents(scalars, system);
 
   if (events.length === 0) return null;
 

@@ -38,6 +38,8 @@ import { rocketSummaryFromManifest, type RocketSummary } from "@/lib/domain/rock
 import { scenarioFacts, type ScenarioFacts } from "@/lib/domain/runs";
 import { SCALAR_SPECS, formatScalar } from "@/lib/scalars";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
+import type { MeasureKind } from "@/lib/units";
 import { flightEvents, formatNumber, fractionDigitsFor, landingDistance } from "@/components/flight/flightMath";
 import { useRunFormatters } from "@/components/runs/useRunFormatters";
 import { cn } from "@/lib/styles";
@@ -225,55 +227,61 @@ function SummarySection({
 }) {
   const t = useT();
   const { locale } = useLocale();
+  const { display, label: unitOf } = useUnits();
   const stored = rocket?.storedResults ?? null;
   const value = (key: string) => finite(scalars[key]);
+  const shown = (v: number | null, kind: MeasureKind) => (v === null ? null : display(v, kind));
 
-  const rows: { key: string; label: string; unit: string; icaro: number | null; openRocket: number | null }[] = [
-    { key: "apogee_m", label: t("scalars.apogee_m"), unit: "m", icaro: value("apogee_m"), openRocket: stored?.apogeeM ?? null },
+  const allRows: { key: string; label: string; kind: MeasureKind; icaro: number | null; openRocket: number | null }[] = [
+    { key: "apogee_m", label: t("scalars.apogee_m"), kind: "length", icaro: value("apogee_m"), openRocket: stored?.apogeeM ?? null },
     {
       key: "max_velocity_ms",
       label: t("scalars.max_velocity_ms"),
-      unit: "m/s",
+      kind: "speed",
       icaro: value("max_velocity_ms"),
       openRocket: stored?.maxVelocityMs ?? null,
     },
-    { key: "max_mach", label: t("scalars.max_mach"), unit: "", icaro: value("max_mach"), openRocket: null },
+    { key: "max_mach", label: t("scalars.max_mach"), kind: "none", icaro: value("max_mach"), openRocket: null },
     {
       key: "flight_time_s",
       label: t("scalars.flight_time_s"),
-      unit: "s",
+      kind: "time",
       icaro: value("flight_time_s"),
       openRocket: stored?.flightTimeS ?? null,
     },
     {
       key: "rail_departure_velocity_ms",
       label: t("scalars.rail_departure_velocity_ms"),
-      unit: "m/s",
+      kind: "speed",
       icaro: value("rail_departure_velocity_ms"),
       openRocket: null,
     },
     {
       key: "rail_departure_stability_margin",
       label: t("scalars.rail_departure_stability_margin"),
-      unit: "cal",
+      kind: "stability",
       icaro: value("rail_departure_stability_margin"),
       openRocket: null,
     },
     {
       key: "landing",
       label: t("printReport.landingDistance"),
-      unit: "m",
+      kind: "length",
       icaro: landingDistance(value("impact_x_m"), value("impact_y_m")),
       openRocket: null,
     },
     {
       key: "impact_velocity_ms",
       label: t("scalars.impact_velocity_ms"),
-      unit: "m/s",
+      kind: "speed",
       icaro: value("impact_velocity_ms"),
       openRocket: null,
     },
-  ].filter((row) => row.icaro !== null);
+  ];
+  const rows = allRows
+    .filter((row) => row.icaro !== null)
+    // Every number of a row in the unit system in effect, its label in the unit column.
+    .map((row) => ({ ...row, icaro: shown(row.icaro, row.kind), openRocket: shown(row.openRocket, row.kind) }));
 
   const titleId = useId();
   const title = `${n}. ${t("printReport.summary")}`;
@@ -308,7 +316,7 @@ function SummarySection({
               <th scope="row" className={TD_LABEL}>
                 {row.label}
               </th>
-              <td className={TD}>{row.unit}</td>
+              <td className={TD}>{unitOf(row.kind)}</td>
               <td className={TD_NUM}>{formatScalar(row.icaro, "", locale)}</td>
               <td className={TD_NUM}>{formatScalar(row.openRocket, "", locale)}</td>
               <td className={TD_NUM}>
@@ -343,7 +351,13 @@ function ConfigurationSection({
   const t = useT();
   const { locale } = useLocale();
   const { modelLabel } = useRunFormatters();
+  const { display, label: unitOf } = useUnits();
   const num = (v: number | null | undefined) => (v == null ? DASH : formatNumber(v, locale));
+  /** A measurement in the unit system in effect: its number and its unit column. */
+  const measure = (v: number | null | undefined, kind: MeasureKind) => ({
+    value: v == null ? DASH : formatNumber(display(v, kind), locale),
+    unit: unitOf(kind),
+  });
   const motor = rocket?.motor ?? null;
   const site = facts?.site ?? null;
   const rail = facts?.rail ?? null;
@@ -351,9 +365,9 @@ function ConfigurationSection({
   const rocketRows: Row[] = rocket
     ? [
         { label: t("printReport.rocketName"), value: rocket.name ?? DASH, unit: "" },
-        { label: t("printReport.dryMass"), value: num(rocket.dryMassKg), unit: "kg" },
-        { label: t("printReport.liftoffMass"), value: num(rocket.liftoffMassKg), unit: "kg" },
-        { label: t("printReport.diameter"), value: num(rocket.diameterMm), unit: "mm" },
+        { label: t("printReport.dryMass"), ...measure(rocket.dryMassKg, "mass") },
+        { label: t("printReport.liftoffMass"), ...measure(rocket.liftoffMassKg, "mass") },
+        { label: t("printReport.diameter"), ...measure(rocket.diameterMm, "diameter") },
         {
           label: t("printReport.motor"),
           value: motor ? [motor.manufacturer, motor.designation].filter(Boolean).join(" ") || DASH : DASH,
@@ -376,10 +390,10 @@ function ConfigurationSection({
     ? [
         { label: t("printReport.latitude"), value: site ? coordinate(site.latitude) : DASH, unit: "°" },
         { label: t("printReport.longitude"), value: site ? coordinate(site.longitude) : DASH, unit: "°" },
-        { label: t("report.configElevation"), value: num(site?.elevation), unit: "m" },
+        { label: t("report.configElevation"), ...measure(site?.elevation, "length") },
         { label: t("report.configLaunch"), value: facts.launchDateIso ? utc(facts.launchDateIso) : DASH, unit: "" },
         { label: t("report.configWeather"), value: facts.model ? modelLabel(facts.model) : DASH, unit: "" },
-        { label: t("printReport.railLength"), value: num(rail?.length), unit: "m" },
+        { label: t("printReport.railLength"), ...measure(rail?.length, "length") },
         { label: t("printReport.railInclination"), value: num(rail?.inclination), unit: "°" },
         { label: t("printReport.railHeading"), value: num(rail?.heading), unit: "°" },
       ]
@@ -399,7 +413,8 @@ function ConfigurationSection({
 function EventsSection({ n, scalars }: { n: number; scalars: Record<string, number | null> }) {
   const t = useT();
   const { locale } = useLocale();
-  const events = flightEvents(scalars);
+  const { system } = useUnits();
+  const events = flightEvents(scalars, system);
   const titleId = useId();
   if (events.length === 0) return null;
   return (
@@ -444,6 +459,7 @@ function EventsSection({ n, scalars }: { n: number; scalars: Record<string, numb
 function ResultsSection({ n, scalars }: { n: number; scalars: Record<string, number | null> }) {
   const t = useT();
   const { locale } = useLocale();
+  const { display, label: unitOf } = useUnits();
   const titleId = useId();
   const specs = SCALAR_SPECS.filter((spec) => spec.key in scalars);
   return (
@@ -471,8 +487,8 @@ function ResultsSection({ n, scalars }: { n: number; scalars: Record<string, num
               <th scope="row" className={TD_LABEL}>
                 {t(`scalars.${spec.key}`)}
               </th>
-              <td className={TD_NUM}>{formatScalar(scalars[spec.key], "", locale)}</td>
-              <td className={TD}>{spec.unit}</td>
+              <td className={TD_NUM}>{formatScalar(shownScalar(scalars[spec.key], spec.kind, display), "", locale)}</td>
+              <td className={TD}>{unitOf(spec.kind)}</td>
             </tr>
           ))}
         </tbody>
@@ -565,6 +581,15 @@ const DASH = "—";
 /** A difference at its row's precision (1813 vs 1832 → "-19", never "-19.8"). */
 function signed(value: number, digits: number, locale: "en" | "es"): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: digits, signDisplay: "exceptZero" }).format(value);
+}
+
+/** A scalar converted to the unit system in effect; null and non-finite stay as they are. */
+function shownScalar(
+  value: number | null,
+  kind: MeasureKind,
+  display: (value: number, kind: MeasureKind) => number,
+): number | null {
+  return value === null || !Number.isFinite(value) ? value : display(value, kind);
 }
 
 function finite(value: number | null | undefined): number | null {

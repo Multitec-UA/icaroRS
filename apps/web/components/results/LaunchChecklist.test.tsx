@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import type { LaunchCheck } from "@/lib/api/launchday";
 import { LaunchChecklist } from "./LaunchChecklist";
 
@@ -49,5 +50,58 @@ describe("LaunchChecklist (launch-day S6b)", () => {
   it("explains every rule with an info tip", () => {
     renderList();
     expect(screen.getAllByRole("button", { name: "More information" })).toHaveLength(4);
+  });
+});
+
+describe("LaunchChecklist — imperial units (units S6)", () => {
+  const ALL: LaunchCheck[] = [
+    ...CHECKS,
+    { id: "descent_max", value: 7.2, limit: 10, comparator: "<=", ok: true, severity: "hard", source: "PROP-005" },
+    { id: "landing_radius", value: 610, limit: 500, comparator: "<=", ok: false, severity: "soft", source: "REC-003" },
+    { id: "wind_max", value: 18, limit: 32, comparator: "<=", ok: true, severity: "hard", source: "PROP-001" },
+    { id: "tilt_max", value: 4, limit: 5, comparator: "<=", ok: true, severity: "hard", source: "PROP-002" },
+  ];
+
+  function cells(row: HTMLElement): string[] {
+    return within(row).getAllByRole("cell").slice(1, 3).map((cell) => cell.textContent ?? "");
+  }
+
+  it("shows values and limits in ft, ft/s and mph; ok still comes from the API", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <LaunchChecklist title="Current setting" checks={ALL} />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows.map(cells)).toEqual([
+      ["1,773 ft", "≤ 3,281 ft · limit"],
+      ["23.6 ft/s", "16.4–19.7 ft/s · recommended"],
+      ["1.21 cal", "≥ 1.5 cal · limit"],
+      ["60 ft/s", "≥ 49.2 ft/s · recommended"],
+      ["23.6 ft/s", "≤ 32.8 ft/s · limit"],
+      ["2,001 ft", "≤ 1,640 ft · recommended"],
+      ["11.2 mph", "≤ 19.9 mph · limit"],
+      ["4°", "≤ 5° · limit"],
+    ]);
+    expect(within(rows[5]).getByText("Recommendation missed")).toHaveAttribute("data-tone", "warn");
+  });
+
+  it("metric renders the same limits as before", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="metric">
+          <LaunchChecklist title="Current setting" checks={ALL} />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(rows.map(cells).slice(4)).toEqual([
+      ["7.2 m/s", "≤ 10 m/s · limit"],
+      ["610 m", "≤ 500 m · recommended"],
+      ["18 km/h", "≤ 32 km/h · limit"],
+      ["4°", "≤ 5° · limit"],
+    ]);
   });
 });
