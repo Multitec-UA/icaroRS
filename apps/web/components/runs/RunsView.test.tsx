@@ -109,11 +109,11 @@ afterEach(() => {
   mockSearch("");
 });
 
-async function renderRuns(query = "rocket_id=r2") {
+async function renderRuns(query = "rocket_id=r2", units: "metric" | "imperial" = "metric") {
   mockApi();
   mockSearch(query);
   render(
-    <AppProviders>
+    <AppProviders units={units}>
       <RunsView />
     </AppProviders>,
   );
@@ -356,5 +356,31 @@ describe("RunsView — empty states", () => {
     );
 
     expect(await screen.findByText(/No runs for this rocket yet/)).toBeInTheDocument();
+  });
+});
+
+describe("RunsView — imperial units", () => {
+  it("heads the numeric columns in ft and ft/s and converts the values and deltas", async () => {
+    const table = await renderRuns("rocket_id=r2", "imperial");
+    for (const name of ["Apogee (ft)", "Max speed (ft/s)", "Flight time (s)", "Landing (ft)"]) {
+      expect(table.getByRole("columnheader", { name })).toBeInTheDocument();
+    }
+    // run-a: 3142 m = 10,308 ft, 287 m/s = 942 ft/s, landing 1500 m = 4,921.3 ft.
+    const rowA = table.getByRole("radio", { name: "Baseline: run run-a" }).closest("tr") as HTMLElement;
+    for (const value of ["10,308", "942", "142.0", "4,921.3"]) {
+      expect(within(rowA).getByText(value)).toBeInTheDocument();
+    }
+    // run-b against the baseline run-a: 3088 − 3142 m = −54 m = −177 ft.
+    fireEvent.click(table.getByRole("radio", { name: "Baseline: run run-a" }));
+    const rowB = table.getByRole("radio", { name: "Baseline: run run-b" }).closest("tr") as HTMLElement;
+    expect(within(rowB).getByText("-177")).toBeInTheDocument();
+  });
+
+  it("states a changed elevation in ft in What changed", async () => {
+    const table = await renderRuns("rocket_id=r2", "imperial");
+    fireEvent.click(table.getByRole("checkbox", { name: "Compare run run-b" }));
+    const changed = screen.getByRole("region", { name: "What changed" });
+    // 12 m = 39.4 ft; 40 m = 131 ft.
+    expect(within(changed).getByText("Elevation 39.4 ft → 131 ft")).toBeInTheDocument();
   });
 });

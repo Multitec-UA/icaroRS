@@ -4,6 +4,7 @@ import {
   MC_MAX_FLIGHTS,
   MC_MIN_FLIGHTS,
   apogeeHistogram,
+  budgetItemIn,
   budgetItems,
   ellipseCoverage,
   landingSummary,
@@ -205,5 +206,36 @@ describe("landing summary (S15) — mean impact point from the launch site", () 
 describe("ellipse coverage (S15) — share of landings inside kσ (2-D normal)", () => {
   it("is ≈ 39 %, 86 % and 99 % for 1σ, 2σ and 3σ", () => {
     expect([1, 2, 3].map((sigma) => Math.round(ellipseCoverage(sigma) * 100))).toEqual([39, 86, 99]);
+  });
+});
+
+describe("budget item in a unit system — absolute mass and rail-length spreads", () => {
+  it("states kg in lb and m in ft in imperial, two decimals at most; % and ° unchanged", () => {
+    expect(budgetItemIn({ key: "mass", amount: 0.2, unit: "kg" }, "imperial")).toEqual({ key: "mass", amount: 0.44, unit: "lb" });
+    expect(budgetItemIn({ key: "rail_length", amount: 0.05, unit: "m" }, "imperial")).toEqual({
+      key: "rail_length",
+      amount: 0.16,
+      unit: "ft",
+    });
+    expect(budgetItemIn({ key: "angles", amount: 2, unit: "°" }, "imperial")).toEqual({ key: "angles", amount: 2, unit: "°" });
+    expect(budgetItemIn({ key: "mass", amount: 5, unit: "%" }, "imperial")).toEqual({ key: "mass", amount: 5, unit: "%" });
+    expect(budgetItemIn({ key: "thrust", amount: 4, unit: "N" }, "imperial")).toEqual({ key: "thrust", amount: 4, unit: "N" });
+  });
+
+  it("returns metric items unchanged", () => {
+    const item = { key: "rail_length" as const, amount: 0.02, unit: "m" };
+    expect(budgetItemIn(item, "metric")).toEqual(item);
+  });
+});
+
+describe("landing summary in imperial — rounded in feet", () => {
+  it("a mean impact 120 m east is about 390 ft (394 ft to the nearest 10)", () => {
+    expect(landingSummary([110, 130], [0, 10], "imperial")).toEqual({ distance: 390, direction: "E" });
+  });
+
+  it("keeps whole feet under 100 ft and the metric result by default", () => {
+    // 15 m = 49.2 ft.
+    expect(landingSummary([15], [0], "imperial")?.distance).toBe(49);
+    expect(landingSummary([110, 130], [0, 10], "metric")).toEqual(landingSummary([110, 130], [0, 10]));
   });
 });

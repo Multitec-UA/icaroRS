@@ -16,6 +16,7 @@ import type { MonteCarloRunResult } from "@/lib/api";
 import { monteCarloKmlUrl } from "@/lib/api";
 import {
   apogeeHistogram,
+  budgetItemIn,
   budgetItems,
   ellipseCoverage,
   ellipseLayers,
@@ -28,15 +29,16 @@ import {
 import type { Locale } from "@/lib/i18n";
 import { plural } from "@/lib/i18n";
 import { InfoTip } from "@/components/InfoTip";
-import { formatQuantity, formatNumber } from "@/components/flight/flightMath";
+import { formatMeasureQuantity, formatNumber, formatQuantity } from "@/components/flight/flightMath";
 import { buttonClass } from "@/components/ui";
 import { LandingEllipseMap } from "@/components/map/LandingEllipseMap";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { MonteCarloExplainer } from "./MonteCarloExplainer";
 
 const SUBTITLE = "flex items-center gap-1.5 text-xs font-medium uppercase tracking-[0.06em] text-muted";
 
-/** "±5 %", "±2°", "±0.02 m": a budget amount with its unit. */
+/** "±5 %", "±2°", "±0.02 m" (or "±0.07 ft"): a budget amount with its unit. */
 function budgetAmount(item: BudgetItem, locale: Locale): string {
   const value = formatNumber(item.amount, locale, 2);
   if (!item.unit) return `±${value}`;
@@ -47,7 +49,8 @@ function budgetAmount(item: BudgetItem, locale: Locale): string {
 function ContextLine({ result }: { result: MonteCarloRunResult }) {
   const t = useT();
   const { locale } = useLocale();
-  const items = budgetItems(result.uncertainty);
+  const { system } = useUnits();
+  const items = budgetItems(result.uncertainty).map((item) => budgetItemIn(item, system));
   const count = result.n_requested;
   const text =
     items.length > 0
@@ -65,14 +68,16 @@ function ContextLine({ result }: { result: MonteCarloRunResult }) {
 function Reading({ result, layers }: { result: MonteCarloRunResult; layers: EllipseLayer[] }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system, label } = useUnits();
   const stats = result.apogee_stats;
   if (!stats) return <p className="text-sm text-ink">{t("montecarlo.readNone")}</p>;
-  const m = (value: number) => formatQuantity(value, "m", locale);
-  const landing = landingSummary(result.impact_x, result.impact_y);
+  const m = (value: number) => formatMeasureQuantity(value, "length", system, locale);
+  // Already in the length unit of `system`, rounded "about" in that unit.
+  const landing = landingSummary(result.impact_x, result.impact_y, system);
   const outer = layers[layers.length - 1];
   const sentences = [t("montecarlo.readApogee", { p5: m(stats.p5), p95: m(stats.p95), p50: m(stats.p50) })];
   if (landing) {
-    const vars = { distance: m(landing.distance), direction: t(`montecarlo.direction.${landing.direction}`) };
+    const vars = { distance: formatQuantity(landing.distance, label("length"), locale), direction: t(`montecarlo.direction.${landing.direction}`) };
     sentences.push(
       outer
         ? t("montecarlo.readLandingEllipse", { ...vars, coverage: Math.round(ellipseCoverage(outer.sigma) * 100) })
@@ -95,7 +100,8 @@ export function MonteCarloResults({ runId, result }: { runId: string; result: Mo
   const counts = flightCounts(result);
   const stats = result.apogee_stats;
   const layers = ellipseLayers(result);
-  const m = (value: number) => formatQuantity(value, "m", locale);
+  const { system } = useUnits();
+  const m = (value: number) => formatMeasureQuantity(value, "length", system, locale);
 
   return (
     <div className="flex flex-col gap-5">
@@ -207,14 +213,17 @@ const CHART_H = 96;
 function ApogeeHistogram({ values }: { values: number[] }) {
   const t = useT();
   const { locale } = useLocale();
-  const bins = apogeeHistogram(values);
+  const { display, label: unitOf } = useUnits();
+  // Binned on the values in the unit system in effect, so the axis reads in m or ft.
+  const bins = apogeeHistogram(values.map((value) => display(value, "length")));
+  const unit = unitOf("length");
   const total = bins.reduce((sum, bin) => sum + bin.count, 0);
   const tallest = Math.max(1, ...bins.map((bin) => bin.count));
   const barW = CHART_W / Math.max(1, bins.length);
   const label = (bin: HistogramBin) =>
     t("montecarlo.histogramBar", {
       from: formatNumber(bin.from, locale, 0),
-      to: formatQuantity(Math.round(bin.to), "m", locale),
+      to: formatQuantity(Math.round(bin.to), unit, locale),
       count: bin.count,
     });
   const first = bins[0];
@@ -248,8 +257,8 @@ function ApogeeHistogram({ values }: { values: number[] }) {
       </svg>
       {first && last && (
         <figcaption className="flex justify-between text-xs tabular-nums text-muted">
-          <span>{formatQuantity(Math.round(first.from), "m", locale)}</span>
-          <span>{formatQuantity(Math.round(last.to), "m", locale)}</span>
+          <span>{formatQuantity(Math.round(first.from), unit, locale)}</span>
+          <span>{formatQuantity(Math.round(last.to), unit, locale)}</span>
         </figcaption>
       )}
     </figure>

@@ -242,7 +242,7 @@
     "mcColStarted": "Started",
     "mcColStatus": "Status",
     "mcColFlights": "Flights",
-    "mcColApogee": "Apogee P50 (m)",
+    "mcColApogee": "Apogee P50 ({unit})",
     "mcEmpty": "No dispersion runs for this rocket yet. Launch one from the Workbench.",
     "mcErrorLoad": "Could not load the dispersion runs.",
     "mcLoading": "Loading dispersion runs…"

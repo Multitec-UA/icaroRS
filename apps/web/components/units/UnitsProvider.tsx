@@ -14,6 +14,7 @@
 
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 import { useLocale } from "@/components/i18n/LocaleProvider";
+import type { Locale } from "@/lib/i18n";
 import {
   UNITS_COOKIE,
   UNITS_COOKIE_MAX_AGE,
@@ -41,6 +42,25 @@ interface UnitsContextValue {
 
 const UnitsContext = createContext<UnitsContextValue | null>(null);
 
+function unitsValue(
+  system: UnitSystem,
+  locale: Locale,
+  setSystem: (system: UnitSystem) => void,
+  toggle: () => void,
+): UnitsContextValue {
+  return {
+    system,
+    setSystem,
+    toggle,
+    format: (v, kind) => formatMeasure(v, kind, system, locale),
+    display: (v, kind) => fromSi(v, kind, system),
+    si: (v, kind) => toSi(v, kind, system),
+    label: (kind) => unitLabel(kind, system),
+  };
+}
+
+const noop = () => {};
+
 function writeUnitsCookie(system: UnitSystem): void {
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   document.cookie = `${UNITS_COOKIE}=${system}; max-age=${UNITS_COOKIE_MAX_AGE}; path=/; SameSite=Lax${secure}`;
@@ -66,24 +86,22 @@ export function UnitsProvider({
     [system, setSystem],
   );
 
-  const value = useMemo<UnitsContextValue>(
-    () => ({
-      system,
-      setSystem,
-      toggle,
-      format: (v, kind) => formatMeasure(v, kind, system, locale),
-      display: (v, kind) => fromSi(v, kind, system),
-      si: (v, kind) => toSi(v, kind, system),
-      label: (kind) => unitLabel(kind, system),
-    }),
+  const value = useMemo(
+    () => unitsValue(system, locale, setSystem, toggle),
     [system, setSystem, toggle, locale],
   );
 
   return <UnitsContext.Provider value={value}>{children}</UnitsContext.Provider>;
 }
 
+/**
+ * The unit system in effect. Outside a <UnitsProvider> (isolated component
+ * tests, embeds) it is metric in the current locale — exactly what the app
+ * rendered before the switch existed — and changing it is a no-op.
+ */
 export function useUnits(): UnitsContextValue {
   const ctx = useContext(UnitsContext);
-  if (!ctx) throw new Error("useUnits must be used within <UnitsProvider>");
-  return ctx;
+  const { locale } = useLocale();
+  const fallback = useMemo(() => unitsValue("metric", locale, noop, noop), [locale]);
+  return ctx ?? fallback;
 }

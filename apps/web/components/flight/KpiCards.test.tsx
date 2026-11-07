@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { KpiCards } from "./KpiCards";
 import { SCALARS, SERIES } from "./fixtures";
 
@@ -79,5 +80,38 @@ describe("KpiCards — the four headline numbers", () => {
     );
     expect(screen.getByRole("group", { name: "Apogeo" })).toHaveTextContent("3142 m");
     expect(screen.getByRole("group", { name: "Velocidad máxima" })).toHaveTextContent("Mach 0,84");
+  });
+});
+
+describe("KpiCards — imperial units", () => {
+  it("shows apogee in ft, speeds in ft/s and the landing distance in ft; stability stays in cal", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <KpiCards scalars={SCALARS} series={SERIES} />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    expect(screen.getByRole("group", { name: "Apogee" })).toHaveTextContent("10,309 ft");
+    expect(screen.getByRole("group", { name: "Max speed" })).toHaveTextContent("943 ft/s");
+    const stability = screen.getByRole("group", { name: "Stability off rail" });
+    expect(stability).toHaveTextContent("1.93 cal");
+    expect(stability).toHaveTextContent("89.6 ft/s off the rail");
+    // 1500 m = 4,921 ft: still feet under a mile.
+    const landing = screen.getByRole("group", { name: "Landing" });
+    expect(landing).toHaveTextContent("4,921 ft");
+    expect(landing).toHaveTextContent("27.6 ft/s at impact");
+  });
+
+  it("switches the landing distance to miles past one mile", () => {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <KpiCards scalars={{ ...SCALARS, impact_x_m: 3000, impact_y_m: 4000 }} />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    // 5 km = 3.11 mi.
+    expect(screen.getByRole("group", { name: "Landing" })).toHaveTextContent("3.11 mi");
   });
 });

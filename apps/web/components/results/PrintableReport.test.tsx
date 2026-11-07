@@ -59,9 +59,9 @@ function PrintButton() {
   );
 }
 
-function renderPrintable() {
+function renderPrintable(units: "metric" | "imperial" = "metric") {
   return render(
-    <AppProviders>
+    <AppProviders units={units}>
       <PrintableReport runId="20261024T123200Z-run1" result={RESULT}>
         <PrintButton />
       </PrintableReport>
@@ -201,5 +201,36 @@ describe("PrintReport — a formal technical document with everything expanded",
     expect(images.map((img) => img.getAttribute("loading"))).toEqual(["eager", "eager"]);
     expect(doc.getByText("Figure 1. 3D trajectory")).toBeInTheDocument();
     expect(doc.getByText("Figure 2. Energy")).toBeInTheDocument();
+  });
+});
+
+describe("PrintReport — imperial units", () => {
+  it("prints every measurement in the unit system in effect, units in their own column", async () => {
+    renderPrintable("imperial");
+    fireEvent.click(await screen.findByRole("button", { name: "Download PDF" }));
+    await waitFor(() => expect(within(documentRoot()).getByText(/simulation stored in the file/)).toBeInTheDocument());
+    const doc = within(documentRoot());
+    const cells = (table: HTMLElement, name: RegExp) =>
+      within(within(table).getByRole("row", { name })).getAllByRole("cell").map((c) => c.textContent);
+
+    const summary = doc.getByRole("table", { name: "1. Summary" });
+    // 3,142.2 m = 10,309 ft; 1,790 m = 5,873 ft.
+    expect(cells(summary, /^Highest point above ground/)).toEqual(["ft", "10,309", "5,873", "+4,436"]);
+    expect(cells(summary, /^Maximum speed/)).toEqual(["ft/s", "943", "915", "+28"]);
+
+    const launch = doc.getByRole("table", { name: "Launch conditions" });
+    // 5.2 m = 17.1 ft; 12 m = 39.4 ft.
+    expect(cells(launch, /^Rail length/)).toEqual(["17.1", "ft"]);
+    expect(cells(launch, /^Elevation/)).toEqual(["39.4", "ft"]);
+    expect(cells(launch, /^Rail inclination/)).toEqual(["84", "°"]);
+
+    const rocket = doc.getByRole("table", { name: "Rocket" });
+    expect(cells(rocket, /^Diameter/)).toEqual(["3.94", "in"]);
+
+    const events = doc.getByRole("table", { name: "4. Flight events" });
+    expect(within(events).getByRole("row", { name: /Apogee/ })).toHaveTextContent(/10,309\s*ft/);
+
+    const results = doc.getByRole("table", { name: "5. Complete results" });
+    expect(cells(results, /^Highest point above ground/)).toEqual(["10,309", "ft"]);
   });
 });

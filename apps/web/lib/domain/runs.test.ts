@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  RUN_METRIC_KINDS,
+  RUN_METRIC_UNITS,
   formatDelta,
   runDeltas,
   runMetrics,
@@ -8,6 +10,7 @@ import {
   whatChanged,
   type RunInputs,
 } from "./runs";
+import { fromSi, unitLabel } from "@/lib/units";
 
 const baseScenario = {
   name: "",
@@ -179,5 +182,21 @@ describe("siteLabel", () => {
   it("rounds coordinates to 5 decimals (about 1 m), the precision scenarios are compared at", () => {
     expect(siteLabel({ latitude: 41.7318811, longitude: 0.1094522, elevation: null })).toBe("41.73188, 0.10945");
     expect(siteLabel({ latitude: 38.3452, longitude: -0.481, elevation: 12 })).toBe("38.3452, -0.481");
+  });
+});
+
+describe("run metric kinds — what each compared number measures", () => {
+  it("labels apogee and landing as lengths, max speed as a speed and flight time as time", () => {
+    expect(RUN_METRIC_KINDS).toEqual({ apogee: "length", maxSpeed: "speed", flightTime: "time", landing: "length" });
+    for (const key of Object.keys(RUN_METRIC_KINDS) as (keyof typeof RUN_METRIC_KINDS)[]) {
+      expect(unitLabel(RUN_METRIC_KINDS[key], "metric")).toBe(RUN_METRIC_UNITS[key]);
+    }
+  });
+
+  it("a delta converts like its values, so imperial deltas read in ft", () => {
+    const base = runMetrics({ apogee_m: 3142 });
+    const run = runMetrics({ apogee_m: 3088 });
+    const delta = runDeltas(base, run).apogee!;
+    expect(formatDelta(fromSi(delta, RUN_METRIC_KINDS.apogee, "imperial"), "en", "ft")).toBe("-177 ft");
   });
 });

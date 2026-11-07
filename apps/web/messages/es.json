@@ -242,7 +242,7 @@
     "mcColStarted": "Inicio",
     "mcColStatus": "Estado",
     "mcColFlights": "Vuelos",
-    "mcColApogee": "Apogeo P50 (m)",
+    "mcColApogee": "Apogeo P50 ({unit})",
     "mcEmpty": "Este cohete aún no tiene ejecuciones de dispersión. Lanza una desde el Workbench.",
     "mcErrorLoad": "No se pudieron cargar las ejecuciones de dispersión.",
     "mcLoading": "Cargando ejecuciones de dispersión…"

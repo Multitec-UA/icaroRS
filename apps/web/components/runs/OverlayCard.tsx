@@ -14,6 +14,7 @@ import { shortRunId } from "@/lib/domain/runs";
 import { cn } from "@/lib/styles";
 import { OverlayChart, type OverlayLine } from "@/components/flight/OverlayChart";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { RUN_COLORS } from "./colors";
 import { fileLabel } from "@/lib/domain/exports";
 
@@ -32,6 +33,7 @@ function labelOf(run: SimulationSummary): string {
 export function OverlayCard({ entries }: { entries: OverlayEntry[] }) {
   const t = useT();
   const { locale } = useLocale();
+  const { display } = useUnits();
   const id = useId();
 
   const lines: OverlayLine[] = entries
@@ -41,7 +43,8 @@ export function OverlayCard({ entries }: { entries: OverlayEntry[] }) {
       label: labelOf(entry.run),
       color: RUN_COLORS[entry.colorIndex].token,
       t: (entry.series as FlightSeries).t,
-      values: (entry.series as FlightSeries).altitude as number[],
+      // Plotted in the unit system in effect, so the axis ticks read in m or ft.
+      values: ((entry.series as FlightSeries).altitude as number[]).map((v) => display(v, "length")),
     }));
   const missing = entries.filter((entry) => entry.missing);
   const pending = entries.some((entry) => entry.pending);

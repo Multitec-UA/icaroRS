@@ -11,32 +11,36 @@
  */
 
 import type { Locale } from "@/lib/i18n";
+import { formatMeasure, type MeasureKind, type UnitSystem } from "@/lib/units";
 
 export interface ScalarSpec {
   key: string;
+  /** The metric unit (what the API returns); `unitLabel(kind, "metric")` equals it. */
   unit: string;
+  /** What the scalar measures, so it converts with the unit system. */
+  kind: MeasureKind;
   primary?: boolean;
   /** Glossary term key (see lib/glossary.ts) for an info tooltip. */
   term?: string;
 }
 
 export const SCALAR_SPECS: ScalarSpec[] = [
-  { key: "apogee_m", unit: "m", primary: true, term: "apogee" },
-  { key: "max_velocity_ms", unit: "m/s", primary: true },
-  { key: "max_mach", unit: "", primary: true, term: "mach" },
-  { key: "flight_time_s", unit: "s", primary: true },
-  { key: "apogee_time_s", unit: "s" },
-  { key: "max_acceleration_ms2", unit: "m/s²" },
-  { key: "max_acceleration_time_s", unit: "s" },
-  { key: "max_velocity_time_s", unit: "s" },
-  { key: "rail_departure_velocity_ms", unit: "m/s", term: "rail_departure" },
-  { key: "rail_departure_time_s", unit: "s" },
-  { key: "rail_departure_stability_margin", unit: "cal", term: "stability_margin" },
-  { key: "impact_velocity_ms", unit: "m/s" },
-  { key: "apogee_x_m", unit: "m" },
-  { key: "apogee_y_m", unit: "m" },
-  { key: "impact_x_m", unit: "m" },
-  { key: "impact_y_m", unit: "m" },
+  { key: "apogee_m", unit: "m", kind: "length", primary: true, term: "apogee" },
+  { key: "max_velocity_ms", unit: "m/s", kind: "speed", primary: true },
+  { key: "max_mach", unit: "", kind: "none", primary: true, term: "mach" },
+  { key: "flight_time_s", unit: "s", kind: "time", primary: true },
+  { key: "apogee_time_s", unit: "s", kind: "time" },
+  { key: "max_acceleration_ms2", unit: "m/s²", kind: "acceleration" },
+  { key: "max_acceleration_time_s", unit: "s", kind: "time" },
+  { key: "max_velocity_time_s", unit: "s", kind: "time" },
+  { key: "rail_departure_velocity_ms", unit: "m/s", kind: "speed", term: "rail_departure" },
+  { key: "rail_departure_time_s", unit: "s", kind: "time" },
+  { key: "rail_departure_stability_margin", unit: "cal", kind: "stability", term: "stability_margin" },
+  { key: "impact_velocity_ms", unit: "m/s", kind: "speed" },
+  { key: "apogee_x_m", unit: "m", kind: "length" },
+  { key: "apogee_y_m", unit: "m", kind: "length" },
+  { key: "impact_x_m", unit: "m", kind: "length" },
+  { key: "impact_y_m", unit: "m", kind: "length" },
 ];
 
 /** Format a scalar value for display (rounded, locale-grouped). */
@@ -53,4 +57,17 @@ export function formatScalar(
     maximumFractionDigits: digits,
   });
   return unit ? `${num} ${unit}` : num;
+}
+
+/**
+ * A scalar in the unit system in effect: the SI value converted with the
+ * spec's kind and labelled for `system`. Metric is exactly `formatScalar`.
+ */
+export function formatScalarIn(
+  value: number | null,
+  spec: Pick<ScalarSpec, "kind">,
+  system: UnitSystem,
+  locale: Locale = "en",
+): string {
+  return formatMeasure(value, spec.kind, system, locale);
 }

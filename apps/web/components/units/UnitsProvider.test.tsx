@@ -50,3 +50,14 @@ describe("UnitsProvider + UnitsToggle", () => {
     );
   });
 });
+
+describe("useUnits — outside a UnitsProvider", () => {
+  it("falls back to metric in the current locale, byte-identical to the metric provider", () => {
+    render(
+      <LocaleProvider initialLocale="es">
+        <Probe />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText("metric: 10,7 m/s")).toBeInTheDocument();
+  });
+});

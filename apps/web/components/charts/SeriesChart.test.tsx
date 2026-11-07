@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { SeriesChart } from "./SeriesChart";
 
 // echarts draws on a <canvas>, which jsdom does not provide. The chart's
@@ -106,5 +107,28 @@ describe("SeriesChart — controlled metric (flight series panel)", () => {
     };
     expect(option.series[0].lineStyle.color).toBe("#abcdef");
     expect(option.xAxis.axisLabel.color).toBe("#222222");
+  });
+});
+
+describe("SeriesChart — imperial units", () => {
+  it("plots altitude in ft with the axis, tooltip and accessible name in ft", () => {
+    setOption.mockClear();
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <SeriesChart series={series} />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+    const option = setOption.mock.calls.at(-1)?.[0] as {
+      yAxis: { name: string };
+      series: { data: [number, number][] }[];
+      tooltip: { formatter: (params: unknown) => string };
+    };
+    expect(option.yAxis.name).toBe("Altitude (ft)");
+    // 20 m = 65.6168 ft.
+    expect(option.series[0].data[2][1]).toBeCloseTo(65.6168, 3);
+    expect(option.tooltip.formatter([{ value: [2, 65.6168] }])).toContain("65.62 ft");
+    expect(screen.getByRole("img", { name: "Altitude over time, peak 65.62" })).toBeInTheDocument();
   });
 });

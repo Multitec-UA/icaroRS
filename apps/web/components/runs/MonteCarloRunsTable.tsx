@@ -23,6 +23,7 @@ import { cn } from "@/lib/styles";
 import { Callout, Tooltip, buttonClass } from "@/components/ui";
 import { cardClass } from "@/components/ui/classes";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { EyeIcon, PlayIcon } from "@/components/workbench/icons";
 import { RunsSkeleton } from "./RunsSkeleton";
 import { workbenchMonteCarloHref } from "./OpenInWorkbenchButton";
@@ -41,6 +42,7 @@ const STATUS_KEY: Record<MonteCarloSummary["status"], string> = {
 export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string; rocketName: string }) {
   const t = useT();
   const { locale } = useLocale();
+  const { display, label } = useUnits();
   const { dateTime } = useRunFormatters();
   const list = useMonteCarloListQuery(rocketId);
   const runs = list.data ?? [];
@@ -71,7 +73,7 @@ export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string
               {t("runs.mcColFlights")}
             </th>
             <th scope="col" className={cn(HEAD_CELL, "text-right")}>
-              {t("runs.mcColApogee")}
+              {t("runs.mcColApogee", { unit: label("length") })}
             </th>
             <th scope="col" className={cn(HEAD_CELL, "w-px")}>
               <span className="sr-only">{t("runs.colActions")}</span>
@@ -103,7 +105,7 @@ export function MonteCarloRunsTable({ rocketId, rocketName }: { rocketId: string
                 </td>
                 <td className={cn(CELL, "text-right tabular-nums")}>{run.n}</td>
                 <td className={cn(CELL, "text-right tabular-nums")}>
-                  {median === null ? "—" : formatNumber(median, locale, 0)}
+                  {median === null ? "—" : formatNumber(display(median, "length"), locale, 0)}
                 </td>
                 <td className={CELL}>
                   <span className="flex items-center justify-end gap-1">

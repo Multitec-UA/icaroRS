@@ -10,6 +10,7 @@
 import { fileLabel } from "./exports";
 import type { SimulationSummary } from "@/lib/api";
 import type { Locale } from "@/lib/i18n";
+import type { MeasureKind } from "@/lib/units";
 import { canonicalScenario, scenarioDiff, type ChangeGroup } from "./scenario";
 
 // ---------------------------------------------------------------------------
@@ -36,6 +37,14 @@ export const RUN_METRIC_UNITS: Record<RunMetricKey, string> = {
   maxSpeed: "m/s",
   flightTime: "s",
   landing: "m",
+};
+
+/** What each compared number measures; the table converts values and deltas with it. */
+export const RUN_METRIC_KINDS: Record<RunMetricKey, MeasureKind> = {
+  apogee: "length",
+  maxSpeed: "speed",
+  flightTime: "time",
+  landing: "length",
 };
 
 function finite(value: unknown): number | null {
