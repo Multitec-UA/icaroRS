@@ -33,11 +33,11 @@ Stability:
     WindMarginResult      — static and with-wind margins, AoA, CPs
 
 Real flight interop (contract mt-interop schema v1):
-    interop_simulation_payload    — Flight → site, events, stats, series
-    interop_simulation_from_series — approximate payload from stored chart data
-    compare_with_real_flight      — simulated vs real flight → FlightComparison
-    FlightComparison              — aligned series, event/KPI deltas, RMSE, warnings
-    InteropSchemaError            — an interop document has the wrong schema
+    interop_simulation_payload     - Flight → site, events, stats, series
+    interop_simulation_from_series - approximate payload from stored chart data
+    compare_with_real_flight       - simulated vs real flight → FlightComparison
+    FlightComparison               - aligned series, event/KPI deltas, RMSE, warnings
+    InteropSchemaError             - an interop document has the wrong schema
 
 Phase D (Sensitivity) — forward stub, implemented in Phase D:
     run_sensitivity
