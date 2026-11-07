@@ -15,7 +15,7 @@ Forecast: ~600 authored changed lines (T1 ~120, T2 ~250, T3 ~230).
 
 ## Tasks
 
-- [ ] T1 — S4, S6 — route: delegated writer (context backstop, parent at ~550k) — serializer `body_segments` + v1.7.1 fixture + tests.
+- [x] T1 — S4, S6 (fixture/geometry) — route: delegated writer (context backstop, parent at ~550k) — serializer `body_segments` + v1.7.1 fixture + tests — commit 342d0dc (writer: RED module missing → GREEN; unit 59, acceptance 9; differential vs HEAD: existing keys byte-identical; regenerated acceptance JSONs are additions only; Risk: none)
 - [ ] T2 — S2, S3, S5 (domain/API/CLI), S6 — route: delegated writer, parallel with T1 against the S4 contract (disjoint surfaces) — `packages/icaro` computation + API scalars + CLI line + tests.
 - [ ] T3 — S5 (web) — route: delegated writer after T2 — web display, InfoTip, report, i18n, regenerated API types.
 
@@ -24,3 +24,4 @@ Forecast: ~600 authored changed lines (T1 ~120, T2 ~250, T3 ~230).
 - L1 (2026-11-07, user): "La estabilidad del riel en RocketPi me da mucho más que en OpenRocket. De hecho, lo que de verdad me da RocketPi, o sea, en Icaro, con ese dato no deberían de dejarnos volar. Revisemos por qué. La simulación la estoy haciendo con el 1.7 que tengo en descargas."
 - L2 (2026-11-07): converter fin-position bug fixed and deployed (PR #160, mt-icaro-api-00034). Residual gap on MT1-v1.7.1: OpenRocket 4.54 cal vs icaro 5.79 cal at rail exit; CG equal (0.758), CP 1.030 vs 1.105. Explorer + parent spot check: the whole gap is OpenRocket's AoA-dependent body lift (S2).
 - L3 (2026-11-07, user): "vamos con esa" — the reporting-only OpenRocket-equivalent margin, both numbers shown together.
+- L4 (2026-11-07): T1 committed 342d0dc. The acceptance key-set check against `examples/*/parameters.json` now ignores the optional `body_segments` (asserts it is a list). MT1-v1.7.1 segments: Ojiva 0/0.18 (0→0.03), Cuerpo 0.18/1.0, Aletas 1.18/0.2, Body Tube 1.38/0.02 (r 0.03).
