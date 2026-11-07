@@ -711,6 +711,13 @@
     }
   },
 
+  "units": {
+    "label": "Unidades",
+    "metricShort": "m",
+    "imperialShort": "ft",
+    "switchToImperial": "Cambiar a unidades imperiales",
+    "switchToMetric": "Cambiar a unidades métricas"
+  },
   "theme": {
     "label": "Tema",
     "switchToDark": "Cambiar al modo oscuro",

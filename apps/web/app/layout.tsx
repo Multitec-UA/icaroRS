@@ -8,6 +8,8 @@ import { QueryProvider } from "@/components/providers/QueryProvider";
 import { AmbientBackground } from "@/components/AmbientBackground";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
+import { UNITS_COOKIE, resolveUnitSystem, type UnitSystem } from "@/lib/units";
 import { resolveLocale, type Locale } from "@/lib/i18n";
 import { getServerT } from "@/lib/server-i18n";
 import { THEME_COOKIE, resolveThemePreference, themeColorFor, type ThemePreference } from "@/lib/theme";
@@ -55,6 +57,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/** The unit system lives in a cookie the client writes (UnitsProvider). */
+async function requestUnits(): Promise<UnitSystem> {
+  const cookieStore = await cookies();
+  return resolveUnitSystem(cookieStore.get(UNITS_COOKIE)?.value);
+}
+
 /** The theme preference lives in a cookie the client writes (ThemeProvider). */
 async function requestTheme(): Promise<ThemePreference> {
   const cookieStore = await cookies();
@@ -79,7 +87,7 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const [locale, theme] = await Promise.all([requestLocale(), requestTheme()]);
+  const [locale, theme, units] = await Promise.all([requestLocale(), requestTheme(), requestUnits()]);
 
   return (
     <html
@@ -100,13 +108,17 @@ export default async function RootLayout({
               → "en"), so the first render is already in the right language. */}
           <LocaleProvider initialLocale={locale}>
             <ThemeProvider initialPreference={theme}>
-              {/* Auth + wizard state live at the root so they persist across the
-                  wizard (/) and the results page (/results/[runId]). WizardProvider
-                  wraps AuthGate so the shared nav (AppNav) can reset the wizard form
-                  when leaving the results screen. */}
-              <WizardProvider>
-                <AuthGate>{children}</AuthGate>
-              </WizardProvider>
+              {/* Units are resolved server-side too (cookie → "metric"), so the
+                  first paint already shows the chosen system. */}
+              <UnitsProvider initialSystem={units}>
+                {/* Auth + wizard state live at the root so they persist across the
+                    wizard (/) and the results page (/results/[runId]). WizardProvider
+                    wraps AuthGate so the shared nav (AppNav) can reset the wizard form
+                    when leaving the results screen. */}
+                <WizardProvider>
+                  <AuthGate>{children}</AuthGate>
+                </WizardProvider>
+              </UnitsProvider>
             </ThemeProvider>
           </LocaleProvider>
         </QueryProvider>

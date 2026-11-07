@@ -611,6 +611,11 @@ export type MessageKey =
   | "launchday.point.SW"
   | "launchday.point.W"
   | "launchday.point.NW"
+  | "units.label"
+  | "units.metricShort"
+  | "units.imperialShort"
+  | "units.switchToImperial"
+  | "units.switchToMetric"
   | "theme.label"
   | "theme.switchToDark"
   | "theme.switchToLight";
