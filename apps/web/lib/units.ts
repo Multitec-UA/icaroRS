@@ -35,32 +35,34 @@ export type MeasureKind =
   | "stability" // cal (unchanged)
   | "none"; // Mach, %, counts
 
-const FT_PER_M = 1 / 0.3048; // exact: 1 ft is defined as 0.3048 m
-const MI_PER_KM = 0.621371;
-const LB_PER_KG = 2.20462;
-const IN_PER_MM = 1 / 25.4;
-const MPH_PER_KMH = 0.621371;
+// Exact definitions: how many metric display units one imperial unit is.
+// Stored this way so converting back to metric is a multiplication by an exact
+// constant (10 ft → 3.048 m, not 3.0480000000000005).
+const M_PER_FT = 0.3048;
+const KM_PER_MI = 1.609344;
+const KG_PER_LB = 0.45359237;
+const MM_PER_IN = 25.4;
 
 interface KindSpec {
   metric: string;
   imperial: string;
-  /** Multiply an SI (metric display) value by this to get the imperial one. */
-  factor: number;
+  /** Metric display units per imperial unit: imperial = metric / perImperial. */
+  perImperial: number;
 }
 
 const KINDS: Record<MeasureKind, KindSpec> = {
-  length: { metric: "m", imperial: "ft", factor: FT_PER_M },
-  distance: { metric: "km", imperial: "mi", factor: MI_PER_KM },
-  speed: { metric: "m/s", imperial: "ft/s", factor: FT_PER_M },
-  windSpeed: { metric: "km/h", imperial: "mph", factor: MPH_PER_KMH },
-  mass: { metric: "kg", imperial: "lb", factor: LB_PER_KG },
-  diameter: { metric: "mm", imperial: "in", factor: IN_PER_MM },
-  acceleration: { metric: "m/s²", imperial: "ft/s²", factor: FT_PER_M },
-  impulse: { metric: "N·s", imperial: "N·s", factor: 1 },
-  angle: { metric: "°", imperial: "°", factor: 1 },
-  time: { metric: "s", imperial: "s", factor: 1 },
-  stability: { metric: "cal", imperial: "cal", factor: 1 },
-  none: { metric: "", imperial: "", factor: 1 },
+  length: { metric: "m", imperial: "ft", perImperial: M_PER_FT },
+  distance: { metric: "km", imperial: "mi", perImperial: KM_PER_MI },
+  speed: { metric: "m/s", imperial: "ft/s", perImperial: M_PER_FT },
+  windSpeed: { metric: "km/h", imperial: "mph", perImperial: KM_PER_MI },
+  mass: { metric: "kg", imperial: "lb", perImperial: KG_PER_LB },
+  diameter: { metric: "mm", imperial: "in", perImperial: MM_PER_IN },
+  acceleration: { metric: "m/s²", imperial: "ft/s²", perImperial: M_PER_FT },
+  impulse: { metric: "N·s", imperial: "N·s", perImperial: 1 },
+  angle: { metric: "°", imperial: "°", perImperial: 1 },
+  time: { metric: "s", imperial: "s", perImperial: 1 },
+  stability: { metric: "cal", imperial: "cal", perImperial: 1 },
+  none: { metric: "", imperial: "", perImperial: 1 },
 };
 
 export function resolveUnitSystem(cookieValue: string | undefined | null): UnitSystem {
@@ -73,12 +75,12 @@ export function unitLabel(kind: MeasureKind, system: UnitSystem): string {
 
 /** SI (metric display unit) → the display unit of `system`. */
 export function fromSi(value: number, kind: MeasureKind, system: UnitSystem): number {
-  return system === "imperial" ? value * KINDS[kind].factor : value;
+  return system === "imperial" ? value / KINDS[kind].perImperial : value;
 }
 
 /** The display unit of `system` → SI (metric display unit). */
 export function toSi(value: number, kind: MeasureKind, system: UnitSystem): number {
-  return system === "imperial" ? value / KINDS[kind].factor : value;
+  return system === "imperial" ? value * KINDS[kind].perImperial : value;
 }
 
 export function convert(value: number, kind: MeasureKind, from: UnitSystem, to: UnitSystem): number {
