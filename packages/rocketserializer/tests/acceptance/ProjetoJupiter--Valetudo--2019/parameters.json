@@ -69,8 +69,8 @@
     "rail_buttons": {
         "name": "Guia de lançamento",
         "upper_position": 1.147669,
-        "lower_position": 2.399169,
-        "distance": 1.2515,
+        "lower_position": 2.341169,
+        "distance": 1.1934999999999998,
         "angular_position": 29.999999999999996
     },
     "motors": {

@@ -135,6 +135,13 @@ Only simulations with flight data (a `<flightdata>` holding at least one
 | `loaded_other` | first `loaded` simulation (OpenRocket marks saved results as loaded) |
 | `fallback` | first simulation with flight data, any status (e.g. `outdated`) |
 
+#### Component positions
+
+The `position` of nose cones, tails, fin sets and rail buttons is the
+component's front measured from the nose tip, as OpenRocket places it (for fin
+sets, the leading edge of the root chord). It does not depend on the sibling
+components that share the same parent tube.
+
 #### Manifest keys for provenance and motor identity
 
 - `id.ork_format_version`: the `<openrocket version>` attribute, i.e. the
