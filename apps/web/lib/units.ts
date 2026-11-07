@@ -35,7 +35,7 @@ export type MeasureKind =
   | "stability" // cal (unchanged)
   | "none"; // Mach, %, counts
 
-const FT_PER_M = 3.28084;
+const FT_PER_M = 1 / 0.3048; // exact: 1 ft is defined as 0.3048 m
 const MI_PER_KM = 0.621371;
 const LB_PER_KG = 2.20462;
 const IN_PER_MM = 1 / 25.4;
