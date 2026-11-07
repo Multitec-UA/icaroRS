@@ -27,3 +27,4 @@ Forecast: ~600 authored changed lines (T1 ~120, T2 ~250, T3 ~230).
 - L4 (2026-11-07): T1 committed 342d0dc. The acceptance key-set check against `examples/*/parameters.json` now ignores the optional `body_segments` (asserts it is a list). MT1-v1.7.1 segments: Ojiva 0/0.18 (0→0.03), Cuerpo 0.18/1.0, Aletas 1.18/0.2, Body Tube 1.38/0.02 (r 0.03).
 - L5 (2026-11-07): T2 committed 97e9260. Residual 0.12 cal comes from RocketPy's rail-exit AoA being ~11% above OpenRocket's (6.97° vs 6.3°), a dynamics difference (OpenRocket wind turbulence/rail model), not the body-lift formula.
 - L6 (2026-11-07): T3 committed 8ff3fe0. Open follow-up: the .ork's stored results carry no OpenRocket rail-exit margin (only max/min/burnout), so the report's OpenRocket column stays "—" for both rail-exit rows; adding it needs the converter + `lib/domain/rocket.ts`.
+- L-close (2026-11-07): PR #161 merged to main (fac797d); API + web deploy of fac797d launched.
