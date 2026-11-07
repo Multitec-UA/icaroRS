@@ -4,17 +4,20 @@
  * LaunchChecklist — the SURT x SpainRocketry L1 limits as a go/no-go table
  * for one rail setting (launch-day S6b). One row per check the API returned
  * (`checks_current` / `checks_best`): what is checked, the simulated value
- * with its unit, the limit (and whether it is a hard limit or a
+ * and the limit in the selected unit system (units S6; `ok` stays the API's
+ * verdict on the SI values), the limit (and whether it is a hard limit or a
  * recommendation), the guide's requirement id or "Common practice", and the
  * status: green = passes, amber = a recommendation is missed (soft), red =
  * a limit is broken (hard). Every rule has an InfoTip in plain words.
  */
 
 import type { LaunchCheck } from "@/lib/api/launchday";
-import { CHECK_UNIT, checkStatus, requirementLabel, statusTone, type CheckStatus } from "@/lib/domain/launchday";
+import { CHECK_KIND, checkStatus, measureDecimals, requirementLabel, statusTone, type CheckStatus } from "@/lib/domain/launchday";
+import { fromSi, unitLabel, type MeasureKind, type UnitSystem } from "@/lib/units";
 import { cn } from "@/lib/styles";
 import { InfoTip, toneClass } from "@/components/ui";
 import { useLocale, useT } from "@/components/i18n/LocaleProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 
 const STATUS_KEY: Record<CheckStatus, "launchday.statusOk" | "launchday.statusSoft" | "launchday.statusHard"> = {
   ok: "launchday.statusOk",
@@ -24,31 +27,32 @@ const STATUS_KEY: Record<CheckStatus, "launchday.statusOk" | "launchday.statusSo
 
 const COMPARATOR: Record<LaunchCheck["comparator"], string> = { "<=": "≤ ", ">=": "≥ ", between: "" };
 
-/** Decimals shown per unit: calibres to the hundredth, speeds and angles to the tenth. */
-function decimalsFor(unit: string): number {
-  if (unit === "cal") return 2;
-  if (unit === "m/s" || unit === "°") return 1;
-  return 0;
+/**
+ * A launch-day measure (SI from the API) in the unit system's unit, with the
+ * decimals of `measureDecimals`: "540 m" / "1,772 ft", "22.1 m/s", "86°".
+ */
+export function formatLaunchMeasure(value: number, kind: MeasureKind, system: UnitSystem, locale: string): string {
+  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: measureDecimals(kind, system) }).format(
+    fromSi(value, kind, system),
+  );
+  const unit = unitLabel(kind, system);
+  return kind === "angle" ? `${number}${unit}` : `${number} ${unit}`;
 }
 
-export function formatMeasure(value: number, unit: string, locale: string): string {
-  const number = new Intl.NumberFormat(locale, { maximumFractionDigits: decimalsFor(unit) }).format(value);
-  return unit === "°" ? `${number}°` : `${number} ${unit}`;
-}
-
-function formatLimit(check: LaunchCheck, locale: string): string {
-  const unit = CHECK_UNIT[check.id];
+function formatLimit(check: LaunchCheck, system: UnitSystem, locale: string): string {
+  const kind = CHECK_KIND[check.id];
   if (Array.isArray(check.limit)) {
     const [low, high] = check.limit;
-    const format = new Intl.NumberFormat(locale, { maximumFractionDigits: decimalsFor(unit) });
-    return `${format.format(low)}–${formatMeasure(high, unit, locale)}`;
+    const format = new Intl.NumberFormat(locale, { maximumFractionDigits: measureDecimals(kind, system) });
+    return `${format.format(fromSi(low, kind, system))}–${formatLaunchMeasure(high, kind, system, locale)}`;
   }
-  return `${COMPARATOR[check.comparator]}${formatMeasure(check.limit, unit, locale)}`;
+  return `${COMPARATOR[check.comparator]}${formatLaunchMeasure(check.limit, kind, system, locale)}`;
 }
 
 export function LaunchChecklist({ title, checks }: { title: string; checks: readonly LaunchCheck[] }) {
   const t = useT();
   const { locale } = useLocale();
+  const { system } = useUnits();
   return (
     <div className="flex min-w-0 flex-col gap-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-muted">{title}</h3>
@@ -77,10 +81,10 @@ export function LaunchChecklist({ title, checks }: { title: string; checks: read
                     </span>
                   </td>
                   <td className="py-1.5 pr-3 tabular-nums text-ink">
-                    {formatMeasure(check.value, CHECK_UNIT[check.id], locale)}
+                    {formatLaunchMeasure(check.value, CHECK_KIND[check.id], system, locale)}
                   </td>
                   <td className="py-1.5 pr-3 tabular-nums text-ink-2">
-                    {`${formatLimit(check, locale)} · ${t(check.severity === "hard" ? "launchday.severityHard" : "launchday.severitySoft")}`}
+                    {`${formatLimit(check, system, locale)} · ${t(check.severity === "hard" ? "launchday.severityHard" : "launchday.severitySoft")}`}
                   </td>
                   <td className="py-1.5 pr-3 text-ink-2">{requirement ?? t("launchday.commonPractice")}</td>
                   <td className="py-1.5">

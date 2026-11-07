@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { ApiError } from "@/lib/api";
 import { SWEEP, candidate } from "@/components/workbench/launchDayFixtures";
 import { LaunchDayCard, type LaunchDayCardProps } from "./LaunchDayCard";
@@ -105,5 +106,49 @@ describe("LaunchDayCard (launch-day S6b)", () => {
     renderCard({ status: "done", result: SWEEP });
     expect(screen.getByRole("table", { name: "Current setting" })).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Recommended setting" })).toBeInTheDocument();
+  });
+});
+
+describe("LaunchDayCard — imperial units (units S6)", () => {
+  function renderImperial(result = SWEEP) {
+    render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <LaunchDayCard
+            status="done"
+            result={result}
+            error={null}
+            disabledReason={null}
+            applied={false}
+            onRun={vi.fn()}
+            onApply={vi.fn()}
+          />
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+  }
+
+  it("headline distance in feet and the wind used in mph", () => {
+    renderImperial();
+    expect(
+      screen.getByText("Inclination 86°, heading 240° (SW): lands about 400 ft to the NE of the pad."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Wind used: 11.2 mph from 270° (measured)")).toBeInTheDocument();
+  });
+
+  it("the closest settings table converts distance, apogee and rail exit speed", () => {
+    renderImperial();
+    const table = screen.getByRole("table", { name: "Closest settings" });
+    const first = within(within(table).getAllByRole("row")[1]).getAllByRole("cell").map((cell) => cell.textContent);
+    expect(first).toEqual(["86°", "240° (SW)", "405 ft", "1,772 ft", "72.5 ft/s", "1.8 cal", "✓Passes"]);
+  });
+
+  it("the no-pass headline converts too", () => {
+    renderImperial({ ...SWEEP, best: candidate(80, 0, 640, false) });
+    expect(
+      screen.getByText(
+        "No setting passes every hard check; the closest is inclination 80°, heading 0° (N), landing about 2,100 ft to the NE of the pad.",
+      ),
+    ).toBeInTheDocument();
   });
 });

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useEffect, type ReactNode } from "react";
 import { LocaleProvider } from "@/components/i18n/LocaleProvider";
+import { UnitsProvider } from "@/components/units/UnitsProvider";
 import { WizardProvider, useWizardDraft } from "@/components/wizard/WizardProvider";
 import { LaunchRailSection } from "./LaunchRailSection";
 
@@ -122,5 +123,49 @@ describe("LaunchRailSection (S4)", () => {
       expect(input).toHaveValue(null);
     }
     expect(screen.queryByText("From .ork")).toBeNull();
+  });
+});
+
+describe("LaunchRailSection — rail length in imperial units (units S5)", () => {
+  function renderImperial() {
+    return render(
+      <LocaleProvider initialLocale="en">
+        <UnitsProvider initialSystem="imperial">
+          <WizardProvider>
+            <Probe manifest={MANIFEST} />
+            <LaunchRailSection errors={[]} />
+          </WizardProvider>
+        </UnitsProvider>
+      </LocaleProvider>,
+    );
+  }
+
+  it("shows the file's length in feet, angles unchanged", () => {
+    renderImperial();
+    expect(screen.getByLabelText("Rail length (ft)")).toHaveValue(17.06);
+    expect(screen.getByLabelText("Inclination (°)")).toHaveValue(85);
+    expect(screen.getByLabelText("Heading (°)")).toHaveValue(90);
+  });
+
+  it("typing feet stores metres: 10 ft → 3.048 m in the body, Reset names the file value in feet", () => {
+    renderImperial();
+    fireEvent.change(screen.getByLabelText("Rail length (ft)"), { target: { value: "10" } });
+    expect(draft?.state.railOverrides.length).toBeCloseTo(3.048, 6);
+    expect((draft?.scenarioBody().rail as { length: number }).length).toBeCloseTo(3.048, 6);
+    fireEvent.blur(screen.getByLabelText("Rail length (ft)"));
+    expect(screen.getByLabelText("Rail length (ft)")).toHaveValue(10);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset to 17.06 ft" }));
+    expect(draft?.state.railOverrides).toEqual({});
+  });
+
+  it("sends the same SI body as typing the equivalent metres", () => {
+    renderImperial();
+    fireEvent.change(screen.getByLabelText("Rail length (ft)"), { target: { value: "10" } });
+    const imperial = draft?.scenarioBody();
+    cleanup();
+    renderRail();
+    fireEvent.change(screen.getByLabelText("Rail length (m)"), { target: { value: String(10 / 3.28084) } });
+    expect(imperial).toEqual(draft?.scenarioBody());
   });
 });

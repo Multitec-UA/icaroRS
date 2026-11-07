@@ -5,11 +5,16 @@
  * point (map click or place search) fills latitude/longitude and looks the
  * elevation up from the DEM (GET /api/elevation); the three fields stay
  * editable by hand. Same logic the wizard's BasicsStep had.
+ *
+ * The elevation shows and accepts the selected length unit (m or ft, units
+ * S5); the draft keeps metres, so switching units never changes the run.
  */
 
 import { useCallback, useState } from "react";
 import { ApiError, getElevation, type FieldError } from "@/lib/api";
+import { inputNumber, sameNumber } from "@/lib/domain/scenario";
 import { useWizardDraft } from "@/components/wizard/WizardProvider";
+import { useUnits } from "@/components/units/UnitsProvider";
 import { useAuth } from "@/components/auth/AuthGate";
 import { SitePicker } from "@/components/map/SitePicker";
 import { Field, TextInput } from "@/components/ui";
@@ -22,7 +27,12 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
   const { state, setSite } = useWizardDraft();
   const { logout } = useAuth();
   const [elevationNote, setElevationNote] = useState<string | null>(null);
+  const units = useUnits();
+  // Imperial only: the typed feet are kept while they still denote the
+  // stored metres, so the round trip never rewrites the field mid-typing.
+  const [elevationText, setElevationText] = useState<string | null>(null);
   const site = state.site;
+  const elevationShown = shownElevation(site?.elevation ?? null, elevationText, units);
 
   const pickPoint = useCallback(
     async (lat: number, lon: number) => {
@@ -46,7 +56,8 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
   );
 
   function updateSiteField(field: "latitude" | "longitude" | "elevation", value: string) {
-    const num = value === "" ? null : Number(value);
+    const typed = value === "" ? null : Number(value);
+    const num = typed !== null && field === "elevation" ? units.si(typed, "length") : typed;
     const base = site ?? { latitude: NaN, longitude: NaN, elevation: null };
     setSite({
       latitude: field === "latitude" ? (num ?? NaN) : base.latitude,
@@ -93,7 +104,7 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
             onChange={(e) => updateSiteField("longitude", e.target.value)}
           />
         </Field>
-        <Field label={t("workbench.fieldElevation")} htmlFor="elev" error={errorFor(errors, "site.elevation")}>
+        <Field label={t("workbench.fieldElevation", { unit: units.label("length") })} htmlFor="elev" error={errorFor(errors, "site.elevation")}>
           <TextInput
             id="elev"
             name="elevation"
@@ -102,8 +113,12 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
             autoComplete="off"
             step="any"
             className="h-9"
-            value={site && site.elevation !== null ? site.elevation : ""}
-            onChange={(e) => updateSiteField("elevation", e.target.value)}
+            value={elevationShown}
+            onChange={(e) => {
+              if (units.system === "imperial") setElevationText(e.target.value);
+              updateSiteField("elevation", e.target.value);
+            }}
+            onBlur={() => setElevationText(null)}
           />
         </Field>
       </div>
@@ -114,4 +129,18 @@ export function LaunchSiteSection({ errors }: { errors: FieldError[] }) {
       </p>
     </Section>
   );
+}
+
+/** The elevation field's value: metres as stored in metric, feet (or the typed text) in imperial. */
+function shownElevation(
+  elevation: number | null,
+  text: string | null,
+  units: ReturnType<typeof useUnits>,
+): number | string {
+  if (units.system === "metric") return elevation !== null ? elevation : "";
+  const shown = elevation === null ? null : units.display(elevation, "length");
+  if (text !== null && (text.trim() === "" ? shown === null : shown !== null && sameNumber(Number(text), shown))) {
+    return text;
+  }
+  return shown === null ? "" : inputNumber(shown, units.system);
 }

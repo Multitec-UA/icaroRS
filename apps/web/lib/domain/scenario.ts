@@ -14,6 +14,7 @@
  */
 
 import type { Atmosphere, AtmosphereModel, LaunchDate, Site } from "@/lib/api";
+import type { UnitSystem } from "@/lib/units";
 import { kmhToMs, msToKmh } from "./launchday";
 
 // ---------------------------------------------------------------------------
@@ -453,4 +454,21 @@ export function runBlocker(progress: RunReadiness): RunBlocker | null {
   if (!hasFiniteSite(progress.site)) return "site";
   if (missesRequiredDate(progress)) return "date";
   return null;
+}
+
+/*
+ * Inputs in the display unit (units S5). The draft keeps SI whatever the user
+ * sees; the wind, elevation and rail-length inputs convert at their boundary
+ * with `useUnits().display()` / `si()`. These two rules keep that round trip
+ * from leaking float tails into the field.
+ */
+
+/** A draft value as an input shows it: untouched in metric, to the hundredth in imperial (no 9.999999 tails). */
+export function inputNumber(value: number, system: UnitSystem): number {
+  return system === "metric" ? value : Math.round(value * 100) / 100 + 0;
+}
+
+/** True when a typed number still denotes `value`, a unit round trip's float noise aside. */
+export function sameNumber(a: number, b: number): boolean {
+  return Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
 }
