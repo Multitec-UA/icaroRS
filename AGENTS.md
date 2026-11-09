@@ -54,6 +54,21 @@ restructuring or adding code.**
 - **Project-specific conventions & gotchas** (e.g. RocketSerializer test
   patching): `.atl/skill-registry.md`.
 
+## Infrastructure is owned by Terraform
+
+The Cloud Run services (`mt-icaro-api`, `mt-icaro-web`) and the rest of the GCP
+configuration live in Terraform, in
+[`Multitec-UA/multitec-terrafrom`](https://github.com/Multitec-UA/multitec-terrafrom).
+
+- Make infrastructure changes (scaling, CPU, memory, env vars, ingress, IAM,
+  triggers) in that repo, never by hand with `gcloud` or the console. Manual
+  changes drift out of Terraform and get overwritten.
+- Agree infrastructure changes with DevOps before applying them.
+- Keep `mt-icaro-api` at `min-instances 0`. With `--no-cpu-throttling`,
+  `min-instances 1` bills the instance 24 hours a day (about 4 EUR/day).
+- Merging to `main` already deploys a new image through Cloud Build; see
+  [`DEPLOY.md`](DEPLOY.md).
+
 ## Pointers
 
 - Core engine guidance: [`packages/rocketpy/AGENTS.md`](packages/rocketpy/AGENTS.md)
