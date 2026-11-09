@@ -89,7 +89,8 @@ Three facts, all verified in the code:
    under `ICARO_RESULTS_DIR/<run_id>` and reads them back later by `run_id`.
    Cloud Run's filesystem is **per-instance and in-memory (tmpfs)**. With 2+
    instances, a `simulate` on instance A and the results fetch on instance B →
-   **404**. So: `min-instances = max-instances = 1`.
+   **404**. So: `max-instances = 1` (and `min-instances = 0`, see the cost note
+   under "Deploy — API").
 2. **`simulate` is process-serialized** by a global lock that also guards
    matplotlib's global state. More than one uvicorn worker would corrupt that —
    so **one worker** (baked into the image's `CMD`).
@@ -151,7 +152,7 @@ gcloud run services update icaro-api --region REGION \
 > lock guarding matplotlib's global state. With `max-instances > 1` that lock no
 > longer serializes globally. Lifting the pin needs a cross-instance lock (or
 > moving simulate off the request path) — not done yet. Keep
-> `min-instances = max-instances = 1`.
+> `max-instances = 1`.
 
 ### Composite indexes (org_id [+ rocket_id] + created_at)
 
@@ -311,7 +312,7 @@ there is nothing to create in Secret Manager for it.
 gcloud run deploy icaro-api \
   --image REGION-docker.pkg.dev/PROJECT/icaro/api:TAG \
   --region REGION \
-  --min-instances 1 --max-instances 1 \
+  --min-instances 0 --max-instances 1 \
   --concurrency 8 \
   --cpu 2 --memory 2Gi \
   --timeout 300 \
@@ -338,8 +339,18 @@ gcloud run deploy icaro-api \
   jobs: `POST /api/montecarlo` returns `202` at once and the run keeps going in
   a background subprocess for minutes, outside any request — with request-based
   billing Cloud Run would throttle its CPU to near zero between requests. The
-  trade-off is cost: the instance is billed for CPU continuously, not per
-  request (with `min-instances 1` it is always up anyway).
+  trade-off is cost: the instance is billed for CPU the whole time it is up,
+  not per request.
+- **Keep `--min-instances 0`.** `min-instances 1` with `--no-cpu-throttling`
+  bills 2 vCPU + 2Gi all day, about 4 EUR a day (it ran that way from
+  2026-11-06 to 2026-11-09 for 4 requests a day). A Monte Carlo job still
+  finishes with 0: the web polls its status every 2 s (`MC_POLL_MS`), and
+  those requests keep the instance up. The price is a JVM cold start on the
+  first request after an idle spell.
+- Terraform (`multitec-terrafrom`, `settings/multitecweb.yaml`) owns these
+  flags. Its google provider never sends `min_instances: 0`, so a hand-set
+  `min-instances 1` survives `terraform apply` with `No changes`: undo it with
+  `gcloud run services update mt-icaro-api --min-instances 0`.
 - Monte Carlo runs one job at a time on the instance (FIFO queue, `n` between
   `ICARO_MONTECARLO_MIN_N=10` and `ICARO_MONTECARLO_MAX_N=500`). The queue lives
   in memory: a restart or redeploy marks queued/running jobs as `error`
@@ -434,4 +445,4 @@ account, and run a `.ork` → simulate end-to-end.
 | API can't scale past 1 instance | per-instance simulate lock (matplotlib global state) | GCS removes the disk constraint, but the per-instance lock remains — needs a cross-instance lock to lift the pin |
 | Monte Carlo jobs lost on restart/redeploy | the job queue is in-process memory | a durable queue (e.g. Cloud Tasks / Cloud Run jobs); today they are marked `error` at startup |
 | No self-serve org signup | `org_id` custom claim is set by hand | admin console / invite flow |
-| First `convert` is slow | JVM cold start | `min-instances ≥ 1` already mitigates |
+| First `convert` is slow | JVM cold start | Expected with `min-instances 0`; not worth ~4 EUR/day to avoid |
